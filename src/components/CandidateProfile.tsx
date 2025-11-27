@@ -44,8 +44,8 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
             <p className="text-lg">{candidate.passport_number}</p>
           </div>
           <div className="text-sm">
-            <p className="font-medium text-muted-foreground">Country of Origin</p>
-            <p className="text-lg">{candidate.country_of_origin}</p>
+            <p className="font-medium text-muted-foreground">Phone Number</p>
+            <p className="text-lg">{candidate.phone_number || 'N/A'}</p>
           </div>
         </div>
         

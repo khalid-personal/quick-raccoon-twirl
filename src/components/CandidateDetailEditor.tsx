@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
-import { CandidateDetail } from '@/lib/types';
+import { CandidateDetail, Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 
@@ -36,6 +36,7 @@ const EditCandidateSchema = z.object({
   marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
     required_error: "Marital status is required.",
   }),
+  phone_number: z.string().optional(), // NEW FIELD
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
@@ -111,6 +112,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       batch_name: candidate.batch_name || NO_BATCH_OPTION,
       marital_status: candidate.marital_status, // Initialize marital status
+      phone_number: candidate.phone_number || '', // Initialize phone number
       new_batch_name: '',
     },
   });
@@ -146,6 +148,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
+        phone_number: data.phone_number || undefined, // Pass phone number
       });
       
       toast.success(`Candidate ${data.tracking_code} details updated successfully.`);
@@ -237,6 +240,13 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* Phone Number Input */}
+      <div className="space-y-2">
+        <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+        <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
+        {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
       </div>
       
       {/* Marital Status Selection */}

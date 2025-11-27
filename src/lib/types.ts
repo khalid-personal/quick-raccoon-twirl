@@ -53,6 +53,7 @@ export interface Candidate {
   country_of_origin: string; // REQUIRED
   batch_name?: string; // New optional field for grouping
   marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed'; // New field
+  phone_number?: string; // NEW FIELD
   created_at: string;
   updated_at: string;
 }

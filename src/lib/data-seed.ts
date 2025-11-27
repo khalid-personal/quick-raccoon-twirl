@@ -29,6 +29,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
     marital_status: 'Married',
+    phone_number: '+251911000001',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -42,6 +43,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
     marital_status: 'Single',
+    phone_number: '+251911000002',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -55,6 +57,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     country_of_origin: 'Djibouti',
     batch_name: 'Batch 2',
     marital_status: 'Divorced',
+    phone_number: '+25377000003',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -79,6 +82,9 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const currentYear = new Date().getFullYear();
         const birthYear = currentYear - (18 + (i % 18)); 
         const dob = `${birthYear}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`;
+        
+        const mockPhoneNumber = `+${Math.floor(100 + Math.random() * 900)}${String(Math.floor(10000000 + Math.random() * 90000000))}`;
+
 
         newCandidates.push({
             id: uuidv4(),
@@ -90,6 +96,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             country_of_origin: country,
             batch_name: batchName,
             marital_status: maritalStatus,
+            phone_number: mockPhoneNumber,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         });
@@ -98,74 +105,6 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
 };
 
 export const SEED_CANDIDATES: Candidate[] = [...EXISTING_SEED_CANDIDATES, ...generateNewMockCandidates(4)];
-
-// Helper to generate initial stages for a candidate
-export const generateInitialStages = (candidate: Candidate): CandidateStage[] => {
-  const isAster = candidate.tracking_code === 'TRK-ET-0001';
-  const isFatima = candidate.tracking_code === 'TRK-DJ-0003';
-  
-  const maxCompletedStages = Math.floor(Math.random() * (ALL_STAGES.length + 1));
-
-  return ALL_STAGES.map((stage, index) => {
-    const now = new Date().toISOString();
-    let status: StageStatus = 'Pending';
-    let date: string | undefined = undefined;
-    let reference_id: string | undefined = undefined;
-
-    // --- Specific Seed Logic for Existing Candidates ---
-    if (isAster) {
-      if (stage.slug === 'initial_medical') {
-        status = 'Passed';
-        date = '2025-11-10T00:00:00Z';
-      } else if (stage.slug === 'labor_id') {
-        status = 'Issued';
-        date = '2025-11-20T00:00:00Z';
-        reference_id = 'LID-12345';
-      } else if (stage.slug === 'final_medical') {
-        status = 'Passed';
-        date = '2025-11-22T00:00:00Z';
-      } else if (stage.slug === 'flight_departure') {
-        status = 'In Progress';
-        date = '2025-11-25T00:00:00Z';
-      }
-    } else if (isFatima) {
-      if (stage.slug === 'initial_medical') {
-        status = 'In Progress';
-        date = '2025-12-01T00:00:00Z';
-      }
-    } 
-    // --- Random Progress Logic for New Candidates ---
-    else {
-        if (index < maxCompletedStages) {
-            status = 'Passed';
-            const daysAgo = Math.floor(Math.random() * 60);
-            date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString(); 
-            
-            if (stage.slug === 'labor_id' && status === 'Passed') {
-                status = 'Issued';
-                reference_id = `LID-${Math.floor(10000 + Math.random() * 90000)}`;
-            }
-            
-            if (Math.random() < 0.05 && index < ALL_STAGES.length - 1) {
-                status = 'Failed';
-            }
-        } else if (index === maxCompletedStages && maxCompletedStages < ALL_STAGES.length) {
-            status = 'In Progress';
-        }
-    }
-
-    return {
-      id: uuidv4(),
-      candidate_id: candidate.id,
-      stage_id: stage.id,
-      status: status,
-      notes: undefined,
-      date: date,
-      updated_at: now,
-      reference_id: reference_id,
-    };
-  });
-};
 
 export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(candidate => generateInitialStages(candidate));
 
