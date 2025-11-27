@@ -45,10 +45,10 @@ export interface Candidate {
   id: string;
   first_name: string;
   last_name: string;
-  dob?: string; // ISO date string
-  passport_number?: string;
+  dob: string; // ISO date string - REQUIRED
+  passport_number: string; // REQUIRED
   tracking_code: string;
-  country_of_origin?: string;
+  country_of_origin: string; // REQUIRED
   is_minor: boolean;
   guardian_name?: string;
   guardian_contact?: string;

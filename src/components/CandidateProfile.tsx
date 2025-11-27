@@ -34,11 +34,11 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Passport Number</p>
-            <p className="text-lg">{candidate.passport_number || 'N/A'}</p>
+            <p className="text-lg">{candidate.passport_number}</p>
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Country of Origin</p>
-            <p className="text-lg">{candidate.country_of_origin || 'N/A'}</p>
+            <p className="text-lg">{candidate.country_of_origin}</p>
           </div>
         </div>
         

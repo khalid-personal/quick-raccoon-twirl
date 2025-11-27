@@ -181,6 +181,9 @@ export function calculateProgress(candidateStages: CandidateStage[]): number {
 
 // --- API Implementation ---
 
+// Define the required input type for creation
+type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'>;
+
 export const api = {
   // GET /api/admin/search?q=
   searchCandidates: async (query: string): Promise<CandidateSummary[]> => {
@@ -192,7 +195,7 @@ export const api = {
     const filteredCandidates = candidates.filter(c =>
       c.first_name.toLowerCase().includes(q) ||
       c.last_name.toLowerCase().includes(q) ||
-      c.passport_number?.toLowerCase().includes(q) ||
+      c.passport_number.toLowerCase().includes(q) || // passport_number is now guaranteed to be string
       c.tracking_code.toLowerCase().includes(q)
     );
     
@@ -311,7 +314,7 @@ export const api = {
   },
   
   // POST /api/admin/candidate
-  createCandidate: async (data: Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'> & { dob?: string }): Promise<Candidate> => {
+  createCandidate: async (data: CandidateCreationData): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     
@@ -319,7 +322,8 @@ export const api = {
         throw new Error("Tracking code already exists.");
     }
     
-    const isMinor = data.dob ? (new Date().getFullYear() - new Date(data.dob).getFullYear() < 18) : false;
+    // DOB is now guaranteed to be present
+    const isMinor = new Date().getFullYear() - new Date(data.dob).getFullYear() < 18;
 
     const newCandidate: Candidate = {
         ...data,
@@ -327,7 +331,7 @@ export const api = {
         is_minor: isMinor,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-    } as Candidate; // Cast to Candidate to satisfy type requirements after calculating is_minor
+    };
     
     candidates.push(newCandidate);
     saveCandidates(candidates);

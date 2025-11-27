@@ -19,8 +19,8 @@ const COUNTRY_OPTIONS = ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Other'];
 const NewCandidateSchema = z.object({
   first_name: z.string().min(1, "First name is required."),
   last_name: z.string().min(1, "Last name is required."),
-  dob: z.string().optional(), // ISO date string
-  passport_number: z.string().optional(),
+  dob: z.string().min(1, "Date of Birth is required."), // Made required
+  passport_number: z.string().min(1, "Passport number is required."), // Made required
   tracking_code: z.string().min(1, "Tracking code is required.").regex(/^TRK-[A-Z]{2,3}-\d{4,}$/, "Invalid tracking code format (e.g., TRK-ET-0001)."),
   country_of_origin: z.string().min(1, "Country of origin is required."),
   custom_country: z.string().optional(), // For 'Other' selection
@@ -95,8 +95,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       const newCandidate = await api.createCandidate({
         first_name: data.first_name,
         last_name: data.last_name,
-        dob: data.dob || undefined,
-        passport_number: data.passport_number || undefined,
+        dob: data.dob,
+        passport_number: data.passport_number,
         tracking_code: data.tracking_code,
         country_of_origin: finalCountry,
         guardian_name: data.is_minor ? data.guardian_name : undefined,
@@ -168,12 +168,12 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="passport_number">Passport Number</Label>
+          <Label htmlFor="passport_number">Passport Number *</Label>
           <Input id="passport_number" {...register('passport_number')} />
           {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="dob">Date of Birth (Optional, YYYY-MM-DD)</Label>
+          <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
