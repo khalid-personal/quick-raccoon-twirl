@@ -1,6 +1,14 @@
 import { Candidate, CandidateStage, MedicalResult, Document, StaffUser } from './types';
 import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS } from './data-keys';
 import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS } from './data-seed';
+import { LS_PAYMENT_STATUS } from './api/utils'; // Import the key from the new utils file
+
+// Define PaymentStatus interface locally for data store usage
+interface PaymentStatus {
+    candidateId: string;
+    stageId: number;
+    isPaid: boolean;
+}
 
 // --- Getter Functions ---
 
@@ -10,6 +18,7 @@ export const getMedicalResults = (): MedicalResult[] => JSON.parse(localStorage.
 export const getDocuments = (): Document[] => JSON.parse(localStorage.getItem(LS_DOCUMENTS) || '[]');
 export const getConfig = (): AppConfig => JSON.parse(localStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
 export const getStaffUsers = (): StaffUser[] => JSON.parse(localStorage.getItem(LS_STAFF_USERS) || '[]');
+export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]'); // NEW
 
 // --- Setter Functions ---
 
@@ -19,6 +28,7 @@ export const saveMedicalResults = (data: MedicalResult[]) => localStorage.setIte
 export const saveDocuments = (data: Document[]) => localStorage.setItem(LS_DOCUMENTS, JSON.stringify(data));
 export const saveConfig = (data: AppConfig) => localStorage.setItem(LS_CONFIG, JSON.stringify(data));
 export const saveStaffUsers = (data: StaffUser[]) => localStorage.setItem(LS_STAFF_USERS, JSON.stringify(data));
+export const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data)); // NEW
 
 // --- Initialization ---
 
