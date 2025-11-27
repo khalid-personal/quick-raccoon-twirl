@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users } from 'lucide-react';
+import { LogOut, Users, Home } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface AdminLayoutProps {
@@ -15,8 +15,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <header className="sticky top-0 z-40 w-full border-b bg-white/90 backdrop-blur-sm dark:bg-gray-950/90">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <Link to="/admin" className="text-xl font-bold text-primary">
-            Agency Admin ({userRole})
+          <Link to="/admin" className="text-xl font-bold text-primary flex items-center space-x-2">
+            <Home className="h-6 w-6" />
+            <span>Agency Admin ({userRole})</span>
           </Link>
           <nav className="flex items-center space-x-4">
             <Link to="/admin">
