@@ -36,7 +36,8 @@ const EditCandidateSchema = z.object({
   marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
     required_error: "Marital status is required.",
   }),
-  phone_number: z.string().optional(), // NEW FIELD
+  phone_number: z.string().optional(),
+  email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."), // NEW FIELD
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
@@ -113,6 +114,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       batch_name: candidate.batch_name || NO_BATCH_OPTION,
       marital_status: candidate.marital_status, // Initialize marital status
       phone_number: candidate.phone_number || '', // Initialize phone number
+      email: candidate.email, // Initialize email
       new_batch_name: '',
     },
   });
@@ -148,7 +150,8 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
-        phone_number: data.phone_number || undefined, // Pass phone number
+        phone_number: data.phone_number || undefined,
+        email: data.email, // Include email
       });
       
       toast.success(`Candidate ${data.tracking_code} details updated successfully.`);
@@ -240,6 +243,13 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* Email Input for Candidate Login */}
+      <div className="space-y-2">
+        <Label htmlFor="email">Candidate Email (Login) *</Label>
+        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
       </div>
       
       {/* Phone Number Input */}

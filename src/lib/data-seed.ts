@@ -28,9 +28,6 @@ const MOCK_MARITAL_STATUSES: Candidate['marital_status'][] = ['Single', 'Married
 const TOTAL_NEW_CANDIDATES = 50;
 const TOTAL_BATCHES = 13;
 
-// Helper to find stage ID by slug
-const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
-
 // Existing seed candidates (3)
 const EXISTING_SEED_CANDIDATES: Candidate[] = [
   {
@@ -44,6 +41,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     batch_name: 'Batch 1',
     marital_status: 'Married',
     phone_number: '+251911000001',
+    email: 'aster.bekele@candidate.com', // Added email
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -58,6 +56,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     batch_name: 'Batch 1',
     marital_status: 'Single',
     phone_number: '+251911000002',
+    email: 'mariam.tesfaye@candidate.com', // Added email
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -72,6 +71,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     batch_name: 'Batch 2',
     marital_status: 'Divorced',
     phone_number: '+25377000003',
+    email: 'fatima.ali@candidate.com', // Added email
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -98,6 +98,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const dob = `${birthYear}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`;
         
         const mockPhoneNumber = `+${Math.floor(100 + Math.random() * 900)}${String(Math.floor(10000000 + Math.random() * 90000000))}`;
+        const mockEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${trackingCodeCounter}@candidate.com`;
 
 
         newCandidates.push({
@@ -111,6 +112,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             batch_name: batchName,
             marital_status: maritalStatus,
             phone_number: mockPhoneNumber,
+            email: mockEmail, // Added email
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         });

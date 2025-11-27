@@ -8,22 +8,45 @@ import NotFound from "./pages/NotFound";
 import TrackingPage from "./pages/TrackingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidateDetail from "./pages/AdminCandidateDetail";
-import AuthPage from "./pages/AuthPage"; // Updated import
+import AuthPage from "./pages/AuthPage";
 import Signup from "./pages/Signup"; 
 import SuperadminSettings from "./pages/SuperadminSettings";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
+import { Loader2 } from 'lucide-react'; // Added Loader2 import
 
 const queryClient = new QueryClient();
 
-// Component to protect routes
+// Component to protect Admin routes
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) {
+  const { isAuthenticated, userRole, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
+  if (!isAuthenticated || userRole === 'candidate') {
     return <Navigate to="/login" replace />;
   }
   return children;
 };
+
+// Component to protect Candidate tracking route
+const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, userRole, candidateTrackingCode, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
+  if (!isAuthenticated || userRole !== 'candidate' || !candidateTrackingCode) {
+    // Redirect non-candidates or unauthenticated users to login
+    return <Navigate to="/login?tab=candidate" replace />;
+  }
+  
+  return children;
+};
+
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -32,10 +55,22 @@ const AppRoutes = () => (
       <Route path="/" element={<Index />} /> 
       
       {/* Public Routes */}
-      <Route path="/login" element={<AuthPage />} /> {/* Unified Auth Page */}
+      <Route path="/login" element={<AuthPage />} />
       <Route path="/signup" element={<Signup />} />
-      <Route path="/track" element={<Navigate to="/login?tab=candidate" replace />} /> {/* Redirect /track to the candidate tab on the login page */}
-      <Route path="/track/:trackingCode" element={<TrackingPage />} />
+      
+      {/* Candidate Tracking Route (Protected) */}
+      <Route 
+        path="/track" 
+        element={<Navigate to="/login?tab=candidate" replace />} 
+      />
+      <Route 
+        path="/track/:trackingCode" 
+        element={
+          <CandidateProtectedRoute>
+            <TrackingPage />
+          </CandidateProtectedRoute>
+        } 
+      />
       
       {/* Admin Routes (Protected) */}
       <Route 

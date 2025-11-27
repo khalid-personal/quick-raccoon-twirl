@@ -63,22 +63,12 @@ if (getPaymentStatuses().length === 0) {
 
 
 export const api = {
-  // NEW: Verify candidate credentials for login
-  verifyCandidateCredentials: async (trackingCode: string, passportNumber: string): Promise<Candidate | null> => {
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
-    
+  
+  // NEW: Helper to get candidate by email (needed after Supabase login)
+  getCandidateByEmail: async (email: string): Promise<Candidate | null> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
-    
-    const code = trackingCode.toUpperCase();
-    const passport = passportNumber.toUpperCase();
-    
-    // Find candidate matching EITHER tracking code OR passport number
-    const candidate = candidates.find(c => 
-        (code && c.tracking_code.toUpperCase() === code) || 
-        (passport && c.passport_number.toUpperCase() === passport)
-    );
-    
-    return candidate || null;
+    return candidates.find(c => c.email.toLowerCase() === email.toLowerCase()) || null;
   },
   
   // NEW: Mock endpoint to update payment status
@@ -365,6 +355,7 @@ export const api = {
     // --- Duplicate Check for Updates ---
     const newTrackingCode = data.tracking_code;
     const newPassportNumber = data.passport_number;
+    const newEmail = data.email;
     
     if (newTrackingCode && newTrackingCode !== existingCandidate.tracking_code) {
         if (candidates.some(c => c.tracking_code === newTrackingCode)) {
@@ -375,6 +366,12 @@ export const api = {
     if (newPassportNumber && newPassportNumber !== existingCandidate.passport_number) {
         if (candidates.some(c => c.passport_number === newPassportNumber)) {
             throw new Error(`Passport number '${newPassportNumber}' already exists.`);
+        }
+    }
+    
+    if (newEmail && newEmail !== existingCandidate.email) {
+        if (candidates.some(c => c.email === newEmail)) {
+            throw new Error(`Email '${newEmail}' already exists.`);
         }
     }
     // --- End Duplicate Check ---
@@ -500,6 +497,9 @@ export const api = {
     }
     if (candidates.some(c => c.passport_number === data.passport_number)) {
         throw new Error(`Passport number '${data.passport_number}' already exists.`);
+    }
+    if (candidates.some(c => c.email === data.email)) {
+        throw new Error(`Email '${data.email}' already exists.`);
     }
     // --- End Duplicate Check ---
     

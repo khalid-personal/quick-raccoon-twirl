@@ -36,10 +36,11 @@ const NewCandidateSchema = z.object({
   marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
     required_error: "Marital status is required.",
   }),
-  phone_number: z.string().optional(), // NEW FIELD
-  custom_country: z.string().optional(), // For 'Other' selection
-  batch_name: z.string().optional(), // New field
-  new_batch_name: z.string().optional(), // For creating a new batch
+  phone_number: z.string().optional(),
+  email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."), // NEW FIELD
+  custom_country: z.string().optional(),
+  batch_name: z.string().optional(),
+  new_batch_name: z.string().optional(),
 }).superRefine((data, ctx) => {
   // Age validation
   if (data.dob && !isAdult(data.dob)) {
@@ -107,6 +108,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       batch_name: NO_BATCH_OPTION, // Initialize with the constant
       marital_status: 'Single', // Initialize marital status
       phone_number: '', // Initialize phone number
+      email: '', // Initialize email
       new_batch_name: '',
     },
   });
@@ -142,10 +144,11 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
-        phone_number: data.phone_number || undefined, // Pass phone number
+        phone_number: data.phone_number || undefined,
+        email: data.email, // Include email
       });
       
-      toast.success(`Candidate ${newCandidate.tracking_code} created successfully.`);
+      toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
       refetchBatches(); // Refresh batch list after creation
       onSuccess(newCandidate);
       onClose();
@@ -228,6 +231,13 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* Email Input for Candidate Login */}
+      <div className="space-y-2">
+        <Label htmlFor="email">Candidate Email (Login) *</Label>
+        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
       </div>
       
       {/* Phone Number Input */}

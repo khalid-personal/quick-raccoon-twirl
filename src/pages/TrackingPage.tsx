@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,21 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertTriangle, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth'; // Import useAuth
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
+  const { candidateTrackingCode, userRole, logout } = useAuth(); // Get logged-in candidate's code
+
+  // Security check: If the user is a candidate, ensure the URL matches their code
+  if (userRole === 'candidate' && trackingCode !== candidateTrackingCode) {
+    // Redirect to their correct tracking page if they try to access another one
+    toast.error("Access denied to this tracking code.");
+    return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
+  }
+  
+  // If user is staff/admin, they shouldn't be here, but ProtectedRoute handles that.
+  // If they somehow land here, we proceed with the query based on the URL.
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['publicTracking', trackingCode],
@@ -41,6 +53,8 @@ const TrackingPage: React.FC = () => {
   }
 
   if (error || !data) {
+    // If the user is logged in as a candidate but their tracking code yields an error, something is wrong.
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-md">
@@ -49,11 +63,17 @@ const TrackingPage: React.FC = () => {
           <AlertDescription>
             {error ? (error as Error).message : `Tracking code "${trackingCode}" not found or invalid.`}
           </AlertDescription>
-          <Link to="/track">
-            <Button className="mt-4">
-              Try Another Code
+          {userRole === 'candidate' ? (
+            <Button onClick={logout} className="mt-4">
+              Logout
             </Button>
-          </Link>
+          ) : (
+            <Link to="/login">
+              <Button className="mt-4">
+                Return to Login
+              </Button>
+            </Link>
+          )}
         </Alert>
       </div>
     );
@@ -93,10 +113,8 @@ const TrackingPage: React.FC = () => {
               <Printer className="h-4 w-4 mr-2" /> Generate Printable Progress Sheet (Mock)
             </Button>
             
-            {/* Back Button */}
-            <Link to="/track" className="block">
-              <Button variant="secondary">Track Another Application</Button>
-            </Link>
+            {/* Logout Button */}
+            <Button variant="secondary" onClick={logout}>Logout</Button>
           </div>
         </CardContent>
       </Card>

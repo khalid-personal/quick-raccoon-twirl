@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StaffLoginForm from '@/components/StaffLoginForm';
-import CandidateTrackingForm from '@/components/CandidateTrackingForm';
+import CandidateLoginForm from '@/components/CandidateLoginForm'; // Updated import
 import { MadeWithDyad } from '@/components/made-with-dyad';
 
 const AuthPage: React.FC = () => {
@@ -17,7 +17,7 @@ const AuthPage: React.FC = () => {
         <Tabs defaultValue="staff" className="w-full px-6 pb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="staff">Staff Login</TabsTrigger>
-            <TabsTrigger value="candidate">Candidate Tracking</TabsTrigger>
+            <TabsTrigger value="candidate">Candidate Login</TabsTrigger>
           </TabsList>
           
           <TabsContent value="staff" className="pt-4">
@@ -26,8 +26,8 @@ const AuthPage: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="candidate" className="pt-4">
-            <h3 className="text-xl font-semibold mb-4">Candidate Tracking</h3>
-            <CandidateTrackingForm />
+            <h3 className="text-xl font-semibold mb-4">Candidate Tracking Login</h3>
+            <CandidateLoginForm />
           </TabsContent>
         </Tabs>
       </Card>

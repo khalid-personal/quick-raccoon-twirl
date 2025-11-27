@@ -1,6 +1,6 @@
 export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
-export type UserRole = 'admin' | 'staff' | 'viewer';
+export type UserRole = 'admin' | 'staff' | 'viewer' | 'candidate';
 
 export interface Stage {
   id: number;
@@ -55,6 +55,7 @@ export interface Candidate {
   batch_name?: string; // New optional field for grouping
   marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed'; // New field
   phone_number?: string; // NEW FIELD
+  email: string; // NEW FIELD: Candidate login email
   created_at: string;
   updated_at: string;
 }
