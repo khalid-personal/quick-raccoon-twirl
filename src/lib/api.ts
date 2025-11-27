@@ -342,6 +342,20 @@ type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
 
 export const api = {
+  // NEW: Verify candidate credentials for login
+  verifyCandidateCredentials: async (trackingCode: string, passportNumber: string): Promise<Candidate | null> => {
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
+    
+    const candidates = getCandidates();
+    
+    const candidate = candidates.find(c => 
+        c.tracking_code.toUpperCase() === trackingCode.toUpperCase() && 
+        c.passport_number.toUpperCase() === passportNumber.toUpperCase()
+    );
+    
+    return candidate || null;
+  },
+  
   // NEW: Get pipeline distribution data
   getPipelineDistribution: async (): Promise<PipelineDistribution[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -575,9 +589,9 @@ export const api = {
     const candidate = getCandidates().find(c => c.id === candidateId);
     if (!candidate) return null;
 
-    const stages = getCandidateStages().filter(cs => cs.candidate_id === candidateId);
-    const medical_results = getMedicalResults().filter(mr => mr.candidate_id === candidateId);
-    const documents = getDocuments().filter(d => d.candidate_id === candidateId);
+    const stages = getCandidateStages().filter(cs => cs.candidate_id === candidate.id);
+    const medical_results = getMedicalResults().filter(mr => mr.candidate_id === candidate.id);
+    const documents = getDocuments().filter(d => d.candidate_id === candidate.id);
 
     return {
       ...candidate,
