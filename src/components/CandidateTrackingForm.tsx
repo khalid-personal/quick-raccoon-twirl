@@ -19,21 +19,22 @@ const CandidateTrackingForm: React.FC = () => {
     const code = trackingCode.trim().toUpperCase();
     const passport = passportNumber.trim().toUpperCase();
 
-    if (!code || !passport) {
-        toast.error("Please enter both Tracking Code and Passport Number.");
+    if (!code && !passport) {
+        toast.error("Please enter either a Tracking Code or a Passport Number.");
         return;
     }
     
     setIsLoggingIn(true);
     
     try {
+        // We pass both, and the API will check if either matches a candidate record.
         const candidateData = await api.verifyCandidateCredentials(code, passport);
         
         if (candidateData) {
             toast.success(`Access granted! Redirecting to tracking page.`);
-            navigate(`/track/${code}`, { replace: true });
+            navigate(`/track/${candidateData.tracking_code}`, { replace: true });
         } else {
-            toast.error("Verification failed. Check your Tracking Code and Passport Number.");
+            toast.error("Verification failed. Check your Tracking Code or Passport Number.");
         }
     } catch (error) {
         toast.error((error as Error).message || "An unexpected error occurred during verification.");
@@ -46,30 +47,29 @@ const CandidateTrackingForm: React.FC = () => {
     <CardContent className="space-y-6 p-0">
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="trackingCode">Tracking Code</Label>
+          <Label htmlFor="trackingCode">Tracking Code (Optional)</Label>
           <Input 
             id="trackingCode" 
             type="text" 
             placeholder="e.g., TRK-ET-0001"
             value={trackingCode}
             onChange={(e) => setTrackingCode(e.target.value)}
-            required
             disabled={isLoggingIn}
           />
         </div>
+        <div className="text-center text-sm text-muted-foreground">- OR -</div>
         <div className="space-y-2">
-          <Label htmlFor="passportNumber">Passport Number</Label>
+          <Label htmlFor="passportNumber">Passport Number (Optional)</Label>
           <Input 
             id="passportNumber" 
             type="text" 
             placeholder="Enter your Passport Number"
             value={passportNumber}
             onChange={(e) => setPassportNumber(e.target.value)}
-            required
             disabled={isLoggingIn}
           />
         </div>
-        <Button type="submit" className="w-full text-lg" disabled={isLoggingIn}>
+        <Button type="submit" className="w-full text-lg" disabled={isLoggingIn || (!trackingCode.trim() && !passportNumber.trim())}>
           {isLoggingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <User className="h-5 w-5 mr-2" />} 
           Access Status
         </Button>

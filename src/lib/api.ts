@@ -69,9 +69,13 @@ export const api = {
     
     const candidates = getCandidates();
     
+    const code = trackingCode.toUpperCase();
+    const passport = passportNumber.toUpperCase();
+    
+    // Find candidate matching EITHER tracking code OR passport number
     const candidate = candidates.find(c => 
-        c.tracking_code.toUpperCase() === trackingCode.toUpperCase() && 
-        c.passport_number.toUpperCase() === passportNumber.toUpperCase()
+        (code && c.tracking_code.toUpperCase() === code) || 
+        (passport && c.passport_number.toUpperCase() === passport)
     );
     
     return candidate || null;
