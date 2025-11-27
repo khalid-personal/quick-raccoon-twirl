@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, pin: string) => Promise<{ error: Error | null }>;
+  signup: (email: string, pin: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
 }
 
@@ -54,7 +55,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, pin: string) => {
-    console.log(`Attempting login for: ${email}`);
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: pin, // Using PIN as password for mock purposes
@@ -65,7 +65,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
     }
     
-    // If successful, the onAuthStateChange listener handles setting the session/user/role.
+    return { error: null };
+  };
+  
+  const signup = async (email: string, pin: string) => {
+    // Note: Supabase requires email confirmation to be enabled for this to act as an 'admin approval' flow.
+    // The user won't be able to log in until their email is confirmed (manually by admin or via email link).
+    const { error } = await supabase.auth.signUp({
+        email: email,
+        password: pin,
+    });
+    
+    if (error) {
+        console.error("Supabase Signup Error Details:", error.message);
+        return { error };
+    }
+    
     return { error: null };
   };
   
@@ -76,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!session;
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

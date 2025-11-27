@@ -9,6 +9,7 @@ import TrackingPage from "./pages/TrackingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidateDetail from "./pages/AdminCandidateDetail";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup"; // Import Signup
 import PublicTrackingInput from "./pages/PublicTrackingInput";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
@@ -32,6 +33,7 @@ const AppRoutes = () => (
       
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} /> {/* New Signup Route */}
       <Route path="/track" element={<PublicTrackingInput />} />
       <Route path="/track/:trackingCode" element={<TrackingPage />} />
       

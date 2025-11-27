@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -92,8 +92,12 @@ const Login: React.FC = () => {
             </Button>
           </form>
           
+          <div className="text-center text-sm text-muted-foreground">
+            Don't have an account? <Link to="/signup" className="text-primary hover:underline">Register here</Link>
+          </div>
+          
           <p className="text-center text-sm text-muted-foreground">
-            <a href="/track" className="hover:underline">Return to Public Tracking</a>
+            <Link to="/track" className="hover:underline">Return to Public Tracking</Link>
           </p>
           <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
             <p className="font-semibold">Email/PIN are used as Email/Password for Supabase.</p>
