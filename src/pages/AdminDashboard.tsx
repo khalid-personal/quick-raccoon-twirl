@@ -14,6 +14,8 @@ import ProgressIndicator from '@/components/ProgressIndicator';
 import DashboardSummaryCards from '@/components/DashboardSummaryCards';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/lib/auth';
+import PipelineProgressChart from '@/components/PipelineProgressChart';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
@@ -25,6 +27,9 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
 const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
 
 const AdminDashboard: React.FC = () => {
+  const { userRole } = useAuth();
+  const isSuperAdmin = userRole === 'admin';
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
@@ -89,6 +94,11 @@ const AdminDashboard: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
+      
+      {/* Superadmin Pipeline Chart */}
+      {isSuperAdmin && (
+        <PipelineProgressChart />
+      )}
       
       <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />
 

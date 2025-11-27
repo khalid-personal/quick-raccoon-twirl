@@ -336,8 +336,78 @@ type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' 
 // Define the required input type for updates
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
 
+// Data structure for the pipeline distribution chart
+export interface PipelineDistribution {
+    stageTitle: string;
+    ordinal: number;
+    pendingCount: number;
+    inProgressCount: number;
+    blockedCount: number;
+}
 
 export const api = {
+  // NEW: Get pipeline distribution data
+  getPipelineDistribution: async (): Promise<PipelineDistribution[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const allStages = getCandidateStages();
+    
+    // Initialize distribution map for all stages
+    const distributionMap = new Map<number, { pending: number, inProgress: number, blocked: number }>();
+    ALL_STAGES.forEach(stage => {
+        distributionMap.set(stage.id, { pending: 0, inProgress: 0, blocked: 0 });
+    });
+    
+    // Determine the current blocking stage for each candidate
+    candidates.forEach(candidate => {
+        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id).sort((a, b) => {
+            const stageA = ALL_STAGES.find(s => s.id === a.stage_id)?.ordinal || 0;
+            const stageB = ALL_STAGES.find(s => s.id === b.stage_id)?.ordinal || 0;
+            return stageA - stageB;
+        });
+        
+        let currentBlockingStageId: number | null = null;
+        let isBlockedByFailure = false;
+        
+        for (const cs of candidateStages) {
+            if (cs.status === 'Failed') {
+                currentBlockingStageId = cs.stage_id;
+                isBlockedByFailure = true;
+                break;
+            }
+            if (cs.status === 'Pending' || cs.status === 'In Progress') {
+                currentBlockingStageId = cs.stage_id;
+                break;
+            }
+        }
+        
+        if (currentBlockingStageId) {
+            const currentData = distributionMap.get(currentBlockingStageId)!;
+            if (isBlockedByFailure) {
+                currentData.blocked += 1;
+            } else if (candidateStages.find(cs => cs.stage_id === currentBlockingStageId)?.status === 'In Progress') {
+                currentData.inProgress += 1;
+            } else {
+                currentData.pending += 1;
+            }
+            distributionMap.set(currentBlockingStageId, currentData);
+        }
+        // Candidates who completed all stages are not counted here.
+    });
+    
+    // Format output
+    return ALL_STAGES.map(stage => {
+        const data = distributionMap.get(stage.id)!;
+        return {
+            stageTitle: stage.title,
+            ordinal: stage.ordinal,
+            pendingCount: data.pending,
+            inProgressCount: data.inProgress,
+            blockedCount: data.blocked,
+        };
+    });
+  },
+  
   // NEW: Get configuration
   getAppConfig: async (): Promise<AppConfig> => {
       await new Promise(resolve => setTimeout(resolve, 100));
