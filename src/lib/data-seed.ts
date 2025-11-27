@@ -6,6 +6,20 @@ export interface AppConfig {
     countryOptions: string[];
 }
 
+// --- Helper function to generate initial stages for a new candidate ---
+export function generateInitialStages(candidate: Candidate): CandidateStage[] {
+    return ALL_STAGES.map(stage => ({
+        id: uuidv4(),
+        candidate_id: candidate.id,
+        stage_id: stage.id,
+        status: 'Pending' as StageStatus,
+        notes: undefined,
+        date: undefined,
+        updated_at: new Date().toISOString(),
+        reference_id: undefined,
+    }));
+}
+
 // --- Seed Data Constants ---
 const MOCK_FIRST_NAMES = ['Aisha', 'Bruk', 'Chala', 'Desta', 'Elias', 'Fana', 'Girma', 'Hana', 'Ismail', 'Jemal', 'Kalkidan', 'Lelisa', 'Marta', 'Nardos', 'Oumer'];
 const MOCK_LAST_NAMES = ['Ahmed', 'Kebede', 'Mekonnen', 'Tadesse', 'Wondimu', 'Zewde', 'Ali', 'Hassan', 'Mohamed'];
