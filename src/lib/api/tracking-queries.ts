@@ -3,9 +3,9 @@ import {
     ALL_STAGES,
     StageStatus,
 } from '../types';
-import { getCandidates, getCandidateStages, getMedicalResults, getDocuments } from '../data-store';
+import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, getPaymentStatuses } from '../data-store';
 import { calculateProgress } from '../utils-data';
-import { getPaymentStatuses, getStageId } from './utils';
+import { getStageId } from './utils';
 import { getCandidateDetail } from './candidate-crud';
 
 // GET /api/track/:tracking_code
