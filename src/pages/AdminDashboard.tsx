@@ -222,7 +222,7 @@ const AdminDashboard: React.FC = () => {
                     />
                     <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
-                    <TableHead>Phone</TableHead>
+                    {/* Removed Phone column */}
                     <SortableHeader 
                       field="country_of_origin" 
                       currentSort={sortBy} 
@@ -266,7 +266,7 @@ const AdminDashboard: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
-                      <TableCell>{candidate.phone_number || 'N/A'}</TableCell>
+                      {/* Removed Phone cell */}
                       <TableCell>{candidate.country_of_origin}</TableCell>
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
