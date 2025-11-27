@@ -1,11 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// NOTE: Temporarily hardcoding URL to bypass environment variable loading issue.
-const supabaseUrl = 'https://wvidkfyajuqzbkvddcat.supabase.co';
-const supabaseAnonKey = 'YOUR_ACTUAL_ANON_KEY_HERE'; 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (supabaseAnonKey === 'YOUR_ACTUAL_ANON_KEY_HERE') {
-  console.warn("WARNING: Supabase Anon Key is still a placeholder. Please update src/lib/supabase.ts with your actual key.");
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("FATAL ERROR: Supabase environment variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
