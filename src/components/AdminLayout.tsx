@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { LogOut, Users, Home } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,6 +10,10 @@ interface AdminLayoutProps {
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { logout, userRole } = useAuth();
+  const location = useLocation();
+  
+  // Determine if we are currently on the main admin dashboard
+  const isAdminDashboard = location.pathname === '/admin';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -20,11 +24,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <span>Agency Admin ({userRole})</span>
           </Link>
           <nav className="flex items-center space-x-4">
-            <Link to="/admin">
+            {/* Home/Public Tracking Button */}
+            <Link to="/track">
               <Button variant="ghost" size="sm">
-                <Users className="h-4 w-4 mr-2" /> Candidates
+                <Home className="h-4 w-4 mr-2" /> Public Tracking
               </Button>
             </Link>
+            
+            {/* Candidates Button (Active only if not on dashboard) */}
+            {!isAdminDashboard && (
+              <Link to="/admin">
+                <Button variant="ghost" size="sm">
+                  <Users className="h-4 w-4 mr-2" /> Candidates
+                </Button>
+              </Link>
+            )}
+            
             <Button onClick={logout} variant="destructive" size="sm">
               <LogOut className="h-4 w-4 mr-2" /> Logout
             </Button>

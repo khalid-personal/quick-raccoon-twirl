@@ -50,8 +50,10 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Candidate Management</h1>
+      <div className="flex justify-between items-center border-b pb-4 mb-4">
+        <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+          Candidate Pipeline
+        </h1>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
