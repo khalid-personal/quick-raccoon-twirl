@@ -63,6 +63,11 @@ export interface CandidateDetail extends Candidate {
   medical_results: MedicalResult[];
 }
 
+// Summary data structure for Admin Dashboard view
+export interface CandidateSummary extends Candidate {
+  progress_percent: number;
+}
+
 // Data structure for Public Tracking view
 export interface PublicTrackingData {
   candidate_name: string;

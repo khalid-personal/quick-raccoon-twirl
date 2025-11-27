@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Candidate } from '@/lib/types';
+import { CandidateSummary } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,13 +10,14 @@ import { Search, PlusCircle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
+import ProgressIndicator from '@/components/ProgressIndicator';
 
 const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: candidates, isLoading, refetch } = useQuery({
+  const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
     queryKey: ['adminCandidates', currentQuery],
     queryFn: () => api.searchCandidates(currentQuery),
     initialData: [],
@@ -93,6 +94,7 @@ const AdminDashboard: React.FC = () => {
                     <TableHead>Tracking Code</TableHead>
                     <TableHead>Passport</TableHead>
                     <TableHead>Origin</TableHead>
+                    <TableHead className="w-[150px]">Progress</TableHead>
                     <TableHead>Minor</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -104,6 +106,9 @@ const AdminDashboard: React.FC = () => {
                       <TableCell>{candidate.tracking_code}</TableCell>
                       <TableCell>{candidate.passport_number || 'N/A'}</TableCell>
                       <TableCell>{candidate.country_of_origin}</TableCell>
+                      <TableCell>
+                        <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
+                      </TableCell>
                       <TableCell>{candidate.is_minor ? 'Yes' : 'No'}</TableCell>
                       <TableCell className="text-right">
                         <Link to={`/admin/candidate/${candidate.id}`}>

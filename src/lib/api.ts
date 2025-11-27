@@ -8,6 +8,7 @@ import {
   StageStatus,
   Document,
   TOTAL_STAGES,
+  CandidateSummary,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -182,17 +183,28 @@ export function calculateProgress(candidateStages: CandidateStage[]): number {
 
 export const api = {
   // GET /api/admin/search?q=
-  searchCandidates: async (query: string): Promise<Candidate[]> => {
+  searchCandidates: async (query: string): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
+    const allStages = getCandidateStages();
     const q = query.toLowerCase();
 
-    return candidates.filter(c =>
+    const filteredCandidates = candidates.filter(c =>
       c.first_name.toLowerCase().includes(q) ||
       c.last_name.toLowerCase().includes(q) ||
       c.passport_number?.toLowerCase().includes(q) ||
       c.tracking_code.toLowerCase().includes(q)
     );
+    
+    // Calculate progress for each filtered candidate
+    return filteredCandidates.map(candidate => {
+        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
+        const progress_percent = calculateProgress(candidateStages);
+        return {
+            ...candidate,
+            progress_percent,
+        };
+    });
   },
 
   // GET /api/admin/candidate/:id
