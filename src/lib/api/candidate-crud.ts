@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Candidate, CandidateDetail } from '../types';
-import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages } from '../data-store';
+import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages } from '../data-store';
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
@@ -17,6 +17,7 @@ export const getCandidateDetail = async (candidateId: string): Promise<Candidate
     const stages = getCandidateStages().filter(cs => cs.candidate_id === candidate.id);
     const medical_results = getMedicalResults().filter(mr => mr.candidate_id === candidate.id);
     const documents = getDocuments().filter(d => d.candidate_id === candidate.id);
+    const chat_messages = getChatMessages().filter(m => m.candidate_id === candidate.id);
 
     return {
         ...candidate,
@@ -27,7 +28,17 @@ export const getCandidateDetail = async (candidateId: string): Promise<Candidate
         }),
         medical_results,
         documents,
+        chat_messages,
     };
+};
+
+// NEW: GET /api/admin/candidate/by-tracking-code/:trackingCode
+export const getCandidateDetailByTrackingCode = async (trackingCode: string): Promise<CandidateDetail | null> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidate = getCandidates().find(c => c.tracking_code.toLowerCase() === trackingCode.toLowerCase());
+    if (!candidate) return null;
+    
+    return getCandidateDetail(candidate.id);
 };
 
 // PATCH /api/admin/candidate/:id/details

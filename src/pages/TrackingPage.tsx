@@ -34,6 +34,13 @@ const TrackingPage: React.FC = () => {
     refetchInterval: 5000, 
   });
   
+  // We need the full candidate detail to get the ID and email for the chat component
+  const { data: candidateDetail } = useQuery({
+    queryKey: ['candidateDetailByTrackingCode', trackingCode],
+    queryFn: () => api.getCandidateDetailByTrackingCode(trackingCode!),
+    enabled: !!trackingCode && !!data,
+  });
+  
   const handlePrint = async () => {
     if (!trackingCode) return;
     try {
@@ -45,7 +52,7 @@ const TrackingPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || (userRole === 'candidate' && !candidateDetail)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -53,7 +60,7 @@ const TrackingPage: React.FC = () => {
     );
   }
 
-  if (error || !data) {
+  if (error || !data || !candidateDetail) {
     // If the user is logged in as a candidate but their tracking code yields an error, something is wrong.
     
     return (
@@ -101,7 +108,11 @@ const TrackingPage: React.FC = () => {
           
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Chat Component */}
-            <CandidateChat trackingCode={data.tracking_code} />
+            <CandidateChat 
+                candidateId={candidateDetail.id}
+                candidateName={data.candidate_name}
+                candidateEmail={candidateDetail.email}
+            />
             
             {/* Important Notes */}
             <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 h-full">

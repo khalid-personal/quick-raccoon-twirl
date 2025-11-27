@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -12,11 +12,23 @@ import DocumentManager from '@/components/DocumentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
-import NotificationSender from '@/components/NotificationSender'; // NEW IMPORT
+import NotificationSender from '@/components/NotificationSender';
+import AdminChatViewer from '@/components/AdminChatViewer'; // NEW IMPORT
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const initialTab = searchParams.get('tab') || 'timeline';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  
+  // Sync URL search param with active tab state
+  useEffect(() => {
+    if (activeTab !== searchParams.get('tab')) {
+        setSearchParams({ tab: activeTab }, { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams]);
 
   const { data: candidate, isLoading, error, refetch } = useQuery({
     queryKey: ['candidateDetail', candidateId],
@@ -62,12 +74,13 @@ const AdminCandidateDetail: React.FC = () => {
 
       <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
 
-      <Tabs defaultValue="timeline" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="timeline">Timeline Editor</TabsTrigger>
           <TabsTrigger value="documents">Document Manager</TabsTrigger>
           <TabsTrigger value="medical">Medical Results</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger> {/* NEW TAB */}
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="chat">Chat History</TabsTrigger> {/* NEW CHAT TAB */}
         </TabsList>
         
         <TabsContent value="timeline" className="mt-4">
@@ -82,8 +95,12 @@ const AdminCandidateDetail: React.FC = () => {
           <MedicalResultsEditor candidateDetail={candidate} refetch={refetch} />
         </TabsContent>
         
-        <TabsContent value="notifications" className="mt-4"> {/* NEW TAB CONTENT */}
+        <TabsContent value="notifications" className="mt-4">
           <NotificationSender candidate={candidate} />
+        </TabsContent>
+        
+        <TabsContent value="chat" className="mt-4"> {/* NEW CHAT CONTENT */}
+          <AdminChatViewer candidate={candidate} />
         </TabsContent>
       </Tabs>
       

@@ -71,11 +71,26 @@ export interface Candidate {
   updated_at: string;
 }
 
+// NEW: Chat Message Types
+export type ChatSender = 'candidate' | 'admin' | 'staff';
+
+export interface ChatMessage {
+    id: string;
+    candidate_id: string;
+    sender: ChatSender;
+    sender_name: string; // e.g., Candidate Name or Staff Email
+    message: string;
+    timestamp: string; // ISO date string
+    is_read_by_admin: boolean;
+    is_read_by_candidate: boolean;
+}
+
 // Combined data structure for Admin view
 export interface CandidateDetail extends Candidate {
   stages: CandidateStage[];
   documents: Document[];
   medical_results: MedicalResult[];
+  chat_messages: ChatMessage[]; // NEW: Include chat messages
 }
 
 // Summary data structure for Admin Dashboard view

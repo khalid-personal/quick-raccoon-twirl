@@ -1,6 +1,6 @@
-import { Candidate, CandidateStage, MedicalResult, Document, StaffUser } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS } from './data-keys';
-import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS } from './data-seed';
+import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage } from './types';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES } from './data-keys';
+import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS, SEED_CHAT_MESSAGES } from './data-seed';
 
 // Define PaymentStatus interface locally for data store usage
 interface PaymentStatus {
@@ -17,7 +17,8 @@ export const getMedicalResults = (): MedicalResult[] => JSON.parse(localStorage.
 export const getDocuments = (): Document[] => JSON.parse(localStorage.getItem(LS_DOCUMENTS) || '[]');
 export const getConfig = (): AppConfig => JSON.parse(localStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
 export const getStaffUsers = (): StaffUser[] => JSON.parse(localStorage.getItem(LS_STAFF_USERS) || '[]');
-export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]'); // NEW
+export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]');
+export const getChatMessages = (): ChatMessage[] => JSON.parse(localStorage.getItem(LS_CHAT_MESSAGES) || '[]'); // NEW
 
 // --- Setter Functions ---
 
@@ -27,7 +28,8 @@ export const saveMedicalResults = (data: MedicalResult[]) => localStorage.setIte
 export const saveDocuments = (data: Document[]) => localStorage.setItem(LS_DOCUMENTS, JSON.stringify(data));
 export const saveConfig = (data: AppConfig) => localStorage.setItem(LS_CONFIG, JSON.stringify(data));
 export const saveStaffUsers = (data: StaffUser[]) => localStorage.setItem(LS_STAFF_USERS, JSON.stringify(data));
-export const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data)); // NEW
+export const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
+export const saveChatMessages = (data: ChatMessage[]) => localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(data)); // NEW
 
 // --- Initialization ---
 
@@ -38,6 +40,7 @@ export function initializeDataStore() {
     localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
     localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
     localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
+    localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES)); // NEW CHAT SEED
   }
   // Initialize config if not present
   if (!localStorage.getItem(LS_CONFIG)) {
