@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 const CandidateLoginForm: React.FC = () => {
   const { login, isAuthenticated, isLoading: isAuthLoading, candidateTrackingCode } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Can be email or tracking code
   const [pin, setPin] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -24,21 +24,21 @@ const CandidateLoginForm: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const emailValue = email.trim();
+    const identifierValue = identifier.trim();
     const pinValue = pin.trim();
 
-    if (!emailValue || !pinValue) {
-        toast.error("Please enter both email and PIN.");
+    if (!identifierValue || !pinValue) {
+        toast.error("Please enter both identifier (Email or Tracking Code) and PIN.");
         return;
     }
     
     setIsLoggingIn(true);
     
-    const { error } = await login(emailValue, pinValue);
+    const { error } = await login(identifierValue, pinValue);
     setIsLoggingIn(false);
 
     if (error) {
-        toast.error("Login failed. Check your email and PIN (Default PIN is 123456).");
+        toast.error("Login failed. Check your identifier and PIN (Default PIN is 123456).");
         console.error("Supabase Login Error:", error);
     } else {
         // Success handled by useEffect redirect
@@ -58,13 +58,13 @@ const CandidateLoginForm: React.FC = () => {
     <CardContent className="space-y-6 p-0">
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Candidate Email</Label>
+          <Label htmlFor="identifier">Email or Tracking Code</Label>
           <Input 
-            id="email" 
-            type="email" 
-            placeholder="e.g., aster.bekele@candidate.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="identifier" 
+            type="text" 
+            placeholder="e.g., TRK-ET-0001 or aster.bekele@candidate.com"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
             disabled={isLoggingIn}
           />
@@ -87,7 +87,7 @@ const CandidateLoginForm: React.FC = () => {
         </Button>
       </form>
       <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
-        <p className="font-semibold">Use your registered email and PIN (Default: 123456).</p>
+        <p className="font-semibold">Use your registered email or tracking code and PIN (Default: 123456).</p>
       </div>
     </CardContent>
   );

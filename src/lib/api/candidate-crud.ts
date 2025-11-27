@@ -129,3 +129,10 @@ export const getCandidateByEmail = async (email: string): Promise<Candidate | nu
     const candidates = getCandidates();
     return candidates.find(c => c.email.toLowerCase() === email.toLowerCase()) || null;
 };
+
+// NEW: Helper to get candidate by tracking code
+export const getCandidateByTrackingCode = async (trackingCode: string): Promise<Candidate | null> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    return candidates.find(c => c.tracking_code.toLowerCase() === trackingCode.toLowerCase()) || null;
+};

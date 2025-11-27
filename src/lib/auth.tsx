@@ -3,7 +3,7 @@ import { UserRole, StaffUser } from './types';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { api } from './api'; // Import API to check candidate emails
-import { getStaffUsers } from './data-store';
+import { getStaffUsers, saveStaffUsers } from './data-store'; // Added saveStaffUsers
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
@@ -12,15 +12,12 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   candidateTrackingCode: string | null; // NEW: Store tracking code for candidate users
-  login: (email: string, pin: string) => Promise<{ error: Error | null }>;
+  login: (identifier: string, pin: string) => Promise<{ error: Error | null }>; // Changed email to identifier
   signup: (email: string, pin: string, authCode: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock Admin Email for testing purposes
-const MOCK_ADMIN_EMAIL = 'admin@agency.com';
 
 // Temporary Mock User for development when Supabase is not configured/reachable
 const createMockUser = (email: string): User => ({
@@ -104,12 +101,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, pin: string) => {
+  const login = async (identifier: string, pin: string) => {
     setIsLoading(true);
     
-    // --- TEMPORARY MOCK BYPASS FOR DEVELOPMENT ---
+    let loginEmail = identifier.trim();
+    
+    // If identifier does not look like an email, treat it as a tracking code
+    if (!loginEmail.includes('@')) {
+        const candidate = await api.getCandidateByTrackingCode(loginEmail);
+        if (candidate) {
+            loginEmail = candidate.email;
+        } else {
+            setIsLoading(false);
+            return { error: new Error("Invalid tracking code or email.") };
+        }
+    }
+    
+    // --- SUPABASE LOGIN ATTEMPT ---
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
+      email: loginEmail,
       password: pin,
     });
     
@@ -117,11 +127,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Supabase Login failed. Attempting mock bypass for development.");
         
         if (error.message.includes('Invalid login credentials') || error.message.includes('Network request failed')) {
-            const mockUser = createMockUser(email);
+            const mockUser = createMockUser(loginEmail);
             
             // Check if this mock user is a known candidate or staff/admin
-            const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
-            const candidate = await api.getCandidateByEmail(email);
+            const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
+            const candidate = await api.getCandidateByEmail(loginEmail);
             
             if (candidate || staffUser) {
                 // Manually set state to simulate successful login
