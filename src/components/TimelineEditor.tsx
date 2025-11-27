@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 import { getStatusColor, cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface TimelineEditorProps {
   candidateDetail: CandidateDetail;
