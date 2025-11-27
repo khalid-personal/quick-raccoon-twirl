@@ -8,9 +8,8 @@ import NotFound from "./pages/NotFound";
 import TrackingPage from "./pages/TrackingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidateDetail from "./pages/AdminCandidateDetail";
-import Login from "./pages/Login";
+import AuthPage from "./pages/AuthPage"; // Updated import
 import Signup from "./pages/Signup"; 
-import CandidateLogin from "./pages/CandidateLogin"; // Import new CandidateLogin
 import SuperadminSettings from "./pages/SuperadminSettings";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
@@ -33,9 +32,9 @@ const AppRoutes = () => (
       <Route path="/" element={<Index />} /> 
       
       {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<AuthPage />} /> {/* Unified Auth Page */}
       <Route path="/signup" element={<Signup />} />
-      <Route path="/track" element={<CandidateLogin />} /> {/* Use CandidateLogin for /track */}
+      <Route path="/track" element={<Navigate to="/login?tab=candidate" replace />} /> {/* Redirect /track to the candidate tab on the login page */}
       <Route path="/track/:trackingCode" element={<TrackingPage />} />
       
       {/* Admin Routes (Protected) */}
