@@ -51,6 +51,7 @@ export interface Candidate {
   tracking_code: string;
   country_of_origin: string; // REQUIRED
   batch_name?: string; // New optional field for grouping
+  marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed'; // New field
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +68,7 @@ export interface CandidateSummary extends Candidate {
   progress_percent: number;
   // Add a calculated status for filtering purposes
   overall_status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked';
-  is_minor: boolean; // Added this field
+  // Removed is_minor: boolean;
 }
 
 export interface DashboardSummary {

@@ -30,6 +30,7 @@ interface AppConfig {
 const MOCK_FIRST_NAMES = ['Aisha', 'Bruk', 'Chala', 'Desta', 'Elias', 'Fana', 'Girma', 'Hana', 'Ismail', 'Jemal', 'Kalkidan', 'Lelisa', 'Marta', 'Nardos', 'Oumer'];
 const MOCK_LAST_NAMES = ['Ahmed', 'Kebede', 'Mekonnen', 'Tadesse', 'Wondimu', 'Zewde', 'Ali', 'Hassan', 'Mohamed'];
 const MOCK_COUNTRIES = ['Ethiopia', 'Djibouti', 'Kenya', 'Somalia', 'Eritrea', 'Sudan', 'Yemen', 'Uganda'];
+const MOCK_MARITAL_STATUSES: Candidate['marital_status'][] = ['Single', 'Married', 'Divorced', 'Widowed'];
 const TOTAL_NEW_CANDIDATES = 50;
 const TOTAL_BATCHES = 13;
 
@@ -52,6 +53,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     tracking_code: 'TRK-ET-0001',
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
+    marital_status: 'Married',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -64,6 +66,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     tracking_code: 'TRK-ET-0002',
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
+    marital_status: 'Single',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -76,6 +79,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     tracking_code: 'TRK-DJ-0003',
     country_of_origin: 'Djibouti',
     batch_name: 'Batch 2',
+    marital_status: 'Divorced',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -93,6 +97,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const countryCode = country.substring(0, 2).toUpperCase();
         const batchNumber = (i % TOTAL_BATCHES) + 1;
         const batchName = `Batch ${batchNumber}`;
+        const maritalStatus = MOCK_MARITAL_STATUSES[i % MOCK_MARITAL_STATUSES.length];
         
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
         
@@ -111,6 +116,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             tracking_code: trackingCode,
             country_of_origin: country,
             batch_name: batchName,
+            marital_status: maritalStatus,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         });
@@ -480,12 +486,10 @@ export const api = {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const progress_percent = calculateProgress(candidateStages);
         const overall_status = calculateOverallStatus(candidateStages);
-        const is_minor = !isAdult(candidate.dob); // Calculate is_minor
         return {
             ...candidate,
             progress_percent,
             overall_status,
-            is_minor, // Include is_minor
         };
     });
 
@@ -557,7 +561,7 @@ export const api = {
       ...existingCandidate,
       ...data,
       updated_at: new Date().toISOString(),
-    };
+    } as Candidate; // Cast back to Candidate to satisfy return type
 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
@@ -666,7 +670,7 @@ export const api = {
         id: uuidv4(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-    };
+    } as Candidate; // Cast back to Candidate to satisfy return type
     
     candidates.push(newCandidate);
     saveCandidates(candidates);

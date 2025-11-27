@@ -167,7 +167,7 @@ const AdminDashboard: React.FC = () => {
                     <TableHead>Origin</TableHead>
                     <TableHead className="w-[150px]">Progress</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Minor</TableHead>
+                    <TableHead>Marital Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -191,7 +191,7 @@ const AdminDashboard: React.FC = () => {
                           {candidate.overall_status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{candidate.is_minor ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>{candidate.marital_status}</TableCell>
                       <TableCell className="text-right">
                         <Link to={`/admin/candidate/${candidate.id}`}>
                           <Button variant="outline" size="sm">View/Edit</Button>

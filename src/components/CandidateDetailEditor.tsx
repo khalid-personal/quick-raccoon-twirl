@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___';
+const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 // Helper function to check if DOB is 18+
 const isAdult = (dob: string): boolean => {
@@ -32,6 +33,9 @@ const EditCandidateSchema = z.object({
   passport_number: z.string().min(1, "Passport number is required."),
   tracking_code: z.string().min(1, "Tracking code is required.").regex(/^TRK-[A-Z]{2,3}-\d{4,}$/, "Invalid tracking code format (e.g., TRK-ET-0001)."),
   country_of_origin: z.string().min(1, "Country of origin is required."),
+  marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
+    required_error: "Marital status is required.",
+  }),
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
@@ -106,6 +110,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       custom_country: isCustomCountryInitial ? candidate.country_of_origin : '',
       
       batch_name: candidate.batch_name || NO_BATCH_OPTION,
+      marital_status: candidate.marital_status, // Initialize marital status
       new_batch_name: '',
     },
   });
@@ -140,6 +145,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         tracking_code: data.tracking_code,
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
+        marital_status: data.marital_status as Candidate['marital_status'],
       });
       
       toast.success(`Candidate ${data.tracking_code} details updated successfully.`);
@@ -231,6 +237,27 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* Marital Status Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="marital_status">Marital Status *</Label>
+        <Select
+          value={watch('marital_status')}
+          onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
+        >
+          <SelectTrigger id="marital_status">
+            <SelectValue placeholder="Select Status" />
+          </SelectTrigger>
+          <SelectContent>
+            {MARITAL_STATUS_OPTIONS.map(status => (
+              <SelectItem key={status} value={status}>
+                {status}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
       </div>
       
       {/* Batch Selection */}
