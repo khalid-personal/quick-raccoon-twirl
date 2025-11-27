@@ -710,6 +710,22 @@ export const api = {
     return newDoc;
   },
   
+  // DELETE /api/admin/document/:id
+  deleteDocument: async (documentId: string): Promise<{ success: boolean }> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    let documents = getDocuments();
+    const initialLength = documents.length;
+    
+    documents = documents.filter(doc => doc.id !== documentId);
+    
+    if (documents.length === initialLength) {
+        throw new Error("Document not found.");
+    }
+    
+    saveDocuments(documents);
+    return { success: true };
+  },
+  
   // POST /api/admin/candidate
   createCandidate: async (data: CandidateCreationData): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input'; // Added Input import
+import { Input } from '@/components/ui/input';
 import { Upload, FileText, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
   const [selectedStageId, setSelectedStageId] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -40,11 +41,31 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
       toast.success(`Document "${selectedFile.name}" uploaded successfully.`);
       setSelectedFile(null);
       setSelectedStageId('');
+      // Clear file input
+      const input = document.getElementById('file-input') as HTMLInputElement;
+      if (input) input.value = '';
       refetch();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
       setIsUploading(false);
+    }
+  };
+  
+  const handleDelete = async (docId: string, fileName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the document "${fileName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    setDeletingDocId(docId);
+    try {
+        await api.deleteDocument(docId);
+        toast.success(`Document "${fileName}" deleted successfully.`);
+        refetch();
+    } catch (error) {
+        toast.error((error as Error).message);
+    } finally {
+        setDeletingDocId(null);
     }
   };
   
@@ -139,9 +160,19 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
                         >
                           View (Mock Link)
                         </a>
-                        {/* Mock Delete Button */}
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:bg-red-100" disabled>
-                          <Trash2 className="h-3 w-3" />
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20" 
+                          onClick={() => handleDelete(doc.id, doc.file_name)}
+                          disabled={deletingDocId === doc.id}
+                        >
+                          {deletingDocId === doc.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
                         </Button>
                       </div>
                     </div>
