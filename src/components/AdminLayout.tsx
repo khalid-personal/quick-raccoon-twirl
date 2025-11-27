@@ -5,6 +5,7 @@ import { LogOut, Users, Home, Settings, Menu } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
+import { UserRole } from '@/lib/types';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ interface NavLinkProps {
     label: string;
     isActive: boolean;
     isSuperAdminRoute?: boolean;
-    userRole: 'admin' | 'staff' | 'viewer' | null;
+    userRole: UserRole | null;
 }
 
 const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole }) => {
