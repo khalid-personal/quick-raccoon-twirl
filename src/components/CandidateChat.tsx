@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Send, Loader2, MessageSquare, User, Shield } from 'lucide-react';
+import { Send, Loader2, MessageSquare, User, Shield, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -45,12 +45,22 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                     )}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                <p className={cn(
-                    "text-xs mt-1",
-                    isCandidate ? "text-primary-foreground/80" : "text-gray-500 dark:text-gray-400"
+                <div className={cn(
+                    "text-xs mt-1 flex items-center",
+                    isCandidate ? "justify-end text-primary-foreground/80" : "justify-start text-gray-500 dark:text-gray-400"
                 )}>
                     {format(new Date(message.timestamp), 'h:mm a')}
-                </p>
+                    
+                    {/* Read Receipt for Candidate's messages (Admin read status) */}
+                    {isCandidate && (
+                        <span className="ml-1 flex items-center">
+                            <CheckCheck 
+                                className={cn("h-3 w-3", message.is_read_by_admin ? "text-green-300" : "text-primary-foreground/60")} 
+                                title={message.is_read_by_admin ? "Read by Admin" : "Delivered"}
+                            />
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -70,6 +80,7 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
   // Mark admin messages as read by candidate when history loads
   useEffect(() => {
       if (messages.length > 0) {
+          // This marks messages sent by admin/staff as read by the candidate
           api.markCandidateMessagesRead(candidateId, 'candidate');
           queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidateId] });
       }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Send, Loader2, MessageSquare, User, Shield } from 'lucide-react';
+import { Send, Loader2, MessageSquare, User, Shield, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -44,12 +44,22 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                     )}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                <p className={cn(
-                    "text-xs mt-1",
-                    isAdminOrStaff ? "text-blue-100/80" : "text-gray-500 dark:text-gray-400"
+                <div className={cn(
+                    "text-xs mt-1 flex items-center",
+                    isAdminOrStaff ? "justify-end text-blue-100/80" : "justify-start text-gray-500 dark:text-gray-400"
                 )}>
                     {format(new Date(message.timestamp), 'MMM d, h:mm a')}
-                </p>
+                    
+                    {/* Read Receipt for Admin/Staff messages (Candidate read status) */}
+                    {isAdminOrStaff && (
+                        <span className="ml-1 flex items-center">
+                            <CheckCheck 
+                                className={cn("h-3 w-3", message.is_read_by_candidate ? "text-green-300" : "text-blue-100/60")} 
+                                title={message.is_read_by_candidate ? "Read by Candidate" : "Delivered"}
+                            />
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -74,7 +84,7 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
       if (messages.length > 0) {
           api.markCandidateMessagesRead(candidate.id, 'admin');
           queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidate.id] });
-          queryClient.invalidateQueries({ queryKey: ['adminInboxSummary'] }); // Update inbox count
+          queryClient.invalidateQueries({ queryKey: ['adminInboxSummary'] });
       }
   }, [messages.length, candidate.id, queryClient]);
 
