@@ -8,9 +8,26 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/lib/auth';
+import { Navigate } from 'react-router-dom';
 
 const SuperadminSettings: React.FC = () => {
+  const { userRole, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Role check and redirect
+  if (isAuthLoading) {
+    return (
+      <div className="flex justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (userRole !== 'admin') {
+    toast.error("Access Denied: You must be a Superadmin to view settings.");
+    return <Navigate to="/admin" replace />;
+  }
   
   const { data: config, isLoading } = useQuery({
     queryKey: ['appConfig'],
