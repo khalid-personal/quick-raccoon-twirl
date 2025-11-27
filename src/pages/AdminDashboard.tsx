@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import PipelineProgressChart from '@/components/PipelineProgressChart';
+import { cn } from '@/lib/utils';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
