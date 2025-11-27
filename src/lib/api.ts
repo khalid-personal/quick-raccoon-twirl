@@ -10,6 +10,7 @@ import {
   TOTAL_STAGES,
   CandidateSummary,
   DashboardSummary,
+  PipelineDistribution,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -775,9 +776,14 @@ export const api = {
   },
   
   // Placeholder for Printable Progress Sheet
-  generatePrintableSheet: async (candidateId: string) => {
-      const detail = await api.getCandidateDetail(candidateId);
-      if (!detail) throw new Error("Candidate not found.");
+  generatePrintableSheet: async (trackingCode: string) => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const candidate = getCandidates().find(c => c.tracking_code === trackingCode);
+      if (!candidate) throw new Error("Candidate not found.");
+      
+      // We need the full detail to generate the sheet, so we fetch it using the ID
+      const detail = await api.getCandidateDetail(candidate.id);
+      if (!detail) throw new Error("Candidate detail not found.");
       
       // In a real app, this would generate a PDF/HTML view. Here we return the data.
       console.log(`[MOCK EXPORT] Generating printable sheet for ${detail.tracking_code}`);
