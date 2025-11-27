@@ -136,3 +136,35 @@ export const getCandidateByTrackingCode = async (trackingCode: string): Promise<
     const candidates = getCandidates();
     return candidates.find(c => c.tracking_code.toLowerCase() === trackingCode.toLowerCase()) || null;
 };
+
+// NEW: Update candidate credentials (email and password/pin)
+export const updateCandidateCredentials = async (candidateId: string, newEmail: string, newPin?: string): Promise<Candidate> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const index = candidates.findIndex(c => c.id === candidateId);
+
+    if (index === -1) {
+        throw new Error('Candidate not found.');
+    }
+    
+    const existingCandidate = candidates[index];
+
+    // Check for duplicate email if changing
+    if (newEmail.toLowerCase() !== existingCandidate.email.toLowerCase() && candidates.some(c => c.email.toLowerCase() === newEmail.toLowerCase())) {
+        throw new Error(`Email '${newEmail}' is already registered by another candidate.`);
+    }
+
+    const updatedCandidate = {
+        ...existingCandidate,
+        email: newEmail,
+        // NOTE: In a real Supabase app, we would call:
+        // await supabase.auth.admin.updateUserById(candidateId, { email: newEmail, password: newPin });
+        // Since we are mocking, we just update the email in the mock store.
+        // The PIN change is purely simulated here.
+    };
+
+    candidates[index] = updatedCandidate;
+    saveCandidates(candidates);
+    
+    return updatedCandidate;
+};
