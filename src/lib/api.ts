@@ -11,6 +11,8 @@ import {
   CandidateSummary,
   DashboardSummary,
   PipelineDistribution,
+  CandidateSortField,
+  SortDirection,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -476,12 +478,19 @@ export const api = {
   },
   
   // GET /api/admin/search?q=
-  searchCandidates: async (query: string, filterStatus?: CandidateSummary['overall_status'], filterBatch?: string): Promise<CandidateSummary[]> => {
+  searchCandidates: async (
+    query: string, 
+    filterStatus?: CandidateSummary['overall_status'], 
+    filterBatch?: string,
+    sortBy: CandidateSortField = 'tracking_code', // Default sort
+    sortDirection: SortDirection = 'asc' // Default direction
+  ): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
     const allStages = getCandidateStages();
     const q = query.toLowerCase();
-
+    
+    // 1. Augment candidates with calculated status/progress
     const candidatesWithStatus = candidates.map(candidate => {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const progress_percent = calculateProgress(candidateStages);
@@ -493,6 +502,7 @@ export const api = {
         };
     });
 
+    // 2. Filter candidates
     const filteredCandidates = candidatesWithStatus.filter(c => {
       const matchesQuery = 
         c.first_name.toLowerCase().includes(q) ||
@@ -507,7 +517,56 @@ export const api = {
       return matchesQuery && matchesStatus && matchesBatch;
     });
     
-    return filteredCandidates;
+    // 3. Sort candidates
+    const sortedCandidates = filteredCandidates.sort((a, b) => {
+        let comparison = 0;
+        
+        // Helper for string comparison
+        const compareStrings = (valA: string | undefined, valB: string | undefined) => {
+            const strA = (valA || '').toLowerCase();
+            const strB = (valB || '').toLowerCase();
+            if (strA < strB) comparison = -1;
+            if (strA > strB) comparison = 1;
+        };
+        
+        // Helper for numeric comparison
+        const compareNumbers = (valA: number, valB: number) => {
+            comparison = valA - valB;
+        };
+        
+        switch (sortBy) {
+            case 'progress_percent':
+                compareNumbers(a.progress_percent, b.progress_percent);
+                break;
+            case 'overall_status':
+                // Define a custom order for status
+                const statusOrder: Record<CandidateSummary['overall_status'], number> = {
+                    'Blocked': 1,
+                    'In Progress': 2,
+                    'Pending': 3,
+                    'Completed': 4,
+                };
+                compareNumbers(statusOrder[a.overall_status], statusOrder[b.overall_status]);
+                break;
+            case 'marital_status':
+                compareStrings(a.marital_status, b.marital_status);
+                break;
+            case 'country_of_origin':
+                compareStrings(a.country_of_origin, b.country_of_origin);
+                break;
+            case 'tracking_code':
+                compareStrings(a.tracking_code, b.tracking_code);
+                break;
+            case 'first_name':
+            default:
+                compareStrings(a.first_name + a.last_name, b.first_name + b.last_name);
+                break;
+        }
+        
+        return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    return sortedCandidates;
   },
 
   // GET /api/admin/candidate/:id

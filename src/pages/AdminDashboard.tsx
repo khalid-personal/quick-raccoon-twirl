@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { CandidateSummary } from '@/lib/types';
+import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Loader2, Filter } from 'lucide-react';
+import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
@@ -26,6 +26,32 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
 
 const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
 
+interface SortableHeaderProps {
+  field: CandidateSortField;
+  currentSort: CandidateSortField;
+  currentDirection: SortDirection;
+  label: string;
+  onSort: (field: CandidateSortField) => void;
+  className?: string;
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, currentDirection, label, onSort, className }) => {
+  const isCurrent = currentSort === field;
+  const Icon = isCurrent ? (currentDirection === 'asc' ? ArrowUp : ArrowDown) : null;
+
+  return (
+    <TableHead 
+      className={cn("cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors", className)}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center space-x-1">
+        <span>{label}</span>
+        {Icon && <Icon className="h-3 w-3" />}
+      </div>
+    </TableHead>
+  );
+};
+
 const AdminDashboard: React.FC = () => {
   const { userRole } = useAuth();
   const isSuperAdmin = userRole === 'admin';
@@ -33,14 +59,24 @@ const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
-  const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER); // Initialize with the constant
+  const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState<CandidateSortField>('tracking_code');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch],
-    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined, effectiveFilterBatch),
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection],
+    queryFn: () => api.searchCandidates(
+      currentQuery, 
+      filterStatus || undefined, 
+      effectiveFilterBatch,
+      sortBy,
+      sortDirection
+    ),
     initialData: [],
   });
   
@@ -68,6 +104,15 @@ const AdminDashboard: React.FC = () => {
     setFilterBatch(batch);
     setCurrentQuery(''); 
     setSearchQuery('');
+  };
+  
+  const handleSort = (field: CandidateSortField) => {
+    if (field === sortBy) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDirection('asc');
+    }
   };
 
   return (
@@ -160,14 +205,51 @@ const AdminDashboard: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Tracking Code</TableHead>
+                    <SortableHeader 
+                      field="first_name" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Name" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
+                      field="tracking_code" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Tracking Code" 
+                      onSort={handleSort} 
+                    />
                     <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
-                    <TableHead>Origin</TableHead>
-                    <TableHead className="w-[150px]">Progress</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Marital Status</TableHead>
+                    <SortableHeader 
+                      field="country_of_origin" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Origin" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
+                      field="progress_percent" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Progress" 
+                      onSort={handleSort} 
+                      className="w-[150px]"
+                    />
+                    <SortableHeader 
+                      field="overall_status" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Status" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
+                      field="marital_status" 
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Marital Status" 
+                      onSort={handleSort} 
+                    />
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

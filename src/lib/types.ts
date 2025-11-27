@@ -104,6 +104,10 @@ export interface PipelineDistribution {
     blockedCount: number;
 }
 
+// --- Sorting Types ---
+export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status';
+export type SortDirection = 'asc' | 'desc';
+
 // Constants for Stages (based on SQL seed)
 export const ALL_STAGES: Stage[] = [
   { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10 },
