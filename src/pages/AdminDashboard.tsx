@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, PlusCircle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import NewCandidateForm from '@/components/NewCandidateForm';
 
 const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: candidates, isLoading, refetch } = useQuery({
     queryKey: ['adminCandidates', currentQuery],
@@ -25,31 +27,31 @@ const AdminDashboard: React.FC = () => {
     setCurrentQuery(searchQuery);
   };
   
-  // Mock function for creating a new candidate (Admin requirement)
-  const handleCreateCandidate = async () => {
-      try {
-          const newCandidate = await api.createCandidate({
-              first_name: 'New',
-              last_name: 'Candidate',
-              tracking_code: `TRK-NEW-${Math.floor(Math.random() * 1000)}`,
-              country_of_origin: 'Kenya',
-              passport_number: `P${Math.floor(Math.random() * 1000000)}`,
-              is_minor: false,
-          });
-          toast.success(`Candidate ${newCandidate.tracking_code} created successfully.`);
-          refetch();
-      } catch (error) {
-          toast.error((error as Error).message);
-      }
+  const handleCandidateCreated = () => {
+      refetch();
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Candidate Management</h1>
-        <Button onClick={handleCreateCandidate}>
-          <PlusCircle className="h-4 w-4 mr-2" /> Add New Candidate (Mock)
-        </Button>
+        
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="h-4 w-4 mr-2" /> Add New Candidate
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Candidate Record</DialogTitle>
+            </DialogHeader>
+            <NewCandidateForm 
+              onSuccess={handleCandidateCreated} 
+              onClose={() => setIsDialogOpen(false)} 
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
