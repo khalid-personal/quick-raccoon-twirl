@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 import { getStatusColor, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import StageDocumentUploader from './StageDocumentUploader'; // Import new component
 
 interface TimelineEditorProps {
   candidateDetail: CandidateDetail;
@@ -105,6 +106,8 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
             isDisabled = true;
             dependencyMessage = "Requires CoC Training to be Passed before updating Labor ID status.";
         }
+        
+        const documentsForStage = candidateDetail.documents.filter(doc => doc.stage_id === stage.id);
 
         return (
           <Card key={stage.id}>
@@ -179,14 +182,23 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
                 </div>
               )}
               
-              <div className="md:col-span-4 flex justify-end">
-                <Button 
-                  onClick={() => handleSave(stage.id)} 
-                  disabled={isDisabled || !isModified}
-                >
-                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Changes
-                </Button>
+              <div className="md:col-span-4 flex flex-col space-y-4">
+                <StageDocumentUploader
+                  candidateId={candidateDetail.id}
+                  stageId={stage.id}
+                  existingDocuments={documentsForStage}
+                  refetch={refetch}
+                />
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={() => handleSave(stage.id)} 
+                    disabled={isDisabled || !isModified}
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
