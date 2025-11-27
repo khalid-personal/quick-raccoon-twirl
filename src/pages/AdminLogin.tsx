@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Chrome, Github } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const AdminLogin: React.FC = () => {
-  const { isAuthenticated, login, isLoading } = useAuth();
+  const { isAuthenticated, login, loginWithProvider, isLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -42,6 +43,15 @@ const AdminLogin: React.FC = () => {
     }
   };
   
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
+    try {
+      await loginWithProvider(provider);
+      // The page will redirect, so no further state updates needed here.
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -55,9 +65,37 @@ const AdminLogin: React.FC = () => {
       <Card className="w-[350px]">
         <CardHeader>
           <CardTitle>Agency Staff Login</CardTitle>
-          <CardDescription>Enter your credentials to access the management dashboard.</CardDescription>
+          <CardDescription>Enter your credentials or use a social provider to access the dashboard.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          
+          {/* Social Login Buttons */}
+          <div className="space-y-2">
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => handleSocialLogin('google')}
+              disabled={isLoggingIn}
+            >
+              <Chrome className="h-4 w-4 mr-2" /> Login with Google
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => handleSocialLogin('github')}
+              disabled={isLoggingIn}
+            >
+              <Github className="h-4 w-4 mr-2" /> Login with GitHub
+            </Button>
+          </div>
+          
+          <div className="flex items-center">
+            <Separator className="flex-grow" />
+            <span className="px-2 text-xs text-muted-foreground">OR</span>
+            <Separator className="flex-grow" />
+          </div>
+
+          {/* Email/PIN Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -84,14 +122,15 @@ const AdminLogin: React.FC = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoggingIn}>
-              {isLoggingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 'Login'}
+              {isLoggingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 'Login with Email/PIN'}
             </Button>
           </form>
+          
           <p className="text-center text-sm text-muted-foreground">
             <a href="/" className="hover:underline">Return to Public Home</a>
           </p>
           <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
-            <p>To test, you must first set up Supabase Auth and create a user.</p>
+            <p>To use social logins, you must enable them in your Supabase project settings.</p>
             <p className="font-semibold">Email/PIN are used as Email/Password for Supabase.</p>
           </div>
         </CardContent>

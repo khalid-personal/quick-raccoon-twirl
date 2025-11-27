@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, pin: string) => Promise<{ error: Error | null }>;
+  loginWithProvider: (provider: 'google' | 'github') => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -69,6 +70,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // If successful, the onAuthStateChange listener handles setting the session/user/role.
     return { error: null };
   };
+  
+  const loginWithProvider = async (provider: 'google' | 'github') => {
+    // This redirects the user to the provider's login page
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: provider,
+      options: {
+        redirectTo: `${window.location.origin}/admin`, // Redirect back to the admin dashboard
+      },
+    });
+
+    if (error) {
+      console.error(`OAuth login failed for ${provider}:`, error);
+      throw new Error(`Failed to start ${provider} login.`);
+    }
+    // Note: No need for success toast here, as the page redirects immediately.
+  };
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -77,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!session;
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, login, loginWithProvider, logout }}>
       {children}
     </AuthContext.Provider>
   );
