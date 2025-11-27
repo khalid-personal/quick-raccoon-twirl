@@ -30,6 +30,7 @@ const SEED_CANDIDATES: Candidate[] = [
     passport_number: 'EP1234567',
     tracking_code: 'TRK-ET-0001',
     country_of_origin: 'Ethiopia',
+    batch_name: 'Batch 1', // Added batch name
     is_minor: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -42,9 +43,23 @@ const SEED_CANDIDATES: Candidate[] = [
     passport_number: 'EP9876543',
     tracking_code: 'TRK-ET-0002',
     country_of_origin: 'Ethiopia',
+    batch_name: 'Batch 1', // Added batch name
     is_minor: true,
     guardian_name: 'Kumera Tesfaye',
     guardian_contact: '+251911000111',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: uuidv4(),
+    first_name: 'Fatima',
+    last_name: 'Ali',
+    dob: '2000-01-01',
+    passport_number: 'DJ000111',
+    tracking_code: 'TRK-DJ-0003',
+    country_of_origin: 'Djibouti',
+    batch_name: 'Batch 2', // Added batch name
+    is_minor: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -73,6 +88,14 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
         date = '2025-11-25T00:00:00Z';
       }
     }
+    
+    // Apply specific seed statuses for TRK-DJ-0003 (Fatima)
+    if (candidateId === SEED_CANDIDATES[2].id) {
+      if (stage.slug === 'initial_medical') {
+        status = 'In Progress';
+        date = '2025-12-01T00:00:00Z';
+      }
+    }
 
     return {
       id: uuidv4(),
@@ -89,6 +112,7 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
 const SEED_CANDIDATE_STAGES: CandidateStage[] = [
   ...generateInitialStages(SEED_CANDIDATES[0].id),
   ...generateInitialStages(SEED_CANDIDATES[1].id),
+  ...generateInitialStages(SEED_CANDIDATES[2].id),
 ];
 
 // Helper to find stage ID by slug
@@ -216,6 +240,50 @@ function calculateOverallStatus(candidateStages: CandidateStage[]): CandidateSum
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'>;
 
 export const api = {
+  // GET /api/admin/batches
+  getBatches: async (): Promise<string[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const allStages = getCandidateStages();
+    const flightDepartureStageId = getStageId('flight_departure');
+    
+    const batches = new Set<string>();
+    const completedBatches = new Set<string>();
+
+    candidates.forEach(candidate => {
+        if (candidate.batch_name) {
+            batches.add(candidate.batch_name);
+            
+            // Check if this candidate has completed the final stage
+            const flightStage = allStages.find(
+                cs => cs.candidate_id === candidate.id && cs.stage_id === flightDepartureStageId
+            );
+            
+            if (flightStage?.status !== 'Completed') {
+                // If any candidate in this batch is NOT completed, the batch is active.
+                completedBatches.delete(candidate.batch_name);
+            } else if (!completedBatches.has(candidate.batch_name)) {
+                // Tentatively mark as completed, will be removed if another candidate in the batch is still active
+                completedBatches.add(candidate.batch_name);
+            }
+        }
+    });
+    
+    // Filter out batches where ALL candidates have completed the final stage
+    const activeBatches = Array.from(batches).filter(batch => {
+        const candidatesInBatch = candidates.filter(c => c.batch_name === batch);
+        const allCompleted = candidatesInBatch.every(candidate => {
+            const flightStage = allStages.find(
+                cs => cs.candidate_id === candidate.id && cs.stage_id === flightDepartureStageId
+            );
+            return flightStage?.status === 'Completed';
+        });
+        return !allCompleted;
+    }).sort(); // Sort alphabetically for consistency
+    
+    return activeBatches;
+  },
+  
   // GET /api/admin/summary
   getDashboardSummary: async (): Promise<DashboardSummary> => {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -247,7 +315,7 @@ export const api = {
   },
   
   // GET /api/admin/search?q=
-  searchCandidates: async (query: string, filterStatus?: CandidateSummary['overall_status']): Promise<CandidateSummary[]> => {
+  searchCandidates: async (query: string, filterStatus?: CandidateSummary['overall_status'], filterBatch?: string): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
     const allStages = getCandidateStages();
@@ -271,9 +339,11 @@ export const api = {
         c.passport_number.toLowerCase().includes(q) ||
         c.tracking_code.toLowerCase().includes(q);
         
-      const matchesFilter = !filterStatus || c.overall_status === filterStatus;
+      const matchesStatus = !filterStatus || c.overall_status === filterStatus;
       
-      return matchesQuery && matchesFilter;
+      const matchesBatch = !filterBatch || c.batch_name === filterBatch;
+      
+      return matchesQuery && matchesStatus && matchesBatch;
     });
     
     return filteredCandidates;
@@ -383,7 +453,7 @@ export const api = {
   },
   
   // POST /api/admin/candidate
-  createCandidate: async (data: CandidateCreationData): Promise<Candidate> => {
+  createCandidate: async (data: CandidateCreationData & { batch_name?: string }): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     

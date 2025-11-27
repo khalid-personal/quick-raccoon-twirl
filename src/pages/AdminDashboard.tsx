@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Loader2 } from 'lucide-react';
+import { Search, PlusCircle, Loader2, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import DashboardSummaryCards from '@/components/DashboardSummaryCards';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
@@ -25,12 +26,18 @@ const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
+  const [filterBatch, setFilterBatch] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus],
-    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined),
+    queryKey: ['adminCandidates', currentQuery, filterStatus, filterBatch],
+    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined, filterBatch || undefined),
     initialData: [],
+  });
+  
+  const { data: activeBatches = [], isLoading: isLoadingBatches } = useQuery<string[]>({
+    queryKey: ['activeBatches'],
+    queryFn: api.getBatches,
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -44,7 +51,13 @@ const AdminDashboard: React.FC = () => {
   
   const handleStatusSelect = (status: CandidateSummary['overall_status'] | '') => {
     setFilterStatus(status);
-    setCurrentQuery(''); // Clear search query when filtering by status
+    setCurrentQuery(''); 
+    setSearchQuery('');
+  };
+  
+  const handleBatchSelect = (batch: string) => {
+    setFilterBatch(batch);
+    setCurrentQuery(''); 
     setSearchQuery('');
   };
 
@@ -77,26 +90,49 @@ const AdminDashboard: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Candidates</CardTitle>
+          <CardTitle>Search & Filter Candidates</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="flex space-x-2">
-            <Input
-              placeholder="Search by Name, Passport, or Tracking Code"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-grow"
-            />
-            <Button type="submit">
-              <Search className="h-4 w-4 mr-2" /> Search
-            </Button>
-          </form>
+          <div className="flex flex-col md:flex-row gap-4">
+            <form onSubmit={handleSearch} className="flex space-x-2 flex-grow">
+              <Input
+                placeholder="Search by Name, Passport, or Tracking Code"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-grow"
+              />
+              <Button type="submit">
+                <Search className="h-4 w-4 mr-2" /> Search
+              </Button>
+            </form>
+            
+            <div className="w-full md:w-60">
+              <Select
+                value={filterBatch}
+                onValueChange={handleBatchSelect}
+                disabled={isLoadingBatches}
+              >
+                <SelectTrigger>
+                  <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by Batch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Batches</SelectItem>
+                  {activeBatches.map(batch => (
+                    <SelectItem key={batch} value={batch}>
+                      {batch}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Results ({candidates.length}) {filterStatus && `(Filtered by ${filterStatus})`}</CardTitle>
+          <CardTitle>Results ({candidates.length}) {filterStatus && `(Status: ${filterStatus})`} {filterBatch && `(Batch: ${filterBatch})`}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -112,6 +148,7 @@ const AdminDashboard: React.FC = () => {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Tracking Code</TableHead>
+                    <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
                     <TableHead>Origin</TableHead>
                     <TableHead className="w-[150px]">Progress</TableHead>
@@ -125,6 +162,11 @@ const AdminDashboard: React.FC = () => {
                     <TableRow key={candidate.id}>
                       <TableCell className="font-medium">{candidate.first_name} {candidate.last_name}</TableCell>
                       <TableCell>{candidate.tracking_code}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {candidate.batch_name || 'N/A'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
                       <TableCell>{candidate.country_of_origin}</TableCell>
                       <TableCell>

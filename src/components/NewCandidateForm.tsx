@@ -12,8 +12,10 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
 
 const COUNTRY_OPTIONS = ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Other'];
+const NEW_BATCH_OPTION = '___NEW_BATCH___';
 
 // Schema for form validation
 const NewCandidateSchema = z.object({
@@ -24,6 +26,8 @@ const NewCandidateSchema = z.object({
   tracking_code: z.string().min(1, "Tracking code is required.").regex(/^TRK-[A-Z]{2,3}-\d{4,}$/, "Invalid tracking code format (e.g., TRK-ET-0001)."),
   country_of_origin: z.string().min(1, "Country of origin is required."),
   custom_country: z.string().optional(), // For 'Other' selection
+  batch_name: z.string().optional(), // New field
+  new_batch_name: z.string().optional(), // For creating a new batch
   is_minor: z.boolean().default(false),
   guardian_name: z.string().optional(),
   guardian_contact: z.string().optional(),
@@ -52,6 +56,14 @@ const NewCandidateSchema = z.object({
       path: ['custom_country'],
     });
   }
+  
+  if (data.batch_name === NEW_BATCH_OPTION && (!data.new_batch_name || data.new_batch_name.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please enter a name for the new batch.",
+      path: ['new_batch_name'],
+    });
+  }
 });
 
 type NewCandidateFormValues = z.infer<typeof NewCandidateSchema>;
@@ -62,6 +74,11 @@ interface NewCandidateFormProps {
 }
 
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
+  const { data: activeBatches = [], refetch: refetchBatches } = useQuery<string[]>({
+    queryKey: ['activeBatches'],
+    queryFn: api.getBatches,
+  });
+  
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
     defaultValues: {
@@ -72,6 +89,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       tracking_code: '',
       country_of_origin: '',
       custom_country: '',
+      batch_name: '',
+      new_batch_name: '',
       is_minor: false,
       guardian_name: '',
       guardian_contact: '',
@@ -81,7 +100,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = form;
   const isMinor = watch('is_minor');
   const selectedCountry = watch('country_of_origin');
+  const selectedBatch = watch('batch_name');
   const isCustomCountry = selectedCountry === 'Other';
+  const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
 
   const onSubmit = async (data: NewCandidateFormValues) => {
     try {
@@ -91,6 +112,13 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           toast.error("Country of Origin is required.");
           return;
       }
+      
+      let finalBatchName: string | undefined = undefined;
+      if (data.batch_name === NEW_BATCH_OPTION) {
+          finalBatchName = data.new_batch_name;
+      } else if (data.batch_name) {
+          finalBatchName = data.batch_name;
+      }
 
       const newCandidate = await api.createCandidate({
         first_name: data.first_name,
@@ -99,11 +127,13 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         passport_number: data.passport_number,
         tracking_code: data.tracking_code,
         country_of_origin: finalCountry,
+        batch_name: finalBatchName,
         guardian_name: data.is_minor ? data.guardian_name : undefined,
         guardian_contact: data.is_minor ? data.guardian_contact : undefined,
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully.`);
+      refetchBatches(); // Refresh batch list after creation
       onSuccess(newCandidate);
       onClose();
     } catch (error) {
@@ -178,6 +208,39 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
       </div>
+      
+      {/* Batch Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="batch_name">Batch Group (Optional)</Label>
+        <Select
+          value={selectedBatch}
+          onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
+        >
+          <SelectTrigger id="batch_name">
+            <SelectValue placeholder="Select or Create Batch" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No Batch</SelectItem>
+            {activeBatches.map(batch => (
+              <SelectItem key={batch} value={batch}>
+                {batch}
+              </SelectItem>
+            ))}
+            <SelectItem value={NEW_BATCH_OPTION}>
+              + Create New Batch
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
+      </div>
+      
+      {isCreatingNewBatch && (
+        <div className="space-y-2 pl-4 border-l-2 border-primary">
+          <Label htmlFor="new_batch_name">New Batch Name *</Label>
+          <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
+          {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
+        </div>
+      )}
       
       <div className="flex items-center space-x-2 pt-2">
         <Checkbox 
