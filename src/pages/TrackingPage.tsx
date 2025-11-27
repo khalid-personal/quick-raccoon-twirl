@@ -10,6 +10,7 @@ import { Loader2, AlertTriangle, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth'; // Import useAuth
+import CandidateChat from '@/components/CandidateChat'; // NEW IMPORT
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -98,13 +99,19 @@ const TrackingPage: React.FC = () => {
             refetch={refetch}
           />
           
-          <div className="mt-8 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
-            <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>
-            <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 dark:text-gray-400">
-              <li>Medical results are summarized as Passed, Failed, or Pending for privacy compliance.</li>
-              <li>If the final stage is blocked, please contact your agency representative.</li>
-              <li>This page refreshes automatically every 5 seconds.</li>
-            </ul>
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Chat Component */}
+            <CandidateChat trackingCode={data.tracking_code} />
+            
+            {/* Important Notes */}
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 h-full">
+              <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>
+              <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                <li>Medical results are summarized as Passed, Failed, or Pending for privacy compliance.</li>
+                <li>If the final stage is blocked, please contact your agency representative.</li>
+                <li>This page refreshes automatically every 5 seconds.</li>
+              </ul>
+            </div>
           </div>
           
           <div className="mt-6 text-center space-y-4">
