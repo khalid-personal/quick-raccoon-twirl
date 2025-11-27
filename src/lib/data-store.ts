@@ -1,7 +1,6 @@
 import { Candidate, CandidateStage, MedicalResult, Document, StaffUser } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS } from './data-keys';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS } from './data-keys';
 import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS } from './data-seed';
-import { LS_PAYMENT_STATUS } from './api/utils'; // Import the key from the new utils file
 
 // Define PaymentStatus interface locally for data store usage
 interface PaymentStatus {
