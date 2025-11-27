@@ -38,7 +38,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
               >
                 <CardHeader className={cn("flex flex-row items-center justify-between p-4", getStatusColor(cs.status))}>
                   <div className="flex items-center space-x-3">
-                    {IconComponent && <IconComponent className="h-6 w-6 text-white" />}
+                    {IconComponent && <IconComponent className="h-5 w-5 text-white" />}
                     <CardTitle className="text-white text-lg">{stage.title}</CardTitle>
                   </div>
                   <Badge variant="secondary" className="text-sm font-semibold">
