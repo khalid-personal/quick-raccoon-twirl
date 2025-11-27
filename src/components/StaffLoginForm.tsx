@@ -10,18 +10,18 @@ import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const StaffLoginForm: React.FC = () => {
-  const { isAuthenticated, login, isLoading } = useAuth();
+  const { isAuthenticated, login, isLoading, userRole } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   React.useEffect(() => {
-    if (isAuthenticated) {
-      // Redirect authenticated users to the admin dashboard
+    // Only redirect if authenticated AND the role is confirmed to be staff or admin
+    if (isAuthenticated && (userRole === 'admin' || userRole === 'staff')) {
       navigate('/admin', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, userRole, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
