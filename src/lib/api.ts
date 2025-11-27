@@ -12,6 +12,8 @@ import {
   PipelineDistribution,
   CandidateSortField,
   SortDirection,
+  StaffUser, // NEW
+  UserRole, // NEW
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -20,11 +22,13 @@ import {
     getMedicalResults, 
     getDocuments, 
     getConfig, 
+    getStaffUsers, // NEW
     saveCandidates, 
     saveCandidateStages, 
     saveMedicalResults, 
     saveDocuments, 
-    saveConfig 
+    saveConfig,
+    saveStaffUsers // NEW
 } from './data-store';
 import { calculateProgress, calculateOverallStatus, isAdult } from './utils-data';
 import { generateInitialStages, AppConfig } from './data-seed';
@@ -63,6 +67,33 @@ if (getPaymentStatuses().length === 0) {
 
 
 export const api = {
+  
+  // NEW: Get all staff users (admin, staff, viewer)
+  getAllStaffUsers: async (): Promise<StaffUser[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return getStaffUsers();
+  },
+  
+  // NEW: Update a staff user's role and approval status
+  updateUserRole: async (userId: string, role: Exclude<UserRole, 'candidate'>, isApproved: boolean): Promise<StaffUser> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const users = getStaffUsers();
+    const index = users.findIndex(u => u.id === userId);
+
+    if (index === -1) {
+      throw new Error('User not found.');
+    }
+    
+    const updatedUser = {
+      ...users[index],
+      role,
+      is_approved: isApproved,
+    };
+    
+    users[index] = updatedUser;
+    saveStaffUsers(users);
+    return updatedUser;
+  },
   
   // NEW: Helper to get candidate by email (needed after Supabase login)
   getCandidateByEmail: async (email: string): Promise<Candidate | null> => {

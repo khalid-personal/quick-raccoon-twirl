@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu } from 'lucide-react';
+import { LogOut, Users, Home, Settings, Menu, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -49,6 +49,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/track', label: 'Public Tracking', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
+    { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
   ];
 
   return (

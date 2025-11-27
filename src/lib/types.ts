@@ -2,6 +2,17 @@ export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Iss
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
 export type UserRole = 'admin' | 'staff' | 'viewer' | 'candidate';
 
+// NEW: Staff User Interface
+export interface StaffUser {
+  id: string;
+  email: string;
+  role: Exclude<UserRole, 'candidate'>; // admin, staff, viewer
+  is_approved: boolean;
+  created_at: string;
+}
+
+export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'viewer'];
+
 export interface Stage {
   id: number;
   slug: string;

@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { UserRole } from './types';
+import { UserRole, StaffUser } from './types';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { api } from './api'; // Import API to check candidate emails
+import { getStaffUsers } from './data-store';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -40,28 +42,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null }> => {
     if (!user || !user.email) return { role: null, trackingCode: null };
     
-    console.log(`[AUTH] Determining role for email: ${user.email}`);
+    const email = user.email.toLowerCase();
+    console.log(`[AUTH] Determining role for email: ${email}`);
     
-    // 1. Check for Admin role
-    if (user.email === MOCK_ADMIN_EMAIL) {
-        console.log(`[AUTH] Role determined: admin`);
-        return { role: 'admin', trackingCode: null };
-    }
-    
-    // 2. Check for Candidate role
-    const candidate = await api.getCandidateByEmail(user.email);
+    // 1. Check for Candidate role
+    const candidate = await api.getCandidateByEmail(email);
     if (candidate) {
         console.log(`[AUTH] Role determined: candidate (${candidate.tracking_code})`);
         return { role: 'candidate', trackingCode: candidate.tracking_code };
     }
     
-    // 3. Default Staff role for any other logged-in user
-    console.log(`[AUTH] Role determined: staff`);
-    return { role: 'staff', trackingCode: null }; 
+    // 2. Check for Staff/Admin/Viewer role using mock store
+    const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email);
+    
+    if (staffUser) {
+        if (!staffUser.is_approved) {
+            console.log(`[AUTH] Staff user ${email} is registered but not approved.`);
+            // Treat unapproved staff as unauthenticated for access purposes
+            return { role: null, trackingCode: null }; 
+        }
+        console.log(`[AUTH] Role determined: ${staffUser.role}`);
+        return { role: staffUser.role, trackingCode: null };
+    }
+    
+    // 3. If user exists in Supabase but not in our mock store (e.g., new signup not yet seeded)
+    console.log(`[AUTH] User ${email} found in Supabase but not in mock staff store. Defaulting to unauthenticated.`);
+    return { role: null, trackingCode: null }; 
   };
   
   const updateAuthStatus = async (newSession: Session | null) => {
-    setSession(newSession); // <-- FIX: Set the session state
+    setSession(newSession);
     const user = newSession?.user ?? null;
     setUser(user);
     
@@ -110,9 +120,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const mockUser = createMockUser(email);
             
             // Check if this mock user is a known candidate or staff/admin
+            const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
             const candidate = await api.getCandidateByEmail(email);
             
-            if (candidate || email === MOCK_ADMIN_EMAIL || email.includes('@agency.com')) {
+            if (candidate || staffUser) {
                 // Manually set state to simulate successful login
                 const mockSession: Session = { 
                     user: mockUser, 
@@ -138,9 +149,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const signup = async (email: string, pin: string, authCode: string) => {
-    // Note: Candidate signup is not supported via this form, only staff/admin.
-    // Candidates are created via the Admin Dashboard (POST /api/admin/candidate).
-    const { error } = await supabase.auth.signUp({
+    // 1. Attempt Supabase signup (for real auth flow)
+    const { data, error } = await supabase.auth.signUp({
         email: email,
         password: pin,
         options: {
@@ -153,6 +163,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
         console.error("Supabase Signup Error Details:", error.message);
         return { error };
+    }
+    
+    // 2. Mock: Add user to local staff store as unapproved 'staff'
+    const users = getStaffUsers();
+    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (!existingUser) {
+        const newUser: StaffUser = {
+            id: data.user?.id || uuidv4(), // Use Supabase ID if available, otherwise mock
+            email: email,
+            role: 'staff', // Default role for new signups
+            is_approved: false, // Requires admin approval
+            created_at: new Date().toISOString(),
+        };
+        saveStaffUsers([...users, newUser]);
     }
     
     return { error: null };

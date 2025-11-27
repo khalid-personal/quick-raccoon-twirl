@@ -11,6 +11,7 @@ import AdminCandidateDetail from "./pages/AdminCandidateDetail";
 import AuthPage from "./pages/AuthPage";
 import Signup from "./pages/Signup"; 
 import SuperadminSettings from "./pages/SuperadminSettings";
+import AdminUserManagement from "./pages/AdminUserManagement"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import { Loader2 } from 'lucide-react'; // Added Loader2 import
@@ -99,6 +100,16 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <SuperadminSettings />
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/users" 
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminUserManagement />
             </AdminLayout>
           </ProtectedRoute>
         } 

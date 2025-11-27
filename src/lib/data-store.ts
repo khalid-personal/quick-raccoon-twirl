@@ -1,6 +1,6 @@
-import { Candidate, CandidateStage, MedicalResult, Document } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG } from './data-keys';
-import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig } from './data-seed';
+import { Candidate, CandidateStage, MedicalResult, Document, StaffUser } from './types';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS } from './data-keys';
+import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS } from './data-seed';
 
 // --- Getter Functions ---
 
@@ -9,6 +9,7 @@ export const getCandidateStages = (): CandidateStage[] => JSON.parse(localStorag
 export const getMedicalResults = (): MedicalResult[] => JSON.parse(localStorage.getItem(LS_MEDICAL_RESULTS) || '[]');
 export const getDocuments = (): Document[] => JSON.parse(localStorage.getItem(LS_DOCUMENTS) || '[]');
 export const getConfig = (): AppConfig => JSON.parse(localStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
+export const getStaffUsers = (): StaffUser[] => JSON.parse(localStorage.getItem(LS_STAFF_USERS) || '[]');
 
 // --- Setter Functions ---
 
@@ -17,6 +18,7 @@ export const saveCandidateStages = (data: CandidateStage[]) => localStorage.setI
 export const saveMedicalResults = (data: MedicalResult[]) => localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(data));
 export const saveDocuments = (data: Document[]) => localStorage.setItem(LS_DOCUMENTS, JSON.stringify(data));
 export const saveConfig = (data: AppConfig) => localStorage.setItem(LS_CONFIG, JSON.stringify(data));
+export const saveStaffUsers = (data: StaffUser[]) => localStorage.setItem(LS_STAFF_USERS, JSON.stringify(data));
 
 // --- Initialization ---
 
@@ -31,6 +33,10 @@ export function initializeDataStore() {
   // Initialize config if not present
   if (!localStorage.getItem(LS_CONFIG)) {
       localStorage.setItem(LS_CONFIG, JSON.stringify(SEED_CONFIG));
+  }
+  // Initialize staff users if not present
+  if (getStaffUsers().length === 0) {
+      localStorage.setItem(LS_STAFF_USERS, JSON.stringify(SEED_STAFF_USERS));
   }
 }
 
