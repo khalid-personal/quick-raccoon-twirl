@@ -40,18 +40,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null }> => {
     if (!user || !user.email) return { role: null, trackingCode: null };
     
+    console.log(`[AUTH] Determining role for email: ${user.email}`);
+    
     // 1. Check for Admin role
     if (user.email === MOCK_ADMIN_EMAIL) {
+        console.log(`[AUTH] Role determined: admin`);
         return { role: 'admin', trackingCode: null };
     }
     
     // 2. Check for Candidate role
     const candidate = await api.getCandidateByEmail(user.email);
     if (candidate) {
+        console.log(`[AUTH] Role determined: candidate (${candidate.tracking_code})`);
         return { role: 'candidate', trackingCode: candidate.tracking_code };
     }
     
     // 3. Default Staff role for any other logged-in user
+    console.log(`[AUTH] Role determined: staff`);
     return { role: 'staff', trackingCode: null }; 
   };
   
@@ -61,9 +66,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (user) {
         const { role, trackingCode } = await determineRole(user);
+        console.log(`[AUTH] Setting state: Role=${role}, TrackingCode=${trackingCode}`);
         setUserRole(role);
         setCandidateTrackingCode(trackingCode);
     } else {
+        console.log(`[AUTH] Setting state: Logged out`);
         setUserRole(null);
         setCandidateTrackingCode(null);
     }
