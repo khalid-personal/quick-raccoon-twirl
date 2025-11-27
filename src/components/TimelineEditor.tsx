@@ -69,6 +69,14 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
       setIsSaving(false);
     }
   };
+  
+  // Dependency check: Labor ID requires CoC Training to be Passed
+  const cocTrainingStage = candidateDetail.stages.find(cs => 
+    ALL_STAGES.find(s => s.id === cs.stage_id)?.slug === 'coc_training'
+  );
+  const isCocTrainingPassed = cocTrainingStage?.status === 'Passed' || cocTrainingStage?.status === 'Completed' || cocTrainingStage?.status === 'Issued';
+  const laborIdStageId = ALL_STAGES.find(s => s.slug === 'labor_id')?.id;
+
 
   return (
     <div className="space-y-4">
@@ -76,6 +84,14 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
         const stage = ALL_STAGES.find(s => s.id === cs.stage_id)!;
         const currentUpdate = stageUpdates[stage.id] || { status: cs.status, notes: cs.notes || '', date: cs.date ? cs.date.split('T')[0] : '' };
         const isModified = currentUpdate.status !== cs.status || currentUpdate.notes !== (cs.notes || '') || currentUpdate.date !== (cs.date ? cs.date.split('T')[0] : '');
+        
+        let isDisabled = isSaving;
+        let dependencyMessage: string | null = null;
+
+        if (stage.id === laborIdStageId && !isCocTrainingPassed) {
+            isDisabled = true;
+            dependencyMessage = "Requires CoC Training to be Passed before updating Labor ID status.";
+        }
 
         return (
           <Card key={stage.id}>
@@ -87,12 +103,18 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
             </CardHeader>
             <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               
+              {dependencyMessage && (
+                <div className="md:col-span-4 p-2 bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-sm text-yellow-800 dark:text-yellow-200 mb-2">
+                  {dependencyMessage}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor={`status-${stage.id}`}>Status</Label>
                 <Select
                   value={currentUpdate.status}
                   onValueChange={(value: StageStatus) => handleUpdateChange(stage.id, 'status', value)}
-                  disabled={isSaving}
+                  disabled={isDisabled}
                 >
                   <SelectTrigger id={`status-${stage.id}`}>
                     <SelectValue placeholder="Select Status" />
@@ -114,7 +136,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
                   type="date"
                   value={currentUpdate.date}
                   onChange={(e) => handleUpdateChange(stage.id, 'date', e.target.value)}
-                  disabled={isSaving}
+                  disabled={isDisabled}
                 />
               </div>
 
@@ -125,14 +147,14 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
                   placeholder="Add internal notes..."
                   value={currentUpdate.notes}
                   onChange={(e) => handleUpdateChange(stage.id, 'notes', e.target.value)}
-                  disabled={isSaving}
+                  disabled={isDisabled}
                 />
               </div>
               
               <div className="md:col-span-4 flex justify-end">
                 <Button 
                   onClick={() => handleSave(stage.id)} 
-                  disabled={isSaving || !isModified}
+                  disabled={isDisabled || !isModified}
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Changes

@@ -1,9 +1,11 @@
 import React from 'react';
-import { CandidateDetail } from '@/lib/types';
+import { CandidateDetail, ALL_STAGES } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import ProgressIndicator from './ProgressIndicator';
 import { calculateProgress } from '@/lib/api'; // Use the utility from api.ts
+import { Badge } from '@/components/ui/badge';
+import { getStatusColor } from '@/lib/utils';
 
 interface CandidateProfileProps {
   candidate: CandidateDetail;
@@ -11,6 +13,13 @@ interface CandidateProfileProps {
 
 const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
   const progress = calculateProgress(candidate.stages);
+  
+  const laborIdStage = candidate.stages.find(cs => 
+    ALL_STAGES.find(s => s.id === cs.stage_id)?.slug === 'labor_id'
+  );
+  
+  const laborIdStatus = laborIdStage?.status || 'Pending';
+  const laborIdDate = laborIdStage?.date;
   
   return (
     <Card>
@@ -35,13 +44,24 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
         
         <div className="space-y-4">
           <div className="text-sm">
-            <p className="font-medium text-muted-foreground">Date of Birth</p>
-            <p className="text-lg">{candidate.dob ? format(new Date(candidate.dob), 'PPP') : 'N/A'}</p>
+            <p className="font-medium text-muted-foreground">Tracking Code</p>
+            <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
+          </div>
+          <div className="text-sm">
+            <p className="font-medium text-muted-foreground">Labor ID Registration Status</p>
+            <Badge className={getStatusColor(laborIdStatus)}>
+              {laborIdStatus.toUpperCase()}
+            </Badge>
+            {laborIdDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Date: {format(new Date(laborIdDate), 'PPP')}
+              </p>
+            )}
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Minor Status</p>
             <p className={`text-lg font-semibold ${candidate.is_minor ? 'text-red-500' : 'text-green-500'}`}>
-              {candidate.is_minor ? 'YES (Requires Guardian Signature)' : 'No'}
+              {candidate.is_minor ? 'YES' : 'No'}
             </p>
           </div>
           {candidate.is_minor && (
@@ -49,10 +69,6 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
               <div className="text-sm">
                 <p className="font-medium text-muted-foreground">Guardian Name</p>
                 <p className="text-lg">{candidate.guardian_name || 'N/A'}</p>
-              </div>
-              <div className="text-sm">
-                <p className="font-medium text-muted-foreground">Guardian Contact</p>
-                <p className="text-lg">{candidate.guardian_contact || 'N/A'}</p>
               </div>
             </>
           )}
