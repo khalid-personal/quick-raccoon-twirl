@@ -3,7 +3,7 @@ import { CandidateDetail, ALL_STAGES } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import ProgressIndicator from './ProgressIndicator';
-import { calculateProgress } from '@/lib/api';
+import { calculateProgress } from '@/lib/utils-data';
 import { Badge } from '@/components/ui/badge';
 import { getStatusColor } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
