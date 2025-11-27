@@ -22,33 +22,40 @@ const getIconForStatus = (status: StageStatus | MedicalStatus) => {
       return <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
     case 'Pending':
     default:
-      return <Clock className="h-4 w-4 text-gray-400 dark:text-gray-600" />;
+      return <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
   }
 };
 
 const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicView }) => {
   return (
-    <div className="relative pl-6 border-l border-gray-200 dark:border-gray-700">
+    <div className="relative pl-6 border-l border-gray-300 dark:border-gray-700">
       {timeline.map((item, index) => {
         const displayStatus = isPublicView && item.is_medical_stage 
           ? item.medical_status_summary || item.status 
           : item.status;
         
         const statusText = displayStatus.toUpperCase();
-        const statusColor = getStatusColor(displayStatus);
+        // Use a simplified color class for the badge background
+        const statusColorClass = getStatusColor(displayStatus).split(' ')[0]; // e.g., 'bg-green-600'
+        
+        // Determine text color for badge based on status
+        const statusTextColor = displayStatus === 'Pending' ? 'text-gray-800 dark:text-gray-200' : 'text-white';
+
         const isLast = index === timeline.length - 1;
 
         return (
           <div key={item.title} className={cn("mb-8 relative", { "pb-0": isLast })}>
-            {/* Timeline Dot - Reduced size from h-7 w-7 to h-6 w-6, adjusted left position */}
-            <div className="absolute -left-3 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-md ring-8 ring-gray-50 dark:ring-gray-900">
+            {/* Timeline Dot */}
+            <div className="absolute -left-3 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-lg ring-4 ring-gray-100 dark:ring-gray-800">
               {getIconForStatus(displayStatus)}
             </div>
 
             <div className="ml-4">
               <h3 className="text-xl font-semibold mb-1 flex items-center">
                 {item.title}
-                <Badge className={cn("ml-3 text-xs", statusColor)}>
+                <Badge 
+                  className={cn("ml-3 text-xs font-medium", statusColorClass, statusTextColor)}
+                >
                   {statusText}
                 </Badge>
               </h3>

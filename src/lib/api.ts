@@ -320,12 +320,22 @@ export const api = {
         throw new Error("Candidate must be 18 years or older.");
     }
     
-    // Ensure tracking code uniqueness if updated
-    if (data.tracking_code && data.tracking_code !== existingCandidate.tracking_code) {
-        if (candidates.some(c => c.tracking_code === data.tracking_code)) {
-            throw new Error("Tracking code already exists.");
+    // --- Duplicate Check for Updates ---
+    const newTrackingCode = data.tracking_code;
+    const newPassportNumber = data.passport_number;
+    
+    if (newTrackingCode && newTrackingCode !== existingCandidate.tracking_code) {
+        if (candidates.some(c => c.tracking_code === newTrackingCode)) {
+            throw new Error(`Tracking code '${newTrackingCode}' already exists.`);
         }
     }
+    
+    if (newPassportNumber && newPassportNumber !== existingCandidate.passport_number) {
+        if (candidates.some(c => c.passport_number === newPassportNumber)) {
+            throw new Error(`Passport number '${newPassportNumber}' already exists.`);
+        }
+    }
+    // --- End Duplicate Check ---
 
     const updatedCandidate: Candidate = {
       ...existingCandidate,
@@ -442,9 +452,14 @@ export const api = {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     
+    // --- Duplicate Check for Creation ---
     if (candidates.some(c => c.tracking_code === data.tracking_code)) {
-        throw new Error("Tracking code already exists.");
+        throw new Error(`Tracking code '${data.tracking_code}' already exists.`);
     }
+    if (candidates.some(c => c.passport_number === data.passport_number)) {
+        throw new Error(`Passport number '${data.passport_number}' already exists.`);
+    }
+    // --- End Duplicate Check ---
     
     // Age validation
     if (!isAdult(data.dob)) {

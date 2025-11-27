@@ -12,14 +12,18 @@ export function getStatusColor(status: StageStatus | string): string {
     case 'Completed':
     case 'Passed':
     case 'Issued':
-      return 'bg-green-500 text-white';
+      // Success: Green background, white text
+      return 'bg-green-600 text-white hover:bg-green-700';
     case 'In Progress':
-      return 'bg-blue-500 text-white';
+      // Active: Blue background, white text
+      return 'bg-blue-600 text-white hover:bg-blue-700';
     case 'Failed':
-      return 'bg-red-500 text-white';
+      // Failure/Blocked: Red background, white text
+      return 'bg-red-600 text-white hover:bg-red-700';
     case 'Pending':
     default:
-      return 'bg-gray-300 text-gray-800';
+      // Neutral/Pending: Gray background, dark text
+      return 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600';
   }
 }
 

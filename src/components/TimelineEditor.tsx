@@ -29,14 +29,17 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
             ? 'border-blue-500'
             : cs.status === 'Failed'
             ? 'border-red-500'
-            : 'border-gray-300 dark:border-gray-700';
+            : 'border-gray-200 dark:border-gray-700';
             
         // Determine hover ring color
         const statusRingClass = cs.status === 'Passed' || cs.status === 'Issued' || cs.status === 'Completed' 
-            ? 'hover:ring-green-100 dark:hover:ring-green-900/50' :
-            cs.status === 'In Progress' ? 'hover:ring-blue-100 dark:hover:ring-blue-900/50' :
-            cs.status === 'Failed' ? 'hover:ring-red-100 dark:hover:ring-red-900/50' : 
-            'hover:ring-gray-100 dark:hover:ring-gray-700/50';
+            ? 'hover:ring-green-300/50 dark:hover:ring-green-700/50' :
+            cs.status === 'In Progress' ? 'hover:ring-blue-300/50 dark:hover:ring-blue-700/50' :
+            cs.status === 'Failed' ? 'hover:ring-red-300/50 dark:hover:ring-red-700/50' : 
+            'hover:ring-gray-300/50 dark:hover:ring-gray-600/50';
+
+        // Use the new getStatusColor utility for the badge
+        const badgeClass = getStatusColor(cs.status);
 
         return (
           <Dialog 
@@ -47,14 +50,14 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
             <DialogTrigger asChild>
               <Card 
                 className={cn(
-                  "cursor-pointer h-full aspect-square flex flex-col justify-center items-center text-center p-4 border-2 transition-all duration-200 hover:shadow-lg hover:ring-4",
+                  "cursor-pointer h-full aspect-square flex flex-col justify-center items-center text-center p-4 border-2 transition-all duration-200 hover:shadow-xl hover:ring-4",
                   statusBorderClass,
                   statusRingClass
                 )}
               >
                 {IconComponent && <IconComponent className="h-8 w-8 text-primary mb-3" />}
                 <CardTitle className="text-base font-semibold mb-2 leading-snug">{stage.title}</CardTitle>
-                <Badge className={cn("text-xs", getStatusColor(cs.status))}>
+                <Badge className={cn("text-xs", badgeClass)}>
                     {cs.status}
                 </Badge>
               </Card>
