@@ -54,15 +54,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, pin: string) => {
-    // NOTE: Supabase uses email/password or other providers. 
-    // Since the user requested 'username and pin numbers', we will mock the PIN as the password.
-    // In a real scenario, we would use a proper email/password flow or custom auth.
-    const { data, error } = await supabase.auth.signInWithPassword({
+    console.log(`Attempting login for: ${email}`);
+    const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: pin, // Using PIN as password for mock purposes
     });
     
     if (error) {
+        console.error("Supabase Login Error Details:", error.message);
         return { error };
     }
     
