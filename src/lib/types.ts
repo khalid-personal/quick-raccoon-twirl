@@ -7,6 +7,7 @@ export interface Stage {
   slug: string;
   title: string;
   ordinal: number;
+  icon: string; // Added icon field
 }
 
 export interface CandidateStage {
@@ -110,17 +111,17 @@ export type SortDirection = 'asc' | 'desc';
 
 // Constants for Stages (based on SQL seed)
 export const ALL_STAGES: Stage[] = [
-  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10 },
-  { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20 },
-  { id: 3, slug: 'security_clearance', title: 'Security / Interpol Clearance', ordinal: 30 },
-  { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 40 },
-  { id: 5, slug: 'contract_signing', title: 'Agency Contract Signing', ordinal: 50 },
-  { id: 6, slug: 'biometrics_passport', title: 'Biometrics + Passport Processing', ordinal: 60 },
-  { id: 7, slug: 'job_matching', title: 'Job Matching', ordinal: 70 },
-  { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80 },
-  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90 },
-  { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100 },
-  { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110 },
+  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10, icon: 'HeartPulse' },
+  { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20, icon: 'GraduationCap' },
+  { id: 3, slug: 'security_clearance', title: 'Security / Interpol Clearance', ordinal: 30, icon: 'ShieldCheck' },
+  { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 40, icon: 'Fingerprint' },
+  { id: 5, slug: 'contract_signing', title: 'Agency Contract Signing', ordinal: 50, icon: 'FileSignature' },
+  { id: 6, slug: 'biometrics_passport', title: 'Biometrics + Passport Processing', ordinal: 60, icon: 'Scan' },
+  { id: 7, slug: 'job_matching', title: 'Job Matching', ordinal: 70, icon: 'Users' },
+  { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80, icon: 'Plane' },
+  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90, icon: 'Stethoscope' },
+  { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100, icon: 'Briefcase' },
+  { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110, icon: 'PlaneTakeoff' },
 ];
 
 export const TOTAL_STAGES = ALL_STAGES.length;
