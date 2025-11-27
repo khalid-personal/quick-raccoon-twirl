@@ -67,6 +67,7 @@ export interface CandidateSummary extends Candidate {
   progress_percent: number;
   // Add a calculated status for filtering purposes
   overall_status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked';
+  is_minor: boolean; // Added this field
 }
 
 export interface DashboardSummary {
@@ -91,6 +92,15 @@ export interface PublicTrackingData {
     medical_status_summary?: MedicalStatus | StageStatus; // Only Pass/Fail/Pending summary for medical stages
     documents: Document[];
   }>;
+}
+
+// Data structure for the pipeline distribution chart
+export interface PipelineDistribution {
+    stageTitle: string;
+    ordinal: number;
+    pendingCount: number;
+    inProgressCount: number;
+    blockedCount: number;
 }
 
 // Constants for Stages (based on SQL seed)

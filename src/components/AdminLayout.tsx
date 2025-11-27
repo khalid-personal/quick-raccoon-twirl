@@ -1,59 +1,129 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings } from 'lucide-react';
+import { LogOut, Users, Home, Settings, Menu } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
+interface NavLinkProps {
+    to: string;
+    icon: React.ReactNode;
+    label: string;
+    isActive: boolean;
+    isSuperAdminRoute?: boolean;
+    userRole: 'admin' | 'staff' | 'viewer' | null;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole }) => {
+    if (isSuperAdminRoute && userRole !== 'admin') {
+        return null;
+    }
+    
+    return (
+        <Link to={to} className="w-full">
+            <Button 
+                variant={isActive ? "secondary" : "ghost"} 
+                className="w-full justify-start"
+            >
+                {icon}
+                <span className="ml-2">{label}</span>
+            </Button>
+        </Link>
+    );
+};
+
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { logout, userRole } = useAuth();
   const location = useLocation();
+  const addisAbabaTime = useAddisAbabaTime();
   
-  // Determine if we are currently on the main admin dashboard
-  const isAdminDashboard = location.pathname === '/admin';
-  const isSuperAdmin = userRole === 'admin'; // Check for admin role
+  const isSuperAdmin = userRole === 'admin';
+  
+  const navItems = [
+    { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
+    { to: '/track', label: 'Public Tracking', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
+    { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <header className="sticky top-0 z-40 w-full border-b bg-white/90 backdrop-blur-sm dark:bg-gray-950/90">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <Link to="/admin" className="text-xl font-bold text-primary flex items-center space-x-2">
-            <Home className="h-6 w-6" />
-            <span>Agency Admin ({userRole})</span>
-          </Link>
-          <nav className="flex items-center space-x-4">
-            {/* Superadmin Settings Button */}
-            {isSuperAdmin && (
-              <Link to="/admin/settings">
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4 mr-2" /> Settings
+          
+          {/* Left: Hamburger Menu (Mobile Only) */}
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
                 </Button>
-              </Link>
-            )}
-            
-            {/* Home/Public Tracking Button */}
-            <Link to="/track">
-              <Button variant="ghost" size="sm">
-                <Home className="h-4 w-4 mr-2" /> Public Tracking
-              </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[250px] p-4 pt-10 flex flex-col">
+                <h2 className="text-xl font-bold text-primary mb-4">Agency Admin</h2>
+                <nav className="flex flex-col space-y-1 flex-grow">
+                  {navItems.map(item => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      isActive={location.pathname === item.to}
+                      isSuperAdminRoute={item.isSuperAdminRoute}
+                      userRole={userRole}
+                    />
+                  ))}
+                </nav>
+                <div className="mt-auto pt-4 border-t">
+                    <Button onClick={logout} variant="destructive" className="w-full">
+                        <LogOut className="h-4 w-4 mr-2" /> Logout
+                    </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+          
+          {/* Center: Addis Ababa Time */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
+            {addisAbabaTime}
+          </div>
+
+          {/* Desktop Navigation (Hidden on Mobile) */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link to="/admin" className="text-xl font-bold text-primary flex items-center space-x-2">
+                <Home className="h-6 w-6" />
+                <span>Admin ({userRole})</span>
             </Link>
             
-            {/* Candidates Button (Active only if not on dashboard) */}
-            {!isAdminDashboard && (
-              <Link to="/admin">
-                <Button variant="ghost" size="sm">
-                  <Users className="h-4 w-4 mr-2" /> Candidates
-                </Button>
-              </Link>
-            )}
-            
-            <Button onClick={logout} variant="destructive" size="sm">
+            <nav className="flex items-center space-x-2 ml-6">
+                {navItems.map(item => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      isActive={location.pathname === item.to}
+                      isSuperAdminRoute={item.isSuperAdminRoute}
+                      userRole={userRole}
+                    />
+                ))}
+            </nav>
+          </div>
+          
+          {/* Right: Logout Button (Always visible, or only visible on desktop if mobile has sheet) */}
+          <div className="flex items-center space-x-4">
+            <Button onClick={logout} variant="destructive" size="sm" className="hidden md:inline-flex">
               <LogOut className="h-4 w-4 mr-2" /> Logout
             </Button>
-          </nav>
+            {/* Show a smaller logout button on mobile if the sheet is not open, but since the sheet contains logout, we can rely on that or keep a small icon here */}
+            <Button onClick={logout} variant="destructive" size="icon" className="md:hidden">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
       <main className="flex-grow container p-4 md:p-8">

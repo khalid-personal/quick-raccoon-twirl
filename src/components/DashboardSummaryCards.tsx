@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { DashboardSummary } from '@/lib/types';
+import { DashboardSummary, CandidateSummary } from '@/lib/types';
 
 interface SummaryCardProps {
   title: string;

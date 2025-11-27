@@ -70,17 +70,23 @@ interface CandidateDetailEditorProps {
   onClose: () => void;
 }
 
+// Define AppConfig type locally for useQuery generics
+interface AppConfig {
+    countryOptions: string[];
+}
+
 const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
   const { data: activeBatches = [], refetch: refetchBatches } = useQuery<string[]>({
     queryKey: ['activeBatches'],
     queryFn: api.getBatches,
   });
   
-  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery({
+  // Fix: Use explicit generics to handle the select function returning string[]
+  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery<AppConfig, Error, string[], string[]>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
     select: (data) => data.countryOptions,
-    initialData: [],
+    initialData: [], // Initial data for the selected type (string[])
   });
   
   // Determine if the candidate's country is a custom entry (not in the standard list)

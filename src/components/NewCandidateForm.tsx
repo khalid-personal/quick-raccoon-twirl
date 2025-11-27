@@ -69,6 +69,11 @@ interface NewCandidateFormProps {
   onClose: () => void;
 }
 
+// Define AppConfig type locally for useQuery generics
+interface AppConfig {
+    countryOptions: string[];
+}
+
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
   const { data: activeBatches = [], refetch: refetchBatches } = useQuery<string[]>({
     queryKey: ['activeBatches'],
@@ -76,11 +81,12 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   });
   
   // NEW: Fetch country options from API
-  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery({
+  // Use explicit generics to handle the select function returning string[]
+  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery<AppConfig, Error, string[], string[]>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
     select: (data) => data.countryOptions,
-    initialData: [],
+    initialData: [], // Initial data for the selected type (string[])
   });
   
   const form = useForm<NewCandidateFormValues>({

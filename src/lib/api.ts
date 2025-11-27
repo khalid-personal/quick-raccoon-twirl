@@ -489,10 +489,12 @@ export const api = {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const progress_percent = calculateProgress(candidateStages);
         const overall_status = calculateOverallStatus(candidateStages);
+        const is_minor = !isAdult(candidate.dob); // Calculate is_minor
         return {
             ...candidate,
             progress_percent,
             overall_status,
+            is_minor, // Include is_minor
         };
     });
 

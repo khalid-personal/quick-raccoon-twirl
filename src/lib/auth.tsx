@@ -87,7 +87,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Manually set state to simulate successful login
             setUser(mockUser);
             setUserRole(determineRole(mockUser));
-            setSession({ user: mockUser, access_token: 'mock-token', token_type: 'Bearer', expires_in: 3600, expires_at: Date.now() + 3600000 });
+            // Fix: token_type must be lowercase 'bearer'
+            setSession({ user: mockUser, access_token: 'mock-token', token_type: 'bearer', expires_in: 3600, expires_at: Date.now() + 3600000 });
             setIsLoading(false);
             return { error: null };
         }
