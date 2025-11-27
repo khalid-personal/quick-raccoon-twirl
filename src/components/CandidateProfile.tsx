@@ -3,15 +3,18 @@ import { CandidateDetail, ALL_STAGES } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import ProgressIndicator from './ProgressIndicator';
-import { calculateProgress } from '@/lib/api'; // Use the utility from api.ts
+import { calculateProgress } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { getStatusColor } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-react';
 
 interface CandidateProfileProps {
   candidate: CandidateDetail;
+  onEdit: () => void; // New prop to trigger the edit dialog
 }
 
-const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
+const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }) => {
   const progress = calculateProgress(candidate.stages);
   
   const laborIdStage = candidate.stages.find(cs => 
@@ -20,12 +23,15 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
   
   const laborIdStatus = laborIdStage?.status || 'Pending';
   const laborIdDate = laborIdStage?.date;
-  const laborIdNumber = laborIdStage?.reference_id; // Get the new reference ID
+  const laborIdNumber = laborIdStage?.reference_id;
   
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Candidate Profile</CardTitle>
+        <Button variant="outline" size="sm" onClick={onEdit}>
+          <Pencil className="h-4 w-4 mr-2" /> Edit Details
+        </Button>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-4">

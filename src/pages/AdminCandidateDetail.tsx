@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -9,9 +9,12 @@ import { Link } from 'react-router-dom';
 import CandidateProfile from '@/components/CandidateProfile';
 import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: candidate, isLoading, error, refetch } = useQuery({
     queryKey: ['candidateDetail', candidateId],
@@ -55,7 +58,7 @@ const AdminCandidateDetail: React.FC = () => {
         </Link>
       </div>
 
-      <CandidateProfile candidate={candidate} />
+      <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
 
       <Tabs defaultValue="timeline" className="w-full">
         <TabsList>
@@ -85,6 +88,22 @@ const AdminCandidateDetail: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit Candidate Details Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Candidate Details</DialogTitle>
+          </DialogHeader>
+          {candidate && (
+            <CandidateDetailEditor 
+              candidate={candidate} 
+              onSuccess={refetch} 
+              onClose={() => setIsEditDialogOpen(false)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

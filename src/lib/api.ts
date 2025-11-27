@@ -258,6 +258,10 @@ function calculateOverallStatus(candidateStages: CandidateStage[]): CandidateSum
 // Define the required input type for creation
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'>;
 
+// Define the required input type for updates
+type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
+
+
 export const api = {
   // NEW: Get configuration
   getAppConfig: async (): Promise<AppConfig> => {
@@ -401,6 +405,48 @@ export const api = {
       medical_results,
       documents,
     };
+  },
+  
+  // PATCH /api/admin/candidate/:id/details
+  updateCandidateDetails: async (candidateId: string, data: CandidateUpdateData): Promise<Candidate> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const index = candidates.findIndex(c => c.id === candidateId);
+
+    if (index === -1) {
+      throw new Error('Candidate not found.');
+    }
+    
+    const existingCandidate = candidates[index];
+    
+    // Handle is_minor calculation if DOB is updated
+    let isMinor = existingCandidate.is_minor;
+    if (data.dob) {
+        isMinor = new Date().getFullYear() - new Date(data.dob).getFullYear() < 18;
+    } else if (data.is_minor !== undefined) {
+        isMinor = data.is_minor;
+    }
+    
+    // Ensure tracking code uniqueness if updated
+    if (data.tracking_code && data.tracking_code !== existingCandidate.tracking_code) {
+        if (candidates.some(c => c.tracking_code === data.tracking_code)) {
+            throw new Error("Tracking code already exists.");
+        }
+    }
+
+    const updatedCandidate: Candidate = {
+      ...existingCandidate,
+      ...data,
+      is_minor: isMinor, // Recalculate/override minor status
+      updated_at: new Date().toISOString(),
+      // Clear guardian details if no longer a minor
+      guardian_name: isMinor ? (data.guardian_name ?? existingCandidate.guardian_name) : undefined,
+      guardian_contact: isMinor ? (data.guardian_contact ?? existingCandidate.guardian_contact) : undefined,
+    };
+
+    candidates[index] = updatedCandidate;
+    saveCandidates(candidates);
+    return updatedCandidate;
   },
 
   // PATCH /api/admin/candidate/:id/status
