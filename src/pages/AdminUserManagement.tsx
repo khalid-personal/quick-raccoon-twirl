@@ -5,7 +5,7 @@ import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, CheckCircle, XCircle, Save, UserCheck, UserX, UserCog, Pencil } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Save, UserCheck, UserX, UserCog, Pencil, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import StaffUserEditorDialog from '@/components/StaffUserEditorDialog';
+import NewStaffUserForm from '@/components/NewStaffUserForm'; // NEW IMPORT
 
 const AdminUserManagement: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading, logout } = useAuth();
@@ -20,6 +21,7 @@ const AdminUserManagement: React.FC = () => {
   
   // State for the editor dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false); // NEW state for Add dialog
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   
   // Role check and redirect
@@ -85,8 +87,11 @@ const AdminUserManagement: React.FC = () => {
   
   const handleEditSuccess = () => {
       refetch();
-      // Check if the current user's email or role was changed, if so, force a full re-auth flow
-      // For now, we rely on the next page load/auth check to handle role changes.
+  };
+  
+  const handleAddSuccess = () => {
+      refetch();
+      setIsAddDialogOpen(false);
   };
 
   if (isLoading) {
@@ -99,9 +104,28 @@ const AdminUserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3 border-b pb-2">
-        <UserCog className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Staff User Management</h1>
+      <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex items-center space-x-3">
+            <UserCog className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold">Staff User Management</h1>
+        </div>
+        
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <UserPlus className="h-4 w-4 mr-2" /> Add New User
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>Create New Staff Account</DialogTitle>
+                </DialogHeader>
+                <NewStaffUserForm 
+                    onSuccess={handleAddSuccess} 
+                    onClose={() => setIsAddDialogOpen(false)} 
+                />
+            </DialogContent>
+        </Dialog>
       </div>
       <p className="text-muted-foreground">Manage roles, approval status, and credentials for all staff accounts. New signups appear here as 'Pending' until approved.</p>
 

@@ -1,10 +1,36 @@
 import { StaffUser, UserRole } from '../types';
 import { getStaffUsers, saveStaffUsers } from '../data-store';
+import { v4 as uuidv4 } from 'uuid';
 
 // Get all staff users (admin, staff, viewer)
 export const getAllStaffUsers = async (): Promise<StaffUser[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     return getStaffUsers();
+};
+
+// POST: Create a new staff user (Admin bypasses signup)
+export const createStaffUser = async (email: string, pin: string, role: Exclude<UserRole, 'candidate'>): Promise<StaffUser> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const users = getStaffUsers();
+    const lowerEmail = email.toLowerCase();
+
+    if (users.some(u => u.email.toLowerCase() === lowerEmail)) {
+        throw new Error(`Email '${email}' is already registered.`);
+    }
+    
+    // NOTE: In a real Supabase app, we would call:
+    // await supabase.auth.admin.createUser({ email, password: pin, user_metadata: { role } });
+    
+    const newUser: StaffUser = {
+        id: uuidv4(),
+        email: email,
+        role: role,
+        is_approved: true, // Directly approved by admin creation
+        created_at: new Date().toISOString(),
+    };
+
+    saveStaffUsers([...users, newUser]);
+    return newUser;
 };
 
 // Update a staff user's role and approval status
