@@ -15,14 +15,14 @@ const getIconForStatus = (status: StageStatus | MedicalStatus) => {
     case 'Passed':
     case 'Issued':
     case 'Completed':
-      return <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />;
+      return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />;
     case 'Failed':
-      return <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />;
+      return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />;
     case 'In Progress':
-      return <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
+      return <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
     case 'Pending':
     default:
-      return <Clock className="h-5 w-5 text-gray-400 dark:text-gray-600" />;
+      return <Clock className="h-4 w-4 text-gray-400 dark:text-gray-600" />;
   }
 };
 
@@ -40,8 +40,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicV
 
         return (
           <div key={item.title} className={cn("mb-8 relative", { "pb-0": isLast })}>
-            {/* Timeline Dot */}
-            <div className="absolute -left-3.5 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-background shadow-md ring-8 ring-gray-50 dark:ring-gray-900">
+            {/* Timeline Dot - Reduced size from h-7 w-7 to h-6 w-6, adjusted left position */}
+            <div className="absolute -left-3 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-md ring-8 ring-gray-50 dark:ring-gray-900">
               {getIconForStatus(displayStatus)}
             </div>
 

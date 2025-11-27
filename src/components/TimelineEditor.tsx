@@ -22,23 +22,24 @@ const statusOptions: StageStatus[] = ['Pending', 'In Progress', 'Passed', 'Faile
 const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetch }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [stageUpdates, setStageUpdates] = useState<{
-    [stageId: number]: { status: StageStatus; notes: string; date: string };
+    [stageId: number]: { status: StageStatus; notes: string; date: string; reference_id: string };
   }>({});
 
   React.useEffect(() => {
     // Initialize state from candidate detail
-    const initialUpdates: { [stageId: number]: { status: StageStatus; notes: string; date: string } } = {};
+    const initialUpdates: { [stageId: number]: { status: StageStatus; notes: string; date: string; reference_id: string } } = {};
     candidateDetail.stages.forEach(cs => {
       initialUpdates[cs.stage_id] = {
         status: cs.status,
         notes: cs.notes || '',
         date: cs.date ? cs.date.split('T')[0] : '', // Format date for input type="date"
+        reference_id: cs.reference_id || '', // Initialize new field
       };
     });
     setStageUpdates(initialUpdates);
   }, [candidateDetail]);
 
-  const handleUpdateChange = (stageId: number, field: 'status' | 'notes' | 'date', value: string) => {
+  const handleUpdateChange = (stageId: number, field: 'status' | 'notes' | 'date' | 'reference_id', value: string) => {
     setStageUpdates(prev => ({
       ...prev,
       [stageId]: {
@@ -59,7 +60,8 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
         stageId,
         update.status,
         update.notes,
-        update.date || undefined
+        update.date || undefined,
+        update.reference_id || undefined // Pass reference ID
       );
       toast.success(`${ALL_STAGES.find(s => s.id === stageId)?.title} status updated.`);
       refetch();
@@ -82,13 +84,24 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
     <div className="space-y-4">
       {candidateDetail.stages.map((cs) => {
         const stage = ALL_STAGES.find(s => s.id === cs.stage_id)!;
-        const currentUpdate = stageUpdates[stage.id] || { status: cs.status, notes: cs.notes || '', date: cs.date ? cs.date.split('T')[0] : '' };
-        const isModified = currentUpdate.status !== cs.status || currentUpdate.notes !== (cs.notes || '') || currentUpdate.date !== (cs.date ? cs.date.split('T')[0] : '');
+        const currentUpdate = stageUpdates[stage.id] || { 
+            status: cs.status, 
+            notes: cs.notes || '', 
+            date: cs.date ? cs.date.split('T')[0] : '',
+            reference_id: cs.reference_id || ''
+        };
+        
+        const isLaborIdStage = stage.id === laborIdStageId;
+        
+        const isModified = currentUpdate.status !== cs.status || 
+                           currentUpdate.notes !== (cs.notes || '') || 
+                           currentUpdate.date !== (cs.date ? cs.date.split('T')[0] : '') ||
+                           currentUpdate.reference_id !== (cs.reference_id || '');
         
         let isDisabled = isSaving;
         let dependencyMessage: string | null = null;
 
-        if (stage.id === laborIdStageId && !isCocTrainingPassed) {
+        if (isLaborIdStage && !isCocTrainingPassed) {
             isDisabled = true;
             dependencyMessage = "Requires CoC Training to be Passed before updating Labor ID status.";
         }
@@ -139,17 +152,32 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
                   disabled={isDisabled}
                 />
               </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor={`notes-${stage.id}`}>Notes</Label>
-                <Textarea
-                  id={`notes-${stage.id}`}
-                  placeholder="Add internal notes..."
-                  value={currentUpdate.notes}
-                  onChange={(e) => handleUpdateChange(stage.id, 'notes', e.target.value)}
-                  disabled={isDisabled}
-                />
-              </div>
+              
+              {/* Conditional Input for Labor ID */}
+              {isLaborIdStage ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor={`reference_id-${stage.id}`}>Labor ID Number</Label>
+                  <Input
+                    id={`reference_id-${stage.id}`}
+                    type="text" 
+                    placeholder="Enter Labor ID"
+                    value={currentUpdate.reference_id}
+                    onChange={(e) => handleUpdateChange(stage.id, 'reference_id', e.target.value)}
+                    disabled={isDisabled}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor={`notes-${stage.id}`}>Notes</Label>
+                  <Textarea
+                    id={`notes-${stage.id}`}
+                    placeholder="Add internal notes..."
+                    value={currentUpdate.notes}
+                    onChange={(e) => handleUpdateChange(stage.id, 'notes', e.target.value)}
+                    disabled={isDisabled}
+                  />
+                </div>
+              )}
               
               <div className="md:col-span-4 flex justify-end">
                 <Button 

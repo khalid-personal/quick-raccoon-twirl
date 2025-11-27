@@ -20,6 +20,7 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
   
   const laborIdStatus = laborIdStage?.status || 'Pending';
   const laborIdDate = laborIdStage?.date;
+  const laborIdNumber = laborIdStage?.reference_id; // Get the new reference ID
   
   return (
     <Card>
@@ -52,6 +53,11 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate }) => {
             <Badge className={getStatusColor(laborIdStatus)}>
               {laborIdStatus.toUpperCase()}
             </Badge>
+            {laborIdNumber && (
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1">
+                ID: {laborIdNumber}
+              </p>
+            )}
             {laborIdDate && (
               <p className="text-xs text-muted-foreground mt-1">
                 Date: {format(new Date(laborIdDate), 'PPP')}

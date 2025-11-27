@@ -17,6 +17,7 @@ export interface CandidateStage {
   notes?: string;
   date?: string; // ISO date string
   updated_at: string;
+  reference_id?: string; // Added field for Labor ID, Visa Number, etc.
 }
 
 export interface Document {

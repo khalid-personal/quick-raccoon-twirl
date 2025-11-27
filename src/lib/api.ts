@@ -77,6 +77,7 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
     const now = new Date().toISOString();
     let status: StageStatus = 'Pending';
     let date: string | undefined = undefined;
+    let reference_id: string | undefined = undefined; // Initialize new field
 
     // Apply specific seed statuses for TRK-ET-0001 (Aster)
     if (candidateId === SEED_CANDIDATES[0].id) {
@@ -86,6 +87,7 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
       } else if (stage.slug === 'labor_id') {
         status = 'Issued';
         date = '2025-11-20T00:00:00Z';
+        reference_id = 'LID-12345'; // Seed Labor ID
       } else if (stage.slug === 'final_medical') {
         status = 'Passed';
         date = '2025-11-22T00:00:00Z';
@@ -111,6 +113,7 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
       notes: undefined,
       date: date,
       updated_at: now,
+      reference_id: reference_id, // Include new field
     };
   });
 };
@@ -406,7 +409,8 @@ export const api = {
     stageId: number,
     status: StageStatus,
     notes?: string,
-    date?: string
+    date?: string,
+    referenceId?: string // Added new parameter
   ): Promise<CandidateStage> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const allStages = getCandidateStages();
@@ -445,6 +449,7 @@ export const api = {
       status,
       notes: notes ?? allStages[candidateStageIndex].notes,
       date: date ?? (status !== 'Pending' ? new Date().toISOString() : undefined),
+      reference_id: referenceId ?? allStages[candidateStageIndex].reference_id, // Save new field
       updated_at: new Date().toISOString(),
     };
 
