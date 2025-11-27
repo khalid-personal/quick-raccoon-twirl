@@ -33,6 +33,14 @@ const MOCK_COUNTRIES = ['Ethiopia', 'Djibouti', 'Kenya', 'Somalia', 'Eritrea', '
 const TOTAL_NEW_CANDIDATES = 50;
 const TOTAL_BATCHES = 13;
 
+// Helper function to check if DOB is 18+
+const isAdult = (dob: string): boolean => {
+    const birthDate = new Date(dob);
+    const ageDiffMs = Date.now() - birthDate.getTime();
+    const ageDate = new Date(ageDiffMs);
+    return Math.abs(ageDate.getUTCFullYear() - 1970) >= 18;
+};
+
 // Existing seed candidates (3)
 const EXISTING_SEED_CANDIDATES: Candidate[] = [
   {
@@ -44,7 +52,6 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     tracking_code: 'TRK-ET-0001',
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
-    is_minor: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -52,14 +59,11 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     id: uuidv4(),
     first_name: 'Mariam',
     last_name: 'Tesfaye',
-    dob: '2006-07-22',
+    dob: '2000-07-22', // Changed DOB to ensure 18+
     passport_number: 'EP9876543',
     tracking_code: 'TRK-ET-0002',
     country_of_origin: 'Ethiopia',
     batch_name: 'Batch 1',
-    is_minor: true,
-    guardian_name: 'Kumera Tesfaye',
-    guardian_contact: '+251911000111',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -72,7 +76,6 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     tracking_code: 'TRK-DJ-0003',
     country_of_origin: 'Djibouti',
     batch_name: 'Batch 2',
-    is_minor: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -91,13 +94,12 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const batchNumber = (i % TOTAL_BATCHES) + 1;
         const batchName = `Batch ${batchNumber}`;
         
-        const isMinor = i % 7 === 0; // Roughly 1/7th are minors
-        
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
         
         // Generate a plausible DOB (18-35 years old)
         const currentYear = new Date().getFullYear();
-        const birthYear = currentYear - (18 + (i % 18));
+        // Ensure age is 18+
+        const birthYear = currentYear - (18 + (i % 18)); 
         const dob = `${birthYear}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`;
 
         newCandidates.push({
@@ -109,9 +111,6 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             tracking_code: trackingCode,
             country_of_origin: country,
             batch_name: batchName,
-            is_minor: isMinor,
-            guardian_name: isMinor ? `Guardian ${firstName}` : undefined,
-            guardian_contact: isMinor ? `+123456789${i}` : undefined,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         });
@@ -128,7 +127,6 @@ const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
 // Helper to generate initial stages for a candidate
 const generateInitialStages = (candidate: Candidate): CandidateStage[] => {
   const isAster = candidate.tracking_code === 'TRK-ET-0001';
-  const isMariam = candidate.tracking_code === 'TRK-ET-0002';
   const isFatima = candidate.tracking_code === 'TRK-DJ-0003';
   
   // Determine random progress for new candidates
@@ -161,8 +159,6 @@ const generateInitialStages = (candidate: Candidate): CandidateStage[] => {
         status = 'In Progress';
         date = '2025-12-01T00:00:00Z';
       }
-    } else if (isMariam) {
-        // Mariam starts pending, but we need stages generated
     } 
     // --- Random Progress Logic for New Candidates ---
     else {
@@ -332,7 +328,7 @@ function calculateOverallStatus(candidateStages: CandidateStage[]): CandidateSum
 // --- API Implementation ---
 
 // Define the required input type for creation
-type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'>;
+type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
 
 // Define the required input type for updates
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
@@ -551,12 +547,10 @@ export const api = {
     
     const existingCandidate = candidates[index];
     
-    // Handle is_minor calculation if DOB is updated
-    let isMinor = existingCandidate.is_minor;
-    if (data.dob) {
-        isMinor = new Date().getFullYear() - new Date(data.dob).getFullYear() < 18;
-    } else if (data.is_minor !== undefined) {
-        isMinor = data.is_minor;
+    // Age validation: Check if DOB is provided and if the person is 18+
+    const dobToCheck = data.dob ?? existingCandidate.dob;
+    if (!isAdult(dobToCheck)) {
+        throw new Error("Candidate must be 18 years or older.");
     }
     
     // Ensure tracking code uniqueness if updated
@@ -569,11 +563,7 @@ export const api = {
     const updatedCandidate: Candidate = {
       ...existingCandidate,
       ...data,
-      is_minor: isMinor, // Recalculate/override minor status
       updated_at: new Date().toISOString(),
-      // Clear guardian details if no longer a minor
-      guardian_name: isMinor ? (data.guardian_name ?? existingCandidate.guardian_name) : undefined,
-      guardian_contact: isMinor ? (data.guardian_contact ?? existingCandidate.guardian_contact) : undefined,
     };
 
     candidates[index] = updatedCandidate;
@@ -665,7 +655,7 @@ export const api = {
   },
   
   // POST /api/admin/candidate
-  createCandidate: async (data: CandidateCreationData & { batch_name?: string }): Promise<Candidate> => {
+  createCandidate: async (data: CandidateCreationData): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     
@@ -673,13 +663,14 @@ export const api = {
         throw new Error("Tracking code already exists.");
     }
     
-    // DOB is now guaranteed to be present
-    const isMinor = new Date().getFullYear() - new Date(data.dob).getFullYear() < 18;
+    // Age validation
+    if (!isAdult(data.dob)) {
+        throw new Error("Candidate must be 18 years or older.");
+    }
 
     const newCandidate: Candidate = {
         ...data,
         id: uuidv4(),
-        is_minor: isMinor,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     };

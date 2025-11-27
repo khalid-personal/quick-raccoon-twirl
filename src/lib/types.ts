@@ -51,9 +51,6 @@ export interface Candidate {
   tracking_code: string;
   country_of_origin: string; // REQUIRED
   batch_name?: string; // New optional field for grouping
-  is_minor: boolean;
-  guardian_name?: string;
-  guardian_contact?: string;
   created_at: string;
   updated_at: string;
 }

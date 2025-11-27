@@ -71,19 +71,9 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
             )}
           </div>
           <div className="text-sm">
-            <p className="font-medium text-muted-foreground">Minor Status</p>
-            <p className={`text-lg font-semibold ${candidate.is_minor ? 'text-red-500' : 'text-green-500'}`}>
-              {candidate.is_minor ? 'YES' : 'No'}
-            </p>
+            <p className="font-medium text-muted-foreground">Date of Birth</p>
+            <p className="text-lg">{format(new Date(candidate.dob), 'PPP')}</p>
           </div>
-          {candidate.is_minor && (
-            <>
-              <div className="text-sm">
-                <p className="font-medium text-muted-foreground">Guardian Name</p>
-                <p className="text-lg">{candidate.guardian_name || 'N/A'}</p>
-              </div>
-            </>
-          )}
         </div>
         
         <ProgressIndicator percent={progress} className="md:col-span-1" />

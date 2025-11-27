@@ -9,13 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { CandidateDetail } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___';
+
+// Helper function to check if DOB is 18+
+const isAdult = (dob: string): boolean => {
+    const birthDate = new Date(dob);
+    const ageDiffMs = Date.now() - birthDate.getTime();
+    const ageDate = new Date(ageDiffMs);
+    return Math.abs(ageDate.getUTCFullYear() - 1970) >= 18;
+};
 
 // Schema for form validation (similar to NewCandidateForm, but adapted for updates)
 const EditCandidateSchema = z.object({
@@ -28,25 +35,14 @@ const EditCandidateSchema = z.object({
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
-  is_minor: z.boolean().default(false),
-  guardian_name: z.string().optional(),
-  guardian_contact: z.string().optional(),
 }).superRefine((data, ctx) => {
-  if (data.is_minor) {
-    if (!data.guardian_name || data.guardian_name.trim() === '') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Guardian name is required for minors.",
-        path: ['guardian_name'],
-      });
-    }
-    if (!data.guardian_contact || data.guardian_contact.trim() === '') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Guardian contact is required for minors.",
-        path: ['guardian_contact'],
-      });
-    }
+  // Age validation
+  if (data.dob && !isAdult(data.dob)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Candidate must be 18 years or older.",
+      path: ['dob'],
+    });
   }
   
   if (data.country_of_origin === 'Other' && (!data.custom_country || data.custom_country.trim() === '')) {
@@ -105,14 +101,10 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       batch_name: candidate.batch_name || NO_BATCH_OPTION,
       new_batch_name: '',
-      is_minor: candidate.is_minor,
-      guardian_name: candidate.guardian_name || '',
-      guardian_contact: candidate.guardian_contact || '',
     },
   });
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = form;
-  const isMinor = watch('is_minor');
   const selectedCountry = watch('country_of_origin');
   const selectedBatch = watch('batch_name');
   const isCustomCountry = selectedCountry === 'Other';
@@ -142,9 +134,6 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         tracking_code: data.tracking_code,
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
-        is_minor: data.is_minor,
-        guardian_name: data.is_minor ? data.guardian_name : undefined,
-        guardian_contact: data.is_minor ? data.guardian_contact : undefined,
       });
       
       toast.success(`Candidate ${data.tracking_code} details updated successfully.`);
@@ -268,30 +257,6 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
           <Label htmlFor="new_batch_name">New Batch Name *</Label>
           <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
           {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
-        </div>
-      )}
-      
-      <div className="flex items-center space-x-2 pt-2">
-        <Checkbox 
-          id="is_minor" 
-          checked={isMinor} 
-          onCheckedChange={(checked) => setValue('is_minor', checked as boolean)}
-        />
-        <Label htmlFor="is_minor">Candidate is a Minor (Requires Guardian Details)</Label>
-      </div>
-
-      {isMinor && (
-        <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-gray-50 dark:bg-gray-800">
-          <div className="space-y-2">
-            <Label htmlFor="guardian_name">Guardian Name *</Label>
-            <Input id="guardian_name" {...register('guardian_name')} />
-            {errors.guardian_name && <p className="text-red-500 text-xs">{errors.guardian_name.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="guardian_contact">Guardian Contact *</Label>
-            <Input id="guardian_contact" {...register('guardian_contact')} />
-            {errors.guardian_contact && <p className="text-red-500 text-xs">{errors.guardian_contact.message}</p>}
-          </div>
         </div>
       )}
 
