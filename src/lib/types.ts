@@ -66,6 +66,16 @@ export interface CandidateDetail extends Candidate {
 // Summary data structure for Admin Dashboard view
 export interface CandidateSummary extends Candidate {
   progress_percent: number;
+  // Add a calculated status for filtering purposes
+  overall_status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked';
+}
+
+export interface DashboardSummary {
+  total: number;
+  pending: number;
+  in_progress: number;
+  completed: number;
+  blocked: number;
 }
 
 // Data structure for Public Tracking view

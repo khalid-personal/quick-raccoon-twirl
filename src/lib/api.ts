@@ -9,6 +9,7 @@ import {
   Document,
   TOTAL_STAGES,
   CandidateSummary,
+  DashboardSummary,
 } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -67,6 +68,9 @@ const generateInitialStages = (candidateId: string): CandidateStage[] => {
       } else if (stage.slug === 'final_medical') {
         status = 'Passed';
         date = '2025-11-22T00:00:00Z';
+      } else if (stage.slug === 'flight_departure') {
+        status = 'In Progress';
+        date = '2025-11-25T00:00:00Z';
       }
     }
 
@@ -179,35 +183,100 @@ export function calculateProgress(candidateStages: CandidateStage[]): number {
   return Math.floor((completedStages / TOTAL_STAGES) * 100);
 }
 
+// --- Overall Status Calculation Utility ---
+
+function calculateOverallStatus(candidateStages: CandidateStage[]): CandidateSummary['overall_status'] {
+    const completedStages = candidateStages.filter(
+        (cs) => cs.status === 'Passed' || cs.status === 'Issued' || cs.status === 'Completed'
+    );
+    
+    // Check for Blocked (any stage failed)
+    const failedStage = candidateStages.find(cs => cs.status === 'Failed');
+    if (failedStage) {
+        return 'Blocked';
+    }
+
+    // Check for Completed (all stages passed/issued/completed)
+    if (completedStages.length === TOTAL_STAGES) {
+        return 'Completed';
+    }
+    
+    // Check for In Progress (at least one stage passed/issued/completed, but not all)
+    if (completedStages.length > 0) {
+        return 'In Progress';
+    }
+
+    // Otherwise, Pending (no stages completed yet)
+    return 'Pending';
+}
+
 // --- API Implementation ---
 
 // Define the required input type for creation
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'is_minor'>;
 
 export const api = {
+  // GET /api/admin/summary
+  getDashboardSummary: async (): Promise<DashboardSummary> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const allStages = getCandidateStages();
+    
+    let pending = 0;
+    let in_progress = 0;
+    let completed = 0;
+    let blocked = 0;
+    
+    candidates.forEach(candidate => {
+        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
+        const status = calculateOverallStatus(candidateStages);
+        
+        if (status === 'Pending') pending++;
+        else if (status === 'In Progress') in_progress++;
+        else if (status === 'Completed') completed++;
+        else if (status === 'Blocked') blocked++;
+    });
+    
+    return {
+        total: candidates.length,
+        pending,
+        in_progress,
+        completed,
+        blocked,
+    };
+  },
+  
   // GET /api/admin/search?q=
-  searchCandidates: async (query: string): Promise<CandidateSummary[]> => {
+  searchCandidates: async (query: string, filterStatus?: CandidateSummary['overall_status']): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
     const allStages = getCandidateStages();
     const q = query.toLowerCase();
 
-    const filteredCandidates = candidates.filter(c =>
-      c.first_name.toLowerCase().includes(q) ||
-      c.last_name.toLowerCase().includes(q) ||
-      c.passport_number.toLowerCase().includes(q) || // passport_number is now guaranteed to be string
-      c.tracking_code.toLowerCase().includes(q)
-    );
-    
-    // Calculate progress for each filtered candidate
-    return filteredCandidates.map(candidate => {
+    const candidatesWithStatus = candidates.map(candidate => {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const progress_percent = calculateProgress(candidateStages);
+        const overall_status = calculateOverallStatus(candidateStages);
         return {
             ...candidate,
             progress_percent,
+            overall_status,
         };
     });
+
+    const filteredCandidates = candidatesWithStatus.filter(c => {
+      const matchesQuery = 
+        c.first_name.toLowerCase().includes(q) ||
+        c.last_name.toLowerCase().includes(q) ||
+        c.passport_number.toLowerCase().includes(q) ||
+        c.tracking_code.toLowerCase().includes(q);
+        
+      const matchesFilter = !filterStatus || c.overall_status === filterStatus;
+      
+      return matchesQuery && matchesFilter;
+    });
+    
+    return filteredCandidates;
   },
 
   // GET /api/admin/candidate/:id

@@ -11,15 +11,25 @@ import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
 import ProgressIndicator from '@/components/ProgressIndicator';
+import DashboardSummaryCards from '@/components/DashboardSummaryCards';
+import { Badge } from '@/components/ui/badge';
+
+const statusColors: Record<CandidateSummary['overall_status'], string> = {
+  'Completed': 'bg-green-500 hover:bg-green-600 text-white',
+  'In Progress': 'bg-blue-500 hover:bg-blue-600 text-white',
+  'Blocked': 'bg-red-500 hover:bg-red-600 text-white',
+  'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
+};
 
 const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery],
-    queryFn: () => api.searchCandidates(currentQuery),
+    queryKey: ['adminCandidates', currentQuery, filterStatus],
+    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined),
     initialData: [],
   });
 
@@ -30,6 +40,12 @@ const AdminDashboard: React.FC = () => {
   
   const handleCandidateCreated = () => {
       refetch();
+  };
+  
+  const handleStatusSelect = (status: CandidateSummary['overall_status'] | '') => {
+    setFilterStatus(status);
+    setCurrentQuery(''); // Clear search query when filtering by status
+    setSearchQuery('');
   };
 
   return (
@@ -54,6 +70,8 @@ const AdminDashboard: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
+      
+      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />
 
       <Card>
         <CardHeader>
@@ -76,7 +94,7 @@ const AdminDashboard: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Results ({candidates.length})</CardTitle>
+          <CardTitle>Results ({candidates.length}) {filterStatus && `(Filtered by ${filterStatus})`}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -84,7 +102,7 @@ const AdminDashboard: React.FC = () => {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : candidates.length === 0 ? (
-            <p className="text-center text-muted-foreground p-8">No candidates found matching your query.</p>
+            <p className="text-center text-muted-foreground p-8">No candidates found matching your criteria.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -95,6 +113,7 @@ const AdminDashboard: React.FC = () => {
                     <TableHead>Passport</TableHead>
                     <TableHead>Origin</TableHead>
                     <TableHead className="w-[150px]">Progress</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Minor</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -104,10 +123,15 @@ const AdminDashboard: React.FC = () => {
                     <TableRow key={candidate.id}>
                       <TableCell className="font-medium">{candidate.first_name} {candidate.last_name}</TableCell>
                       <TableCell>{candidate.tracking_code}</TableCell>
-                      <TableCell>{candidate.passport_number || 'N/A'}</TableCell>
+                      <TableCell>{candidate.passport_number}</TableCell>
                       <TableCell>{candidate.country_of_origin}</TableCell>
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[candidate.overall_status]}>
+                          {candidate.overall_status}
+                        </Badge>
                       </TableCell>
                       <TableCell>{candidate.is_minor ? 'Yes' : 'No'}</TableCell>
                       <TableCell className="text-right">
