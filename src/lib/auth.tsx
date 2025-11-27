@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, pin: string) => Promise<{ error: Error | null }>;
-  signup: (email: string, pin: string) => Promise<{ error: Error | null }>;
+  signup: (email: string, pin: string, authCode: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
 }
 
@@ -107,10 +107,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: null };
   };
   
-  const signup = async (email: string, pin: string) => {
+  const signup = async (email: string, pin: string, authCode: string) => {
     const { error } = await supabase.auth.signUp({
         email: email,
         password: pin,
+        options: {
+            data: {
+                authorization_code: authCode,
+            }
+        }
     });
     
     if (error) {

@@ -13,6 +13,7 @@ const Signup: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
+  const [authCode, setAuthCode] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
 
   React.useEffect(() => {
@@ -27,9 +28,13 @@ const Signup: React.FC = () => {
         toast.error("Please enter a valid email and a PIN of at least 6 characters.");
         return;
     }
+    if (!authCode.trim()) {
+        toast.error("Authorization Code is required to register.");
+        return;
+    }
     
     setIsSigningUp(true);
-    const { error } = await signup(email, pin);
+    const { error } = await signup(email, pin, authCode.trim());
     setIsSigningUp(false);
 
     if (error) {
@@ -81,6 +86,18 @@ const Signup: React.FC = () => {
                 onChange={(e) => setPin(e.target.value)}
                 required
                 minLength={6}
+                disabled={isSigningUp}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="authCode">Authorization Code *</Label>
+              <Input 
+                id="authCode" 
+                type="text" 
+                placeholder="Agency/Station Code"
+                value={authCode}
+                onChange={(e) => setAuthCode(e.target.value)}
+                required
                 disabled={isSigningUp}
               />
             </div>
