@@ -3,13 +3,17 @@ import { useAuth } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserRole } from '@/lib/types';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 const AdminLogin: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -17,37 +21,79 @@ const AdminLogin: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleLogin = () => {
-    login(selectedRole);
-    toast.success(`Logged in as ${selectedRole}`);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !pin) {
+        toast.error("Please enter both email and PIN.");
+        return;
+    }
+    
+    setIsLoggingIn(true);
+    const { error } = await login(email, pin);
+    setIsLoggingIn(false);
+
+    if (error) {
+        // Supabase errors are often generic for security, but we can display a message.
+        toast.error("Login failed. Check your email and PIN.");
+        console.error("Supabase Login Error:", error);
+    } else {
+        // Success handled by useEffect redirect
+        toast.success("Login successful!");
+    }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
       <Card className="w-[350px]">
         <CardHeader>
-          <CardTitle>Admin Login Mock</CardTitle>
-          <CardDescription>Select a role to simulate authentication.</CardDescription>
+          <CardTitle>Agency Staff Login</CardTitle>
+          <CardDescription>Enter your credentials to access the management dashboard.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select Role</label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="admin">Admin</option>
-              <option value="staff">Staff</option>
-              <option value="viewer">Viewer (Read-Only)</option>
-            </select>
-          </div>
-          <Button onClick={handleLogin} className="w-full">
-            Login
-          </Button>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="staff@agency.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoggingIn}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pin">PIN (Password)</Label>
+              <Input 
+                id="pin" 
+                type="password" 
+                placeholder="••••••"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                required
+                disabled={isLoggingIn}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoggingIn}>
+              {isLoggingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 'Login'}
+            </Button>
+          </form>
           <p className="text-center text-sm text-muted-foreground">
             <a href="/" className="hover:underline">Return to Public Home</a>
           </p>
+          <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
+            <p>To test, you must first set up Supabase Auth and create a user.</p>
+            <p className="font-semibold">Email/PIN are used as Email/Password for Supabase.</p>
+          </div>
         </CardContent>
       </Card>
     </div>
