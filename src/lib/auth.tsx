@@ -88,7 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(mockUser);
             setUserRole(determineRole(mockUser));
             // Fix: token_type must be lowercase 'bearer'
-            setSession({ user: mockUser, access_token: 'mock-token', token_type: 'bearer', expires_in: 3600, expires_at: Date.now() + 3600000 });
+            setSession({ 
+                user: mockUser, 
+                access_token: 'mock-token', 
+                token_type: 'bearer', 
+                expires_in: 3600, 
+                expires_at: Date.now() + 3600000,
+                refresh_token: 'mock-refresh-token' // FIX: Added required refresh_token
+            });
             setIsLoading(false);
             return { error: null };
         }

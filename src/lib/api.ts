@@ -333,15 +333,6 @@ type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>
 // Define the required input type for updates
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
 
-// Data structure for the pipeline distribution chart
-export interface PipelineDistribution {
-    stageTitle: string;
-    ordinal: number;
-    pendingCount: number;
-    inProgressCount: number;
-    blockedCount: number;
-}
-
 export const api = {
   // NEW: Get pipeline distribution data
   getPipelineDistribution: async (): Promise<PipelineDistribution[]> => {

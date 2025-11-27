@@ -86,7 +86,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
     select: (data) => data.countryOptions,
-    initialData: [], // Initial data for the selected type (string[])
+    initialData: { countryOptions: [] }, // FIX: Initial data must match AppConfig structure
   });
   
   // Determine if the candidate's country is a custom entry (not in the standard list)

@@ -86,7 +86,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
     select: (data) => data.countryOptions,
-    initialData: [], // Initial data for the selected type (string[])
+    initialData: { countryOptions: [] }, // FIX: Initial data must match AppConfig structure
   });
   
   const form = useForm<NewCandidateFormValues>({
