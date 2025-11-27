@@ -45,9 +45,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   
   const isSuperAdmin = userRole === 'admin';
   
+  // Use a mock tracking code for easy testing of the public view
+  const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
+  
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
-    { to: '/track', label: 'Public Tracking', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
+    // Updated link to point to a specific candidate's tracking page for testing
+    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
   ];

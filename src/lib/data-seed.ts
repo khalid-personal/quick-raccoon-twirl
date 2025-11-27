@@ -183,7 +183,6 @@ export const SEED_CONFIG: AppConfig = {
 // NEW: Staff User Seed Data
 const MOCK_ADMIN_EMAIL = 'admin@agency.com';
 const MOCK_STAFF_EMAIL = 'staff@agency.com';
-const MOCK_VIEWER_EMAIL = 'viewer@agency.com';
 
 export const SEED_STAFF_USERS: StaffUser[] = [
     {
@@ -197,13 +196,6 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         id: uuidv4(),
         email: MOCK_STAFF_EMAIL,
         role: 'staff',
-        is_approved: true,
-        created_at: new Date().toISOString(),
-    },
-    {
-        id: uuidv4(),
-        email: MOCK_VIEWER_EMAIL,
-        role: 'viewer',
         is_approved: true,
         created_at: new Date().toISOString(),
     },
