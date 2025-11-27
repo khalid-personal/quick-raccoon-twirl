@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,9 +37,11 @@ const TrackingPage: React.FC = () => {
           <AlertDescription>
             {error ? (error as Error).message : `Tracking code "${trackingCode}" not found or invalid.`}
           </AlertDescription>
-          <Button onClick={() => window.history.back()} className="mt-4">
-            Try Another Code
-          </Button>
+          <Link to="/track">
+            <Button className="mt-4">
+              Try Another Code
+            </Button>
+          </Link>
         </Alert>
       </div>
     );
@@ -68,11 +70,16 @@ const TrackingPage: React.FC = () => {
             </ul>
           </div>
           
-          {/* Placeholder for Printable Progress Sheet */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-4">
+            {/* Placeholder for Printable Progress Sheet */}
             <Button variant="outline" onClick={() => api.generatePrintableSheet(data.tracking_code)} disabled>
               Generate Printable Progress Sheet (Mock)
             </Button>
+            
+            {/* Back Button */}
+            <Link to="/track" className="block">
+              <Button variant="secondary">Track Another Application</Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

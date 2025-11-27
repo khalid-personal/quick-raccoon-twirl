@@ -8,7 +8,8 @@ import NotFound from "./pages/NotFound";
 import TrackingPage from "./pages/TrackingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidateDetail from "./pages/AdminCandidateDetail";
-import AdminLogin from "./pages/AdminLogin";
+import Login from "./pages/Login";
+import PublicTrackingInput from "./pages/PublicTrackingInput";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 
@@ -18,7 +19,7 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to="/login" replace />;
   }
   return children;
 };
@@ -26,11 +27,15 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 const AppRoutes = () => (
   <BrowserRouter>
     <Routes>
-      <Route path="/" element={<Index />} />
+      {/* Root path redirects to /login */}
+      <Route path="/" element={<Index />} /> 
+      
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/track" element={<PublicTrackingInput />} />
       <Route path="/track/:trackingCode" element={<TrackingPage />} />
       
-      {/* Admin Routes */}
-      <Route path="/admin/login" element={<AdminLogin />} />
+      {/* Admin Routes (Protected) */}
       <Route 
         path="/admin" 
         element={

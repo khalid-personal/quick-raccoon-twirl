@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Chrome, Github } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
-const AdminLogin: React.FC = () => {
+const Login: React.FC = () => {
   const { isAuthenticated, login, loginWithProvider, isLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -18,6 +18,7 @@ const AdminLogin: React.FC = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
+      // Redirect authenticated users to the admin dashboard
       navigate('/admin', { replace: true });
     }
   }, [isAuthenticated, navigate]);
@@ -127,7 +128,7 @@ const AdminLogin: React.FC = () => {
           </form>
           
           <p className="text-center text-sm text-muted-foreground">
-            <a href="/" className="hover:underline">Return to Public Home</a>
+            <a href="/track" className="hover:underline">Return to Public Tracking</a>
           </p>
           <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
             <p>To use social logins, you must enable them in your Supabase project settings.</p>
@@ -139,4 +140,4 @@ const AdminLogin: React.FC = () => {
   );
 };
 
-export default AdminLogin;
+export default Login;
