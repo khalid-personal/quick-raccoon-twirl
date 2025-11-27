@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import TrackingTimeline from '@/components/TrackingTimeline';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -19,6 +20,17 @@ const TrackingPage: React.FC = () => {
     // Simulate real-time refresh (polling)
     refetchInterval: 5000, 
   });
+  
+  const handlePrint = async () => {
+    if (!trackingCode) return;
+    try {
+      // Mock API call
+      await api.generatePrintableSheet(trackingCode);
+      toast.success("Printable sheet generated successfully (Check console for mock data).");
+    } catch (e) {
+      toast.error("Failed to generate printable sheet.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -71,9 +83,9 @@ const TrackingPage: React.FC = () => {
           </div>
           
           <div className="mt-6 text-center space-y-4">
-            {/* Placeholder for Printable Progress Sheet */}
-            <Button variant="outline" onClick={() => api.generatePrintableSheet(data.tracking_code)} disabled>
-              Generate Printable Progress Sheet (Mock)
+            {/* Printable Progress Sheet Button */}
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" /> Generate Printable Progress Sheet (Mock)
             </Button>
             
             {/* Back Button */}
