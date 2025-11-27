@@ -38,6 +38,30 @@ type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'update
 // Helper to find stage ID by slug
 const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
 
+// --- Mock Payment Status Store ---
+// In a real app, this would be a database field. Here we use localStorage.
+const LS_PAYMENT_STATUS = 'mock_payment_status';
+
+interface PaymentStatus {
+    candidateId: string;
+    stageId: number;
+    isPaid: boolean;
+}
+
+const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]');
+const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
+
+// Initialize mock payment status for existing seed data (e.g., Candidate 1 paid for Initial Medical)
+if (getPaymentStatuses().length === 0) {
+    const initialMedicalStageId = getStageId('initial_medical');
+    const candidate1 = getCandidates().find(c => c.tracking_code === 'TRK-ET-0001');
+    if (candidate1 && initialMedicalStageId) {
+        savePaymentStatuses([{ candidateId: candidate1.id, stageId: initialMedicalStageId, isPaid: true }]);
+    }
+}
+// --- End Mock Payment Status Store ---
+
+
 export const api = {
   // NEW: Verify candidate credentials for login
   verifyCandidateCredentials: async (trackingCode: string, passportNumber: string): Promise<Candidate | null> => {
@@ -51,6 +75,20 @@ export const api = {
     );
     
     return candidate || null;
+  },
+  
+  // NEW: Mock endpoint to update payment status
+  updatePaymentStatus: async (candidateId: string, stageId: number, isPaid: boolean): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const statuses = getPaymentStatuses();
+    const index = statuses.findIndex(s => s.candidateId === candidateId && s.stageId === stageId);
+
+    if (index !== -1) {
+        statuses[index].isPaid = isPaid;
+    } else if (isPaid) {
+        statuses.push({ candidateId, stageId, isPaid: true });
+    }
+    savePaymentStatuses(statuses);
   },
   
   // NEW: Get pipeline distribution data
@@ -493,6 +531,7 @@ export const api = {
     const stages = getCandidateStages().filter(cs => cs.candidate_id === candidate.id);
     const medicalResults = getMedicalResults().filter(mr => mr.candidate_id === candidate.id);
     const documents = getDocuments().filter(d => d.candidate_id === candidate.id);
+    const paymentStatuses = getPaymentStatuses(); // Get mock payment statuses
 
     const progress_percent = calculateProgress(stages);
 
@@ -503,6 +542,9 @@ export const api = {
         
         let medical_status_summary: StageStatus | undefined = undefined;
         const is_medical_stage = stage.slug === 'initial_medical' || stage.slug === 'final_medical';
+        
+        // Determine payment status
+        const is_fee_paid = paymentStatuses.some(ps => ps.candidateId === candidate.id && ps.stageId === stage.id && ps.isPaid);
 
         if (is_medical_stage) {
             // Summarize medical results for public view (Rule: only show Pass/Fail/Pending)
@@ -541,6 +583,8 @@ export const api = {
               file_name: d.file_name,
               public_url: d.public_url, 
           })),
+          fee_amount: stage.fee_amount, // Include fee amount
+          is_fee_paid: is_fee_paid, // Include payment status
         };
       })
       .sort((a, b) => {

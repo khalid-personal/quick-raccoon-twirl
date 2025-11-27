@@ -8,6 +8,7 @@ export interface Stage {
   title: string;
   ordinal: number;
   icon: string; // Added icon field
+  fee_amount?: number; // NEW: Optional fee amount associated with the stage
 }
 
 export interface CandidateStage {
@@ -94,6 +95,8 @@ export interface PublicTrackingData {
     is_medical_stage: boolean;
     medical_status_summary?: MedicalStatus | StageStatus; // Only Pass/Fail/Pending summary for medical stages
     documents: Document[];
+    fee_amount?: number; // NEW: Fee amount for this stage
+    is_fee_paid: boolean; // NEW: Mock status for fee payment
   }>;
 }
 
@@ -112,7 +115,7 @@ export type SortDirection = 'asc' | 'desc';
 
 // Constants for Stages (based on SQL seed)
 export const ALL_STAGES: Stage[] = [
-  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10, icon: 'HeartPulse' },
+  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10, icon: 'HeartPulse', fee_amount: 1500 }, // Added fee
   { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20, icon: 'GraduationCap' },
   { id: 3, slug: 'security_clearance', title: 'Security / Interpol Clearance', ordinal: 30, icon: 'ShieldCheck' },
   { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 40, icon: 'Fingerprint' },
@@ -120,7 +123,7 @@ export const ALL_STAGES: Stage[] = [
   { id: 6, slug: 'biometrics_passport', title: 'Biometrics + Passport Processing', ordinal: 60, icon: 'Scan' },
   { id: 7, slug: 'job_matching', title: 'Job Matching', ordinal: 70, icon: 'Users' },
   { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80, icon: 'Plane' },
-  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90, icon: 'Stethoscope' },
+  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90, icon: 'Stethoscope', fee_amount: 1000 }, // Added fee
   { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100, icon: 'Briefcase' },
   { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110, icon: 'PlaneTakeoff' },
 ];

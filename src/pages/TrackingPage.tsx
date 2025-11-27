@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['publicTracking', trackingCode],
     queryFn: () => api.getPublicTrackingData(trackingCode!),
     enabled: !!trackingCode,
@@ -71,7 +71,12 @@ const TrackingPage: React.FC = () => {
           
           <h2 className="text-2xl font-bold mb-6 border-b pb-2">Deployment Timeline</h2>
           
-          <TrackingTimeline timeline={data.timeline} isPublicView={true} />
+          <TrackingTimeline 
+            timeline={data.timeline} 
+            isPublicView={true} 
+            trackingCode={data.tracking_code}
+            refetch={refetch}
+          />
           
           <div className="mt-8 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
             <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>

@@ -4,10 +4,13 @@ import { getStatusColor, cn } from '@/lib/utils';
 import { CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import PaymentGate from './PaymentGate'; // Import PaymentGate
 
 interface TrackingTimelineProps {
   timeline: PublicTrackingData['timeline'];
   isPublicView: boolean;
+  trackingCode: string; // Added trackingCode prop
+  refetch: () => void; // Added refetch prop
 }
 
 const getIconForStatus = (status: StageStatus | MedicalStatus) => {
@@ -26,7 +29,7 @@ const getIconForStatus = (status: StageStatus | MedicalStatus) => {
   }
 };
 
-const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicView }) => {
+const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicView, trackingCode, refetch }) => {
   return (
     <div className="relative pl-6 border-l border-gray-300 dark:border-gray-700">
       {timeline.map((item, index) => {
@@ -42,6 +45,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicV
         const statusTextColor = displayStatus === 'Pending' ? 'text-gray-800 dark:text-gray-200' : 'text-white';
 
         const isLast = index === timeline.length - 1;
+        
+        // Check for payment requirement
+        const requiresPayment = isPublicView && item.fee_amount && !item.is_fee_paid;
 
         return (
           <div key={item.title} className={cn("mb-8 relative", { "pb-0": isLast })}>
@@ -80,7 +86,20 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicV
                   </span>
                 </p>
               )}
-
+              
+              {/* Payment Gate Integration */}
+              {requiresPayment && (
+                <div className="mt-3">
+                  <PaymentGate 
+                    stageTitle={item.title}
+                    feeAmount={item.fee_amount!}
+                    isPaid={item.is_fee_paid}
+                    trackingCode={trackingCode}
+                    onPaymentSuccess={refetch}
+                  />
+                </div>
+              )}
+              
               {/* Documents (Public View: Thumbnails/Links) */}
               {item.documents.length > 0 && (
                 <div className="mt-2 space-y-1">
