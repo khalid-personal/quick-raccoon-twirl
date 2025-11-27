@@ -14,7 +14,6 @@ import { Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 
-const COUNTRY_OPTIONS = ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Other'];
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
 
@@ -80,6 +79,14 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     queryFn: api.getBatches,
   });
   
+  // NEW: Fetch country options from API
+  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery({
+    queryKey: ['appConfig'],
+    queryFn: api.getAppConfig,
+    select: (data) => data.countryOptions,
+    initialData: [],
+  });
+  
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
     defaultValues: {
@@ -141,6 +148,14 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       toast.error((error as Error).message);
     }
   };
+  
+  if (isLoadingConfig) {
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -178,7 +193,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
               <SelectValue placeholder="Select Country" />
             </SelectTrigger>
             <SelectContent>
-              {COUNTRY_OPTIONS.map(country => (
+              {countryOptions.map(country => (
                 <SelectItem key={country} value={country}>
                   {country}
                 </SelectItem>

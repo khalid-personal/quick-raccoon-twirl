@@ -9,8 +9,9 @@ import TrackingPage from "./pages/TrackingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidateDetail from "./pages/AdminCandidateDetail";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup"; // Import Signup
+import Signup from "./pages/Signup"; 
 import PublicTrackingInput from "./pages/PublicTrackingInput";
+import SuperadminSettings from "./pages/SuperadminSettings";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 
@@ -54,6 +55,16 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <AdminCandidateDetail />
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/settings" 
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <SuperadminSettings />
             </AdminLayout>
           </ProtectedRoute>
         } 

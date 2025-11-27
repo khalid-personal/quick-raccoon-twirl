@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home } from 'lucide-react';
+import { LogOut, Users, Home, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface AdminLayoutProps {
@@ -14,6 +14,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   
   // Determine if we are currently on the main admin dashboard
   const isAdminDashboard = location.pathname === '/admin';
+  const isSuperAdmin = userRole === 'admin'; // Check for admin role
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -24,6 +25,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <span>Agency Admin ({userRole})</span>
           </Link>
           <nav className="flex items-center space-x-4">
+            {/* Superadmin Settings Button */}
+            {isSuperAdmin && (
+              <Link to="/admin/settings">
+                <Button variant="ghost" size="sm">
+                  <Settings className="h-4 w-4 mr-2" /> Settings
+                </Button>
+              </Link>
+            )}
+            
             {/* Home/Public Tracking Button */}
             <Link to="/track">
               <Button variant="ghost" size="sm">

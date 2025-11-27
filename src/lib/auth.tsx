@@ -15,24 +15,33 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock Admin Email for testing purposes
+const MOCK_ADMIN_EMAIL = 'admin@agency.com';
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const determineRole = (user: User | null): UserRole | null => {
+    if (!user) return null;
+    
+    // Mock RBAC: Assign 'admin' role if email matches MOCK_ADMIN_EMAIL
+    if (user.email === MOCK_ADMIN_EMAIL) {
+        return 'admin';
+    }
+    // Default role for any other logged-in user
+    return 'staff'; 
+  };
+
   useEffect(() => {
     // 1. Fetch initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
-      // In a real app, we would fetch the user's role from the database here.
-      // For now, we mock a default role based on authentication presence.
-      if (session) {
-        // Mock role assignment for initial setup:
-        // We will assume all logged-in users are 'staff' until we implement proper role fetching.
-        setUserRole('staff'); 
-      }
+      const user = session?.user ?? null;
+      setUser(user);
+      setUserRole(determineRole(user));
       setIsLoading(false);
     });
 
@@ -40,13 +49,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
-        if (session) {
-            // Re-evaluate role on auth change
-            setUserRole('staff'); 
-        } else {
-            setUserRole(null);
-        }
+        const user = session?.user ?? null;
+        setUser(user);
+        setUserRole(determineRole(user));
         setIsLoading(false);
       }
     );
