@@ -11,7 +11,8 @@ import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
-import MedicalResultsEditor from '@/components/MedicalResultsEditor'; // Import new component
+import MedicalResultsEditor from '@/components/MedicalResultsEditor';
+import NotificationSender from '@/components/NotificationSender'; // NEW IMPORT
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -66,6 +67,7 @@ const AdminCandidateDetail: React.FC = () => {
           <TabsTrigger value="timeline">Timeline Editor</TabsTrigger>
           <TabsTrigger value="documents">Document Manager</TabsTrigger>
           <TabsTrigger value="medical">Medical Results</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger> {/* NEW TAB */}
         </TabsList>
         
         <TabsContent value="timeline" className="mt-4">
@@ -78,6 +80,10 @@ const AdminCandidateDetail: React.FC = () => {
         
         <TabsContent value="medical" className="mt-4">
           <MedicalResultsEditor candidateDetail={candidate} refetch={refetch} />
+        </TabsContent>
+        
+        <TabsContent value="notifications" className="mt-4"> {/* NEW TAB CONTENT */}
+          <NotificationSender candidate={candidate} />
         </TabsContent>
       </Tabs>
       

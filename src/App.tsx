@@ -11,7 +11,8 @@ import AdminCandidateDetail from "./pages/AdminCandidateDetail";
 import AuthPage from "./pages/AuthPage";
 import Signup from "./pages/Signup"; 
 import SuperadminSettings from "./pages/SuperadminSettings";
-import AdminUserManagement from "./pages/AdminUserManagement"; // NEW IMPORT
+import AdminUserManagement from "./pages/AdminUserManagement";
+import AdminChatViewer from "./pages/AdminChatViewer"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import { Loader2 } from 'lucide-react'; // Added Loader2 import
@@ -90,6 +91,16 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <AdminCandidateDetail />
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/chat" 
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminChatViewer />
             </AdminLayout>
           </ProtectedRoute>
         } 
