@@ -6,6 +6,9 @@ export interface AppConfig {
     countryOptions: string[];
 }
 
+// --- Helper function to find stage ID by slug ---
+const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
+
 // --- Helper function to generate initial stages for a new candidate ---
 export function generateInitialStages(candidate: Candidate): CandidateStage[] {
     return ALL_STAGES.map(stage => ({
