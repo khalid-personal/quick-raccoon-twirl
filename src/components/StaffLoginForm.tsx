@@ -17,13 +17,11 @@ const StaffLoginForm: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   React.useEffect(() => {
-    console.log('StaffLoginForm useEffect running:', { isAuthenticated, userRole, isLoading });
     // Only redirect if authenticated AND the role is confirmed to be staff or admin
     if (isAuthenticated && (userRole === 'admin' || userRole === 'staff')) {
-      console.log('Redirecting to /admin');
       navigate('/admin', { replace: true });
     }
-  }, [isAuthenticated, userRole, navigate, isLoading]);
+  }, [isAuthenticated, userRole, navigate]); // Removed isLoading from dependencies as it's handled by the component's loading state
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

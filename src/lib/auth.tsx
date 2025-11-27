@@ -60,8 +60,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { role: 'staff', trackingCode: null }; 
   };
   
-  const updateAuthStatus = async (session: Session | null) => {
-    const user = session?.user ?? null;
+  const updateAuthStatus = async (newSession: Session | null) => {
+    setSession(newSession); // <-- FIX: Set the session state
+    const user = newSession?.user ?? null;
     setUser(user);
     
     if (user) {
