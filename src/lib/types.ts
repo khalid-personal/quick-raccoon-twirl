@@ -1,0 +1,97 @@
+export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
+export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
+export type UserRole = 'admin' | 'staff' | 'viewer';
+
+export interface Stage {
+  id: number;
+  slug: string;
+  title: string;
+  ordinal: number;
+}
+
+export interface CandidateStage {
+  id: string;
+  candidate_id: string;
+  stage_id: number;
+  status: StageStatus;
+  notes?: string;
+  date?: string; // ISO date string
+  updated_at: string;
+}
+
+export interface Document {
+  id: string;
+  candidate_id: string;
+  stage_id?: number;
+  file_name: string;
+  file_type: string;
+  storage_key: string;
+  uploaded_at: string;
+  // Mocked secure URL for public view
+  public_url?: string; 
+}
+
+export interface MedicalResult {
+  id: string;
+  candidate_id: string;
+  exam_type: string; // e.g., 'HIV','Pregnancy','Final Agency Medical'
+  status: MedicalStatus;
+  exam_date?: string; // ISO date string
+  notes?: string;
+  document_id?: string;
+}
+
+export interface Candidate {
+  id: string;
+  first_name: string;
+  last_name: string;
+  dob?: string; // ISO date string
+  passport_number?: string;
+  tracking_code: string;
+  country_of_origin?: string;
+  is_minor: boolean;
+  guardian_name?: string;
+  guardian_contact?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Combined data structure for Admin view
+export interface CandidateDetail extends Candidate {
+  stages: CandidateStage[];
+  documents: Document[];
+  medical_results: MedicalResult[];
+}
+
+// Data structure for Public Tracking view
+export interface PublicTrackingData {
+  candidate_name: string;
+  tracking_code: string;
+  progress_percent: number;
+  timeline: Array<{
+    title: string;
+    status: StageStatus;
+    date?: string;
+    notes?: string;
+    is_medical_stage: boolean;
+    medical_status_summary?: MedicalStatus | StageStatus; // Only Pass/Fail/Pending summary for medical stages
+    documents: Document[];
+  }>;
+}
+
+// Constants for Stages (based on SQL seed)
+export const ALL_STAGES: Stage[] = [
+  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10 },
+  { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20 },
+  { id: 3, slug: 'security_clearance', title: 'Security / Interpol Clearance', ordinal: 30 },
+  { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 40 },
+  { id: 5, slug: 'contract_signing', title: 'Agency Contract Signing', ordinal: 50 },
+  { id: 6, slug: 'biometrics_passport', title: 'Biometrics + Passport Processing', ordinal: 60 },
+  { id: 7, slug: 'job_matching', title: 'Job Matching', ordinal: 70 },
+  { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80 },
+  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90 },
+  { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100 },
+  { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110 },
+];
+
+export const TOTAL_STAGES = ALL_STAGES.length;
