@@ -11,6 +11,7 @@ import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
+import MedicalResultsEditor from '@/components/MedicalResultsEditor'; // Import new component
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -64,7 +65,7 @@ const AdminCandidateDetail: React.FC = () => {
         <TabsList>
           <TabsTrigger value="timeline">Timeline Editor</TabsTrigger>
           <TabsTrigger value="documents">Document Manager</TabsTrigger>
-          <TabsTrigger value="medical">Medical Results (Mock)</TabsTrigger>
+          <TabsTrigger value="medical">Medical Results</TabsTrigger>
         </TabsList>
         
         <TabsContent value="timeline" className="mt-4">
@@ -76,16 +77,7 @@ const AdminCandidateDetail: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="medical" className="mt-4">
-          {/* Placeholder for Medical Results Editor */}
-          <div className="p-6 border rounded-lg bg-white dark:bg-gray-950">
-            <h3 className="text-xl font-semibold mb-4">Medical Results Editor (Mock)</h3>
-            <p className="text-muted-foreground">
-              In a full system, this section would allow staff to input detailed medical results (HIV, Pregnancy, HepB, etc.) which directly influence the Final Medical Clearance stage status.
-            </p>
-            <p className="mt-2 text-sm text-red-500">
-              Note: The compliance logic for pregnancy test failure blocking flight booking is already implemented in the mock API.
-            </p>
-          </div>
+          <MedicalResultsEditor candidateDetail={candidate} refetch={refetch} />
         </TabsContent>
       </Tabs>
       
