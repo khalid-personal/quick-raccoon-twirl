@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Candidate } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const COUNTRY_OPTIONS = ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Other'];
 
 // Schema for form validation
 const NewCandidateSchema = z.object({
@@ -20,6 +23,7 @@ const NewCandidateSchema = z.object({
   passport_number: z.string().optional(),
   tracking_code: z.string().min(1, "Tracking code is required.").regex(/^TRK-[A-Z]{2,3}-\d{4,}$/, "Invalid tracking code format (e.g., TRK-ET-0001)."),
   country_of_origin: z.string().min(1, "Country of origin is required."),
+  custom_country: z.string().optional(), // For 'Other' selection
   is_minor: z.boolean().default(false),
   guardian_name: z.string().optional(),
   guardian_contact: z.string().optional(),
@@ -40,6 +44,14 @@ const NewCandidateSchema = z.object({
       });
     }
   }
+  
+  if (data.country_of_origin === 'Other' && (!data.custom_country || data.custom_country.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please specify the country.",
+      path: ['custom_country'],
+    });
+  }
 });
 
 type NewCandidateFormValues = z.infer<typeof NewCandidateSchema>;
@@ -59,6 +71,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       passport_number: '',
       tracking_code: '',
       country_of_origin: '',
+      custom_country: '',
       is_minor: false,
       guardian_name: '',
       guardian_contact: '',
@@ -67,17 +80,25 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = form;
   const isMinor = watch('is_minor');
+  const selectedCountry = watch('country_of_origin');
+  const isCustomCountry = selectedCountry === 'Other';
 
   const onSubmit = async (data: NewCandidateFormValues) => {
     try {
-      // The API calculates is_minor based on DOB if provided, but we pass the guardian info if checked.
+      const finalCountry = data.country_of_origin === 'Other' ? data.custom_country : data.country_of_origin;
+      
+      if (!finalCountry) {
+          toast.error("Country of Origin is required.");
+          return;
+      }
+
       const newCandidate = await api.createCandidate({
         first_name: data.first_name,
         last_name: data.last_name,
         dob: data.dob || undefined,
         passport_number: data.passport_number || undefined,
         tracking_code: data.tracking_code,
-        country_of_origin: data.country_of_origin,
+        country_of_origin: finalCountry,
         guardian_name: data.is_minor ? data.guardian_name : undefined,
         guardian_contact: data.is_minor ? data.guardian_contact : undefined,
       });
@@ -113,10 +134,37 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         </div>
         <div className="space-y-2">
           <Label htmlFor="country_of_origin">Country of Origin *</Label>
-          <Input id="country_of_origin" {...register('country_of_origin')} />
+          <Select
+            value={selectedCountry}
+            onValueChange={(value) => {
+              setValue('country_of_origin', value, { shouldValidate: true });
+              if (value !== 'Other') {
+                setValue('custom_country', '');
+              }
+            }}
+          >
+            <SelectTrigger id="country_of_origin">
+              <SelectValue placeholder="Select Country" />
+            </SelectTrigger>
+            <SelectContent>
+              {COUNTRY_OPTIONS.map(country => (
+                <SelectItem key={country} value={country}>
+                  {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
         </div>
       </div>
+      
+      {isCustomCountry && (
+        <div className="space-y-2">
+          <Label htmlFor="custom_country">Specify Country *</Label>
+          <Input id="custom_country" {...register('custom_country')} />
+          {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
