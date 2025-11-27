@@ -22,16 +22,20 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
 };
 
+const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
+
 const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
-  const [filterBatch, setFilterBatch] = useState<string>('');
+  const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER); // Initialize with the constant
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
+
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, filterBatch],
-    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined, filterBatch || undefined),
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch],
+    queryFn: () => api.searchCandidates(currentQuery, filterStatus || undefined, effectiveFilterBatch),
     initialData: [],
   });
   
@@ -117,7 +121,7 @@ const AdminDashboard: React.FC = () => {
                   <SelectValue placeholder="Filter by Batch" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Batches</SelectItem>
+                  <SelectItem value={ALL_BATCHES_FILTER}>All Batches</SelectItem>
                   {activeBatches.map(batch => (
                     <SelectItem key={batch} value={batch}>
                       {batch}
@@ -132,7 +136,7 @@ const AdminDashboard: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Results ({candidates.length}) {filterStatus && `(Status: ${filterStatus})`} {filterBatch && `(Batch: ${filterBatch})`}</CardTitle>
+          <CardTitle>Results ({candidates.length}) {filterStatus && `(Status: ${filterStatus})`} {effectiveFilterBatch && `(Batch: ${effectiveFilterBatch})`}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (

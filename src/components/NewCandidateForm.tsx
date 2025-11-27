@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 
 const COUNTRY_OPTIONS = ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Other'];
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
+const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
 
 // Schema for form validation
 const NewCandidateSchema = z.object({
@@ -89,7 +90,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       tracking_code: '',
       country_of_origin: '',
       custom_country: '',
-      batch_name: '',
+      batch_name: NO_BATCH_OPTION, // Initialize with the constant
       new_batch_name: '',
       is_minor: false,
       guardian_name: '',
@@ -116,7 +117,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       let finalBatchName: string | undefined = undefined;
       if (data.batch_name === NEW_BATCH_OPTION) {
           finalBatchName = data.new_batch_name;
-      } else if (data.batch_name) {
+      } else if (data.batch_name && data.batch_name !== NO_BATCH_OPTION) {
           finalBatchName = data.batch_name;
       }
 
@@ -220,7 +221,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
             <SelectValue placeholder="Select or Create Batch" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No Batch</SelectItem>
+            <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
             {activeBatches.map(batch => (
               <SelectItem key={batch} value={batch}>
                 {batch}
