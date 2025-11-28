@@ -25,7 +25,7 @@ const calculateDuration = (checkIn: string, checkOut?: string): string => {
 };
 
 const AdminAllAttendancePage: React.FC = () => {
-  const { userRole, isLoading: isAuthLoading } = useAuth();
+  const { user, userRole, isLoading: isAuthLoading } = useAuth();
   
   // Role check and redirect
   if (isAuthLoading) {
@@ -36,8 +36,8 @@ const AdminAllAttendancePage: React.FC = () => {
     );
   }
   
-  if (userRole !== 'admin') {
-    // Only Superadmin can view all attendance history
+  // Only the specific Superadmin (admin@agency.com) can view all attendance history
+  if (userRole !== 'admin' || user?.email !== 'admin@agency.com') {
     return <Navigate to="/admin" replace />;
   }
   
