@@ -15,9 +15,9 @@ const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
 // --- Configuration Seed Data (Moved to top) ---
 export const SEED_CONFIG: AppConfig = {
     countryOptions: ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Eritrea', 'Sudan', 'Yemen', 'Uganda', 'Other'],
-    cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NEW
-    foreignAgencies: ['Al-Aman Recruitment', 'Gulf Manpower Solutions', 'Asia Star Agency', 'Middle East Connect', 'NuraLink'], // NEW: Added NuraLink
-    localAgencies: ['Local Agency X', 'Local Agency Y', 'Local Agency Z'], // NEW
+    cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NuraLink removed from COC Agencies
+    foreignAgencies: ['Al-Aman Recruitment', 'Gulf Manpower Solutions', 'Asia Star Agency', 'Middle East Connect'], // NuraLink removed from Foreign Agencies
+    localAgencies: ['Local Agency X', 'Local Agency Y', 'Local Agency Z', 'NuraLink'], // NuraLink is a Local Agency
 };
 
 // --- Helper function to generate initial stages for a new candidate ---
@@ -56,8 +56,8 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Married',
     phone_number: '+251911000001',
     email: 'aster.bekele@candidate.com', // Added email
-    coc_agency: 'COC Training Center A',
-    foreign_agency: 'NuraLink', // UPDATED MOCK DATA
+    coc_agency: 'COC Training Center A', // Assigned a regular COC agency
+    foreign_agency: 'Al-Aman Recruitment', // Assigned a foreign agency
     profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 90 * 86400000).toISOString(), // 3 months ago
     updated_at: new Date().toISOString(),
@@ -74,8 +74,8 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Single',
     phone_number: '+251911000002',
     email: 'mariam.tesfaye@candidate.com', // Added email
-    coc_agency: 'COC Training Center B',
-    foreign_agency: 'NuraLink', // UPDATED MOCK DATA
+    coc_agency: 'COC Training Center B', // Assigned a regular COC agency
+    foreign_agency: 'Gulf Manpower Solutions', // Assigned a foreign agency
     profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 45 * 86400000).toISOString(), // 1.5 months ago
     updated_at: new Date().toISOString(),
@@ -92,8 +92,8 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Divorced',
     phone_number: '+25377000003',
     email: 'fatima.ali@candidate.com', // Added email
-    coc_agency: 'COC Training Center C',
-    foreign_agency: 'NuraLink', // UPDATED MOCK DATA
+    coc_agency: 'COC Training Center C', // Assigned a regular COC agency
+    foreign_agency: 'Asia Star Agency', // Assigned a foreign agency
     profile_image_url: undefined, // No image for this one
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(), // 15 days ago
     updated_at: new Date().toISOString(),
@@ -113,8 +113,9 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const batchNumber = (i % TOTAL_BATCHES) + 1;
         const batchName = `Batch ${batchNumber}`;
         const maritalStatus = MOCK_MARITAL_STATUSES[i % MOCK_MARITAL_STATUSES.length];
+        // COC agency is now selected from the list *without* NuraLink
         const cocAgency = SEED_CONFIG.cocAgencies[i % SEED_CONFIG.cocAgencies.length];
-        // All new candidates are tied to NuraLink
+        // Foreign agency is selected from the list *without* NuraLink
         const foreignAgency = SEED_CONFIG.foreignAgencies[i % SEED_CONFIG.foreignAgencies.length]; 
         
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
@@ -292,13 +293,13 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         is_approved: false,
         created_at: new Date().toISOString(),
     },
-    { // Mock admin for NuraLink (Foreign Agency)
+    { // Mock admin for Al-Aman Recruitment (Foreign Agency)
         id: uuidv4(),
-        email: 'admin@nuralink.com',
+        email: 'admin@alaman.com',
         role: 'agency', // Role is 'agency'
         is_approved: true,
         created_at: new Date().toISOString(),
-        foreign_agency: 'NuraLink', // Explicitly link to NuraLink
+        foreign_agency: 'Al-Aman Recruitment', // Explicitly link to Al-Aman Recruitment
     },
     { // Mock staff for Asia Star Agency (Foreign Agency)
         id: uuidv4(),
@@ -308,13 +309,21 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         created_at: new Date().toISOString(),
         foreign_agency: 'Asia Star Agency', // Explicitly link to Asia Star Agency
     },
-    { // NEW: Mock user for Local Agency X (COC Agency)
+    { // Mock user for Local Agency X (COC Agency)
         id: uuidv4(),
         email: 'admin@localagencyx.com',
         role: 'local-agency', // New role 'local-agency'
         is_approved: true,
         created_at: new Date().toISOString(),
         coc_agency_name: 'Local Agency X', // Linked to a COC agency
+    },
+    { // NEW: Mock user for NuraLink (Local Agency)
+        id: uuidv4(),
+        email: 'admin@nuralink.com',
+        role: 'local-agency', // Role is 'local-agency'
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        coc_agency_name: 'NuraLink', // Linked to NuraLink as its identifying COC agency name
     },
 ];
 
