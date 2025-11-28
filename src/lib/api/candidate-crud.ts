@@ -4,6 +4,7 @@ import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, sav
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
+import { recordApprovalLog } from './log-management'; // Import for logging
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
@@ -196,5 +197,43 @@ export const updateCandidateCredentials = async (candidateId: string, newEmail: 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
     
+    return updatedCandidate;
+};
+
+// NEW: Agency matches a candidate
+export const matchCandidateToAgency = async (
+    candidateId: string,
+    agencyName: string,
+    actorId: string, // Agency user ID
+    actorEmail: string // Agency user email
+): Promise<Candidate> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const index = candidates.findIndex(c => c.id === candidateId);
+
+    if (index === -1) {
+        throw new Error('Candidate not found.');
+    }
+
+    const existingCandidate = candidates[index];
+
+    if (existingCandidate.foreign_agency && existingCandidate.foreign_agency !== agencyName) {
+        throw new Error(`Candidate is already matched with another agency: ${existingCandidate.foreign_agency}.`);
+    }
+    if (existingCandidate.foreign_agency === agencyName) {
+        throw new Error(`Candidate is already matched with ${agencyName}.`);
+    }
+
+    const updatedCandidate: Candidate = {
+        ...existingCandidate,
+        foreign_agency: agencyName,
+        updated_at: new Date().toISOString(),
+    };
+
+    candidates[index] = updatedCandidate;
+    saveCandidates(candidates);
+
+    await recordApprovalLog(actorId, actorEmail, 'CandidateDetail', candidateId, 'Updated', `Candidate ${existingCandidate.tracking_code} matched to foreign agency: ${agencyName}.`);
+
     return updatedCandidate;
 };

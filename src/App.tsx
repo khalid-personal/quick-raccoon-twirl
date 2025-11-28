@@ -13,12 +13,14 @@ import Signup from "./pages/Signup";
 import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
 import AdminChatViewer from "./pages/AdminChatViewer";
-import MyAttendancePage from "./pages/MyAttendancePage"; // RENAMED IMPORT
-import AdminAllAttendancePage from "./pages/AdminAllAttendancePage"; // NEW IMPORT
+import MyAttendancePage from "./pages/MyAttendancePage";
+import AdminAllAttendancePage from "./pages/AdminAllAttendancePage";
 import AdminApprovalLog from "./pages/AdminApprovalLog";
 import AgencyDashboard from "./pages/AgencyDashboard";
+import AgencyStagedCandidates from "./pages/AgencyStagedCandidates"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
+import AgencyLayout from "./components/AgencyLayout"; // NEW IMPORT
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
@@ -123,17 +125,17 @@ const AppRoutes = () => (
         } 
       />
       <Route 
-        path="/admin/my-attendance" // UPDATED ROUTE
+        path="/admin/my-attendance"
         element={
           <ProtectedRoute>
             <AdminLayout>
-              <MyAttendancePage /> {/* UPDATED COMPONENT */}
+              <MyAttendancePage />
             </AdminLayout>
           </ProtectedRoute>
         } 
       />
       <Route 
-        path="/admin/all-attendance" // NEW ROUTE FOR SUPERADMIN
+        path="/admin/all-attendance"
         element={
           <ProtectedRoute>
             <AdminLayout>
@@ -179,6 +181,16 @@ const AppRoutes = () => (
         element={
           <AgencyProtectedRoute>
             <AgencyDashboard />
+          </AgencyProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agency/staged-candidates" 
+        element={
+          <AgencyProtectedRoute>
+            <AgencyLayout> {/* Use AgencyLayout for this page */}
+              <AgencyStagedCandidates />
+            </AgencyLayout>
           </AgencyProtectedRoute>
         } 
       />
