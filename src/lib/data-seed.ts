@@ -40,6 +40,7 @@ const MOCK_LAST_NAMES = ['Ahmed', 'Kebede', 'Mekonnen', 'Tadesse', 'Wondimu', 'Z
 const MOCK_COUNTRIES = ['Ethiopia', 'Djibouti', 'Kenya', 'Somalia', 'Eritrea', 'Sudan', 'Yemen', 'Uganda'];
 const MOCK_MARITAL_STATUSES: Candidate['marital_status'][] = ['Single', 'Married', 'Divorced', 'Widowed'];
 const TOTAL_NEW_RANDOM_CANDIDATES = 5; // Changed from 50 to 5
+const TOTAL_BATCHES = 4; // Defined TOTAL_BATCHES here
 
 // Existing seed candidates (3) + 2 new specific ones = 5 specific candidates
 const SPECIFIC_SEED_CANDIDATES: Candidate[] = [
