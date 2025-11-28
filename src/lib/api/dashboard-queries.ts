@@ -42,7 +42,7 @@ export const getBatches = async (): Promise<string[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
-    const flightDepartureStageId = getStageId('flight_departure');
+    const flightDepartureStage = ALL_STAGES.find(s => s.slug === 'flight_departure'); // Get the full stage object
 
     const batches = new Set<string>();
 
@@ -57,7 +57,7 @@ export const getBatches = async (): Promise<string[]> => {
         const candidatesInBatch = candidates.filter(c => c.batch_name === batch);
         const allCompleted = candidatesInBatch.every(candidate => {
             const flightStage = allStages.find(
-                cs => cs.candidate_id === candidate.id && cs.stage_id === flightDepartureStageId
+                cs => cs.candidate_id === candidate.id && cs.stage_id === flightDepartureStage?.id // Access .id
             );
             return flightStage?.status === 'Completed';
         });
@@ -133,8 +133,8 @@ export const searchCandidates = async (
     const paymentStatuses = getPaymentStatuses();
     const q = query.toLowerCase();
     
-    const initialMedicalId = getStageId('initial_medical');
-    const finalMedicalId = getStageId('final_medical');
+    const initialMedicalStage = ALL_STAGES.find(s => s.slug === 'initial_medical');
+    const finalMedicalStage = ALL_STAGES.find(s => s.slug === 'final_medical');
 
     // 1. Augment candidates with calculated status/progress and payment status
     const candidatesWithStatus = candidates.map(candidate => {
@@ -143,10 +143,10 @@ export const searchCandidates = async (
         const overall_status = calculateOverallStatus(candidateStages);
         
         const is_initial_medical_paid = paymentStatuses.some(ps => 
-            ps.candidateId === candidate.id && ps.stageId === initialMedicalId && ps.isPaid
+            ps.candidateId === candidate.id && ps.stageId === initialMedicalStage?.id && ps.isPaid
         );
         const is_final_medical_paid = paymentStatuses.some(ps => 
-            ps.candidateId === candidate.id && ps.stageId === finalMedicalId && ps.isPaid
+            ps.candidateId === candidate.id && ps.stageId === finalMedicalStage?.id && ps.isPaid
         );
         
         return {

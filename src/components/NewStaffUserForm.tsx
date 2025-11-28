@@ -70,7 +70,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
       await api.createStaffUser(
         data.email, 
         data.pin, 
-        data.role, 
+        data.role as Exclude<UserRole, 'candidate'>, // Cast to correct type
         data.foreign_agency || undefined,
         data.coc_agency_name || undefined,
         actorId,

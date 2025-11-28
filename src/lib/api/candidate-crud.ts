@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Candidate, CandidateDetail } from '../types';
+import { Candidate, CandidateDetail, ALL_STAGES } from '../types'; // Added ALL_STAGES import
 import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages } from '../data-store';
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';

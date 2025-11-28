@@ -1,12 +1,12 @@
-import { v4 as uuidv4 } from 'uuid';
 import { AuthorizationCode } from '../types';
-import { getAuthorizationCodes, saveAuthorizationCodes } from '../data-store';
+import { getAuthorizationCodes as getAuthorizationCodesFromStore, saveAuthorizationCodes } from '../data-store'; // Renamed import
 import { recordApprovalLog } from './log-management';
 
 // GET /api/admin/auth-codes
 export const getAuthorizationCodes = async (): Promise<AuthorizationCode[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
-    return getAuthorizationCodes().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const allCodes = await getAuthorizationCodesFromStore(); // Await the call
+    return allCodes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
 // NEW: Generate Authorization Code
@@ -19,7 +19,7 @@ export const generateAuthorizationCode = async (
     maxUses?: number // Optional max uses
 ): Promise<AuthorizationCode> => {
     await new Promise(resolve => setTimeout(resolve, 100));
-    const allCodes = getAuthorizationCodes();
+    const allCodes = await getAuthorizationCodesFromStore(); // Await the call
     
     const newCode: AuthorizationCode = {
         code: uuidv4(),
@@ -50,7 +50,7 @@ export const generateAuthorizationCode = async (
 // NEW: Validate Authorization Code
 export const validateAuthorizationCode = async (code: string): Promise<AuthorizationCode> => {
     await new Promise(resolve => setTimeout(resolve, 50));
-    const allCodes = getAuthorizationCodes();
+    const allCodes = await getAuthorizationCodesFromStore(); // Await the call
     const authCode = allCodes.find(ac => ac.code === code);
 
     if (!authCode) {

@@ -11,7 +11,7 @@ interface LoginCredentialsSectionProps {
 }
 
 const LoginCredentialsSection: React.FC<LoginCredentialsSectionProps> = ({ form }) => {
-  const { register, formState: { errors }, isSubmitting } = form;
+  const { register, formState: { errors, isSubmitting } } = form;
 
   return (
     <>
