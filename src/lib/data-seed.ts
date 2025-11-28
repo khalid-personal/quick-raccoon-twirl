@@ -56,8 +56,9 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Married',
     phone_number: '+251911000001',
     email: 'aster.bekele@candidate.com', // Added email
-    coc_agency: 'COC Training Center A', // Assigned a regular COC agency
+    coc_agency: 'COC Training Center A', // Assigned a regular COC training agency
     foreign_agency: 'Al-Aman Recruitment', // Assigned a foreign agency
+    managing_local_agency: 'NuraLink', // Assigned a managing local agency
     profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 90 * 86400000).toISOString(), // 3 months ago
     updated_at: new Date().toISOString(),
@@ -74,8 +75,9 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Single',
     phone_number: '+251911000002',
     email: 'mariam.tesfaye@candidate.com', // Added email
-    coc_agency: 'COC Training Center B', // Assigned a regular COC agency
+    coc_agency: 'COC Training Center B', // Assigned a regular COC training agency
     foreign_agency: 'Gulf Manpower Solutions', // Assigned a foreign agency
+    managing_local_agency: 'Local Agency X', // Assigned a managing local agency
     profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 45 * 86400000).toISOString(), // 1.5 months ago
     updated_at: new Date().toISOString(),
@@ -92,8 +94,9 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Divorced',
     phone_number: '+25377000003',
     email: 'fatima.ali@candidate.com', // Added email
-    coc_agency: 'COC Training Center C', // Assigned a regular COC agency
+    coc_agency: 'COC Training Center C', // Assigned a regular COC training agency
     foreign_agency: 'Asia Star Agency', // Assigned a foreign agency
+    managing_local_agency: 'Local Agency Y', // Assigned a managing local agency
     profile_image_url: undefined, // No image for this one
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(), // 15 days ago
     updated_at: new Date().toISOString(),
@@ -113,10 +116,12 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const batchNumber = (i % TOTAL_BATCHES) + 1;
         const batchName = `Batch ${batchNumber}`;
         const maritalStatus = MOCK_MARITAL_STATUSES[i % MOCK_MARITAL_STATUSES.length];
-        // COC agency is now selected from the list *without* NuraLink
+        // COC training agency is now selected from the list
         const cocAgency = SEED_CONFIG.cocAgencies[i % SEED_CONFIG.cocAgencies.length];
-        // Foreign agency is selected from the list *without* NuraLink
+        // Foreign agency is selected from the list
         const foreignAgency = SEED_CONFIG.foreignAgencies[i % SEED_CONFIG.foreignAgencies.length]; 
+        // Managing local agency is selected from the list
+        const managingLocalAgency = SEED_CONFIG.localAgencies[i % SEED_CONFIG.localAgencies.length];
         
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
         
@@ -146,6 +151,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             email: mockEmail, // Added email
             coc_agency: cocAgency,
             foreign_agency: foreignAgency, // NEW
+            managing_local_agency: managingLocalAgency, // NEW
             profile_image_url: i % 5 === 0 ? '/placeholder.svg' : undefined, // Randomly assign image
             created_at: createdAt,
             updated_at: new Date().toISOString(),
