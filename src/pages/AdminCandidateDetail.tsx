@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom'; // Added Navigate
 import CandidateProfile from '@/components/CandidateProfile';
 import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
@@ -13,12 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
 import NotificationSender from '@/components/NotificationSender';
-import AdminChatViewer from '@/components/AdminChatViewer'; // NEW IMPORT
+import AdminChatViewer from '@/components/AdminChatViewer';
+import CandidateImageManager from '@/components/CandidateImageManager'; // NEW IMPORT
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { userRole, isLoading: isAuthLoading } = useAuth(); // Get user role
   
   const initialTab = searchParams.get('tab') || 'timeline';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -36,12 +39,17 @@ const AdminCandidateDetail: React.FC = () => {
     enabled: !!candidateId,
   });
 
-  if (isLoading) {
+  if (isAuthLoading || isLoading) {
     return (
       <div className="flex justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+  
+  // Redirect Agency users who somehow land on /admin/candidate/:id
+  if (userRole === 'agency') {
+      return <Navigate to="/agency/dashboard" replace />;
   }
 
   if (error || !candidate) {
@@ -72,7 +80,15 @@ const AdminCandidateDetail: React.FC = () => {
         </Link>
       </div>
 
-      <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
+      {/* Profile and Image Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3">
+            <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
+        </div>
+        <div className="lg:col-span-1">
+            <CandidateImageManager candidate={candidate} refetch={refetch} />
+        </div>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
@@ -80,7 +96,7 @@ const AdminCandidateDetail: React.FC = () => {
           <TabsTrigger value="documents">Document Manager</TabsTrigger>
           <TabsTrigger value="medical">Medical Results</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="chat">Chat History</TabsTrigger> {/* NEW CHAT TAB */}
+          <TabsTrigger value="chat">Chat History</TabsTrigger>
         </TabsList>
         
         <TabsContent value="timeline" className="mt-4">
@@ -99,7 +115,7 @@ const AdminCandidateDetail: React.FC = () => {
           <NotificationSender candidate={candidate} />
         </TabsContent>
         
-        <TabsContent value="chat" className="mt-4"> {/* NEW CHAT CONTENT */}
+        <TabsContent value="chat" className="mt-4">
           <AdminChatViewer candidate={candidate} />
         </TabsContent>
       </Tabs>

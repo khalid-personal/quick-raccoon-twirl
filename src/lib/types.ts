@@ -1,17 +1,17 @@
 export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
-export type UserRole = 'admin' | 'staff' | 'candidate'; // Removed 'viewer'
+export type UserRole = 'admin' | 'staff' | 'candidate' | 'agency'; // Added 'agency' role
 
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
   email: string;
-  role: Exclude<UserRole, 'candidate'>; // admin, staff
+  role: Exclude<UserRole, 'candidate' | 'agency'>; // admin, staff
   is_approved: boolean;
   created_at: string;
 }
 
-export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff']; // Removed 'viewer'
+export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate' | 'agency'>> = ['admin', 'staff']; // Updated STAFF_ROLES
 
 export interface Stage {
   id: number;
@@ -69,6 +69,7 @@ export interface Candidate {
   email: string; // NEW FIELD: Candidate login email
   coc_agency?: string; // NEW FIELD: COC Training Agency
   foreign_agency?: string; // NEW FIELD: Matched Foreign Employment Agency
+  profile_image_url?: string; // NEW FIELD: Candidate profile image URL
   created_at: string;
   updated_at: string;
 }

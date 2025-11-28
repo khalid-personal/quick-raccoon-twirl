@@ -56,6 +56,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     email: 'aster.bekele@candidate.com', // Added email
     coc_agency: 'COC Training Center A',
     foreign_agency: 'Al-Aman Recruitment', // NEW MOCK DATA
+    profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 90 * 86400000).toISOString(), // 3 months ago
     updated_at: new Date().toISOString(),
   },
@@ -73,6 +74,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     email: 'mariam.tesfaye@candidate.com', // Added email
     coc_agency: 'COC Training Center B',
     foreign_agency: 'Gulf Manpower Solutions', // NEW MOCK DATA
+    profile_image_url: '/placeholder.svg', // NEW MOCK IMAGE
     created_at: new Date(Date.now() - 45 * 86400000).toISOString(), // 1.5 months ago
     updated_at: new Date().toISOString(),
   },
@@ -90,6 +92,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     email: 'fatima.ali@candidate.com', // Added email
     coc_agency: 'COC Training Center C',
     foreign_agency: 'Asia Star Agency', // NEW MOCK DATA
+    profile_image_url: undefined, // No image for this one
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(), // 15 days ago
     updated_at: new Date().toISOString(),
   },
@@ -139,6 +142,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             email: mockEmail, // Added email
             coc_agency: cocAgency,
             foreign_agency: foreignAgency, // NEW
+            profile_image_url: i % 5 === 0 ? '/placeholder.svg' : undefined, // Randomly assign image
             created_at: createdAt,
             updated_at: new Date().toISOString(),
         });

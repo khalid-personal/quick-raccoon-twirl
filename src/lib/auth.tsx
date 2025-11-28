@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { role: 'candidate', trackingCode: candidate.tracking_code };
     }
     
-    // 2. Check for Staff/Admin/Viewer role using mock store
+    // 2. Check for Staff/Admin/Agency role using mock store
     const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email);
     
     if (staffUser) {
@@ -58,6 +58,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Treat unapproved staff as unauthenticated for access purposes
             return { role: null, trackingCode: null }; 
         }
+        // Check if the user is a Foreign Agency (mocked by checking if their email matches a foreign agency name)
+        const foreignAgencies = await api.getForeignAgencies();
+        const isAgency = foreignAgencies.some(agency => email.includes(agency.toLowerCase().split(' ')[0]));
+        
+        if (isAgency) {
+            console.log(`[AUTH] Role determined: agency`);
+            return { role: 'agency', trackingCode: null };
+        }
+        
         console.log(`[AUTH] Role determined: ${staffUser.role}`);
         return { role: staffUser.role, trackingCode: null };
     }
@@ -129,7 +138,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error.message.includes('Invalid login credentials') || error.message.includes('Network request failed')) {
             const mockUser = createMockUser(loginEmail);
             
-            // Check if this mock user is a known candidate or staff/admin
+            // Check if this mock user is a known candidate or staff/admin/agency
             const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
             const candidate = await api.getCandidateByEmail(loginEmail);
             

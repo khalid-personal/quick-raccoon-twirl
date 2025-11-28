@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom'; // Added Navigate
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
 import ProgressIndicator from '@/components/ProgressIndicator';
@@ -56,7 +56,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole } = useAuth();
+  const { userRole, isLoading: isAuthLoading } = useAuth();
   const isSuperAdmin = userRole === 'admin';
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +125,19 @@ const AdminDashboard: React.FC = () => {
       setSortDirection('asc');
     }
   };
+  
+  if (isAuthLoading) {
+    return (
+      <div className="flex justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // Redirect Agency users who somehow land on /admin
+  if (userRole === 'agency') {
+      return <Navigate to="/agency/dashboard" replace />;
+  }
 
   return (
     <div className="space-y-6">
