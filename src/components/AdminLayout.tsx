@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
 import { UserRole, ChatMessage } from '@/lib/types';
-import { useQuery } => '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 
