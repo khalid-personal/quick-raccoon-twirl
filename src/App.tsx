@@ -13,6 +13,8 @@ import Signup from "./pages/Signup";
 import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
 import AdminChatViewer from "./pages/AdminChatViewer"; // NEW IMPORT
+import AgencyDashboard from "./pages/AgencyDashboard"; // NEW IMPORT
+import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import { Loader2 } from 'lucide-react'; // Added Loader2 import
@@ -27,7 +29,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  if (!isAuthenticated || userRole === 'candidate') {
+  if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'staff')) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -46,6 +48,20 @@ const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <Navigate to="/login?tab=candidate" replace />;
   }
   
+  return children;
+};
+
+// Component to protect Agency routes
+const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, userRole, isLoading, userForeignAgency } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!isAuthenticated || userRole !== 'agency' || !userForeignAgency) {
+    return <Navigate to="/login" replace />;
+  }
   return children;
 };
 
@@ -123,6 +139,26 @@ const AppRoutes = () => (
               <AdminUserManagement />
             </AdminLayout>
           </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/auth-codes" 
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminAuthorizationCodes />
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Agency Portal Route (Protected) */}
+      <Route 
+        path="/agency" 
+        element={
+          <AgencyProtectedRoute>
+            <AgencyDashboard />
+          </AgencyProtectedRoute>
         } 
       />
       

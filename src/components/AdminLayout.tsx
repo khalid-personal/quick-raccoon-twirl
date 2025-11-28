@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare } from 'lucide-react';
+import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key } from 'lucide-react'; // Added Key icon
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -75,6 +75,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
     // Updated link to point to a specific candidate's tracking page for testing
     { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
+    { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true }, // NEW NAV ITEM
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
   ];

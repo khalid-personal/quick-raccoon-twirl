@@ -66,7 +66,7 @@ const AdminCandidateDetail: React.FC = () => {
           <span className="text-lg font-normal text-muted-foreground ml-3">({candidate.tracking_code})</span>
         </h1>
         <Link to="/admin">
-          <Button variant="outline">
+          <Button variant="outline" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
         </Link>

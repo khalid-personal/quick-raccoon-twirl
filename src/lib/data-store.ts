@@ -67,6 +67,7 @@ export function initializeDataStore() {
   const currentConfig = getConfig(); // This will now return SEED_CONFIG if cleared
   saveConfig({ 
       ...currentConfig, 
+      countryOptions: currentConfig.countryOptions || SEED_CONFIG.countryOptions,
       cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
       foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies,
   });

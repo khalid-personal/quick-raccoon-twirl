@@ -105,6 +105,8 @@ export const updateCandidateDetails = async (
     if (data.last_name !== existingCandidate.last_name) description += ` Last name changed to '${data.last_name}'.`;
     if (data.passport_number !== existingCandidate.passport_number) description += ` Passport changed to '${data.passport_number}'.`;
     if (data.foreign_agency !== existingCandidate.foreign_agency) description += ` Foreign agency changed to '${data.foreign_agency || 'N/A'}'.`;
+    if (data.profile_image_url !== existingCandidate.profile_image_url) description += ` Profile image URL updated.`;
+
 
     await recordApprovalLog(actorId, actorEmail, 'Candidate', candidateId, 'Updated', description);
     // --- END LOGGING ---
@@ -156,6 +158,7 @@ export const createCandidate = async (
     // --- LOGGING ---
     let description = `Created new candidate: ${newCandidate.first_name} ${newCandidate.last_name} (${newCandidate.tracking_code}).`;
     if (newCandidate.foreign_agency) description += ` Assigned to foreign agency: '${newCandidate.foreign_agency}'.`;
+    if (newCandidate.profile_image_url) description += ` Profile image uploaded.`;
     await recordApprovalLog(actorId, actorEmail, 'Candidate', newCandidate.id, 'Created', description);
     // --- END LOGGING ---
 

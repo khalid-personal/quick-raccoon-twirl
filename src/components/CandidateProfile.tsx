@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { getStatusColor } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // NEW IMPORT
+import { User } from 'lucide-react'; // NEW IMPORT
 
 interface CandidateProfileProps {
   candidate: CandidateDetail;
@@ -34,7 +36,18 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
         </Button>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="space-y-4">
+        {/* Profile Image */}
+        <div className="flex flex-col items-center justify-center space-y-3 md:col-span-1">
+          <Avatar className="h-24 w-24">
+            <AvatarImage src={candidate.profile_image_url || '/placeholder.svg'} alt={`${candidate.first_name} ${candidate.last_name}`} />
+            <AvatarFallback>
+              <User className="h-12 w-12 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+          <p className="text-sm text-muted-foreground">Profile Photo</p>
+        </div>
+
+        <div className="space-y-4 md:col-span-1">
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Full Name</p>
             <p className="text-lg font-semibold">{candidate.first_name} {candidate.last_name}</p>
@@ -53,7 +66,7 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
           </div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-4 md:col-span-1">
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Tracking Code</p>
             <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
@@ -84,7 +97,7 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
           </div>
         </div>
         
-        <ProgressIndicator percent={progress} className="md:col-span-1" />
+        <ProgressIndicator percent={progress} className="md:col-span-3" />
       </CardContent>
     </Card>
   );

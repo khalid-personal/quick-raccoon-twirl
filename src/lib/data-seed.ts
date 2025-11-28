@@ -113,7 +113,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const maritalStatus = MOCK_MARITAL_STATUSES[i % MOCK_MARITAL_STATUSES.length];
         const cocAgency = SEED_CONFIG.cocAgencies[i % SEED_CONFIG.cocAgencies.length];
         // All new candidates are tied to NuraLink
-        const foreignAgency = 'NuraLink'; 
+        const foreignAgency = SEED_CONFIG.foreignAgencies[i % SEED_CONFIG.foreignAgencies.length]; 
         
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
         
@@ -198,7 +198,7 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
         const progressLevel = Math.floor(Math.random() * ALL_STAGES.length);
         for (let i = 0; i < progressLevel; i++) {
             const stage = ALL_STAGES[i];
-            const candidateStage = stages.find(s => s.stage_id === stage.id);
+            const candidateStage = stages.find(s => s.id === stage.id);
             if (candidateStage) {
                 // 70% chance of passing, 30% chance of being In Progress/Pending at the current level
                 if (i < progressLevel - 1 || Math.random() < 0.7) {

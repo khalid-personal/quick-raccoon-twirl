@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 
 const SuperadminSettings: React.FC = () => {
-  const { userRole, isLoading: isAuthLoading } = useAuth();
+  const { userRole, user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   
   // Role check and redirect
@@ -29,6 +29,9 @@ const SuperadminSettings: React.FC = () => {
     return <Navigate to="/admin" replace />;
   }
   
+  const actorId = user?.id || 'unknown-admin';
+  const actorEmail = user?.email || 'unknown-admin@agency.com';
+
   const { data: config, isLoading } = useQuery({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
@@ -36,19 +39,32 @@ const SuperadminSettings: React.FC = () => {
   
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [newCountry, setNewCountry] = useState('');
+  
+  const [cocAgencies, setCocAgencies] = useState<string[]>([]);
+  const [newCocAgency, setNewCocAgency] = useState('');
+
+  const [foreignAgencies, setForeignAgencies] = useState<string[]>([]); // NEW STATE
+  const [newForeignAgency, setNewForeignAgency] = useState(''); // NEW STATE
 
   useEffect(() => {
     if (config) {
       // Filter out 'Other' as it's a special case not meant for direct editing here
       setCountryOptions(config.countryOptions.filter(c => c !== 'Other'));
+      setCocAgencies(config.cocAgencies);
+      setForeignAgencies(config.foreignAgencies); // NEW
     }
   }, [config]);
 
   const mutation = useMutation({
-    mutationFn: (updatedCountries: string[]) => {
-      // Re-add 'Other' before saving to maintain the required structure
-      const finalConfig = { countryOptions: [...updatedCountries, 'Other'] };
-      return api.updateAppConfig(finalConfig);
+    mutationFn: (updatedConfig: { countryOptions: string[], cocAgencies: string[], foreignAgencies: string[] }) => {
+      // Re-add 'Other' to country options before saving
+      const finalCountryOptions = [...updatedConfig.countryOptions, 'Other'];
+      const finalConfig = { 
+          countryOptions: finalCountryOptions, 
+          cocAgencies: updatedConfig.cocAgencies,
+          foreignAgencies: updatedConfig.foreignAgencies, // NEW
+      };
+      return api.updateAppConfig(finalConfig, actorId, actorEmail);
     },
     onSuccess: () => {
       toast.success("Application settings updated successfully.");
@@ -75,13 +91,53 @@ const SuperadminSettings: React.FC = () => {
   const handleRemoveCountry = (countryToRemove: string) => {
     setCountryOptions(countryOptions.filter(c => c !== countryToRemove));
   };
+  
+  const handleAddCocAgency = () => {
+    const trimmedAgency = newCocAgency.trim();
+    if (!trimmedAgency) return;
+    
+    if (cocAgencies.includes(trimmedAgency)) {
+        toast.warning("This COC agency is already in the list.");
+        return;
+    }
+    
+    setCocAgencies([...cocAgencies, trimmedAgency]);
+    setNewCocAgency('');
+  };
+
+  const handleRemoveCocAgency = (agencyToRemove: string) => {
+    setCocAgencies(cocAgencies.filter(a => a !== agencyToRemove));
+  };
+  
+  const handleAddForeignAgency = () => { // NEW FUNCTION
+    const trimmedAgency = newForeignAgency.trim();
+    if (!trimmedAgency) return;
+    
+    if (foreignAgencies.includes(trimmedAgency)) {
+        toast.warning("This Foreign Employment Agency is already in the list.");
+        return;
+    }
+    
+    setForeignAgencies([...foreignAgencies, trimmedAgency]);
+    setNewForeignAgency('');
+  };
+
+  const handleRemoveForeignAgency = (agencyToRemove: string) => { // NEW FUNCTION
+    setForeignAgencies(foreignAgencies.filter(a => a !== agencyToRemove));
+  };
 
   const handleSave = () => {
     if (countryOptions.length === 0) {
         toast.error("The country list cannot be empty.");
         return;
     }
-    mutation.mutate(countryOptions);
+    if (cocAgencies.length === 0) {
+        toast.error("The COC agency list cannot be empty.");
+        return;
+    }
+    // Foreign agencies can be empty, as it's optional for candidates
+    
+    mutation.mutate({ countryOptions, cocAgencies, foreignAgencies });
   };
 
   if (isLoading) {
@@ -147,17 +203,105 @@ const SuperadminSettings: React.FC = () => {
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>
-          
-          <Button 
-            onClick={handleSave} 
-            disabled={mutation.isPending}
-            className="w-full"
-          >
-            {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Country List
-          </Button>
         </CardContent>
       </Card>
+      
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>COC Training Agencies</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Current COC Agencies</Label>
+            <div className="space-y-2">
+              {cocAgencies.map((agency) => (
+                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{agency}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleRemoveCocAgency(agency)}
+                    disabled={mutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex space-x-2 pt-2">
+            <Input 
+              placeholder="Add new COC agency"
+              value={newCocAgency}
+              onChange={(e) => setNewCocAgency(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddCocAgency();
+                }
+              }}
+              disabled={mutation.isPending}
+            />
+            <Button onClick={handleAddCocAgency} type="button" disabled={mutation.isPending || !newCocAgency.trim()}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="max-w-lg"> {/* NEW CARD FOR FOREIGN AGENCIES */}
+        <CardHeader>
+          <CardTitle>Foreign Employment Agencies</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Current Foreign Agencies</Label>
+            <div className="space-y-2">
+              {foreignAgencies.map((agency) => (
+                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{agency}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleRemoveForeignAgency(agency)}
+                    disabled={mutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex space-x-2 pt-2">
+            <Input 
+              placeholder="Add new foreign agency"
+              value={newForeignAgency}
+              onChange={(e) => setNewForeignAgency(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddForeignAgency();
+                }
+              }}
+              disabled={mutation.isPending}
+            />
+            <Button onClick={handleAddForeignAgency} type="button" disabled={mutation.isPending || !newForeignAgency.trim()}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Button 
+        onClick={handleSave} 
+        disabled={mutation.isPending}
+        className="w-full max-w-lg"
+      >
+        {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+        Save All Settings
+      </Button>
     </div>
   );
 };
