@@ -16,7 +16,8 @@ import AdminChatViewer from "./pages/AdminChatViewer";
 import AgencyDashboard from "./pages/AgencyDashboard";
 import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes";
 import AdminAttendance from "./pages/AdminAttendance";
-import LocalAgencyDashboard from "./pages/LocalAgencyDashboard"; // NEW IMPORT
+import LocalAgencyDashboard from "./pages/LocalAgencyDashboard";
+import LocalAgencyAuthorizationCodes from "./pages/LocalAgencyAuthorizationCodes"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import LocalAgencyLayout from "./components/LocalAgencyLayout"; // NEW IMPORT
@@ -207,6 +208,16 @@ const AppRoutes = () => (
           <LocalAgencyProtectedRoute>
             <LocalAgencyLayout>
               <LocalAgencyDashboard />
+            </LocalAgencyLayout>
+          </LocalAgencyProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/local-agency/auth-codes" 
+        element={
+          <LocalAgencyProtectedRoute>
+            <LocalAgencyLayout>
+              <LocalAgencyAuthorizationCodes />
             </LocalAgencyLayout>
           </LocalAgencyProtectedRoute>
         } 
