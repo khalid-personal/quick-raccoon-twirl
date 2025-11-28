@@ -373,6 +373,22 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         created_at: new Date().toISOString(),
         foreign_agency: 'Asia Star Agency', // Explicitly link to Asia Star Agency
     },
+    { // NEW: Mock admin for Gulf Manpower Solutions (Foreign Agency)
+        id: uuidv4(),
+        email: 'admin@gulf.com',
+        role: 'agency',
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        foreign_agency: 'Gulf Manpower Solutions',
+    },
+    { // NEW: Mock admin for Middle East Connect (Foreign Agency)
+        id: uuidv4(),
+        email: 'admin@middleeast.com',
+        role: 'agency',
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        foreign_agency: 'Middle East Connect',
+    },
     { // Mock user for Local Agency X (COC Agency)
         id: uuidv4(),
         email: 'admin@localagencyx.com',
@@ -388,6 +404,22 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         is_approved: true,
         created_at: new Date().toISOString(),
         coc_agency_name: 'NuraLink', // Linked to NuraLink as its identifying COC agency name
+    },
+    { // NEW: Mock user for Local Agency Y (COC Agency)
+        id: uuidv4(),
+        email: 'admin@localagencyy.com',
+        role: 'local-agency',
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        coc_agency_name: 'Local Agency Y',
+    },
+    { // NEW: Mock user for Local Agency Z (COC Agency)
+        id: uuidv4(),
+        email: 'admin@localagencyz.com',
+        role: 'local-agency',
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        coc_agency_name: 'Local Agency Z',
     },
 ];
 
