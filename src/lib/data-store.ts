@@ -1,6 +1,6 @@
-import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord, AuthorizationCode } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS, LS_ATTENDANCE, LS_AUTH_CODES } from './data-keys';
-import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE, SEED_AUTH_CODES } from './data-seed';
+import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord, AuthorizationCode, CocFacility, LocalAgency, ForeignAgency } from './types';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS, LS_ATTENDANCE, LS_AUTH_CODES, LS_COC_FACILITIES, LS_LOCAL_AGENCIES, LS_FOREIGN_AGENCIES } from './data-keys';
+import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE, SEED_AUTH_CODES, SEED_COC_FACILITIES, SEED_LOCAL_AGENCIES, SEED_FOREIGN_AGENCIES } from './data-seed';
 
 // Define PaymentStatus interface locally for data store usage
 interface PaymentStatus {
@@ -22,6 +22,9 @@ export const getChatMessages = (): ChatMessage[] => JSON.parse(localStorage.getI
 export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(localStorage.getItem(LS_APPROVAL_LOGS) || '[]');
 export const getAttendanceRecords = (): AttendanceRecord[] => JSON.parse(localStorage.getItem(LS_ATTENDANCE) || '[]');
 export const getAuthorizationCodes = (): AuthorizationCode[] => JSON.parse(localStorage.getItem(LS_AUTH_CODES) || '[]');
+export const getCocFacilities = (): CocFacility[] => JSON.parse(localStorage.getItem(LS_COC_FACILITIES) || '[]'); // NEW
+export const getLocalAgencies = (): LocalAgency[] => JSON.parse(localStorage.getItem(LS_LOCAL_AGENCIES) || '[]'); // NEW
+export const getForeignAgencies = (): ForeignAgency[] => JSON.parse(localStorage.getItem(LS_FOREIGN_AGENCIES) || '[]'); // NEW
 
 // --- Setter Functions ---
 
@@ -36,6 +39,9 @@ export const saveChatMessages = (data: ChatMessage[]) => localStorage.setItem(LS
 export const saveApprovalLogs = (data: ApprovalLog[]) => localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(data));
 export const saveAttendanceRecords = (data: AttendanceRecord[]) => localStorage.setItem(LS_ATTENDANCE, JSON.stringify(data));
 export const saveAuthorizationCodes = (data: AuthorizationCode[]) => localStorage.setItem(LS_AUTH_CODES, JSON.stringify(data));
+export const saveCocFacilities = (data: CocFacility[]) => localStorage.setItem(LS_COC_FACILITIES, JSON.stringify(data)); // NEW
+export const saveLocalAgencies = (data: LocalAgency[]) => localStorage.setItem(LS_LOCAL_AGENCIES, JSON.stringify(data)); // NEW
+export const saveForeignAgencies = (data: ForeignAgency[]) => localStorage.setItem(LS_FOREIGN_AGENCIES, JSON.stringify(data)); // NEW
 
 // --- Initialization ---
 
@@ -51,7 +57,10 @@ export function initializeDataStore() {
   localStorage.removeItem(LS_AUTH_CODES);
   localStorage.removeItem(LS_PAYMENT_STATUS);
   localStorage.removeItem(LS_STAFF_USERS);
-  localStorage.removeItem(LS_CONFIG); // Also clear config to ensure new foreignAgencies are seeded
+  localStorage.removeItem(LS_CONFIG); 
+  localStorage.removeItem(LS_COC_FACILITIES); // NEW
+  localStorage.removeItem(LS_LOCAL_AGENCIES); // NEW
+  localStorage.removeItem(LS_FOREIGN_AGENCIES); // NEW
 
   localStorage.setItem(LS_CANDIDATES, JSON.stringify(SEED_CANDIDATES));
   localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
@@ -62,13 +71,16 @@ export function initializeDataStore() {
   localStorage.setItem(LS_ATTENDANCE, JSON.stringify(SEED_ATTENDANCE));
   localStorage.setItem(LS_AUTH_CODES, JSON.stringify(SEED_AUTH_CODES));
   localStorage.setItem(LS_STAFF_USERS, JSON.stringify(SEED_STAFF_USERS));
+  localStorage.setItem(LS_COC_FACILITIES, JSON.stringify(SEED_COC_FACILITIES)); // NEW
+  localStorage.setItem(LS_LOCAL_AGENCIES, JSON.stringify(SEED_LOCAL_AGENCIES)); // NEW
+  localStorage.setItem(LS_FOREIGN_AGENCIES, JSON.stringify(SEED_FOREIGN_AGENCIES)); // NEW
 
   // Initialize config with new fields
   const currentConfig = getConfig(); // This will now return SEED_CONFIG if cleared
   saveConfig({ 
       ...currentConfig, 
       countryOptions: currentConfig.countryOptions || SEED_CONFIG.countryOptions,
-      cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
+      cocFacilities: currentConfig.cocFacilities || SEED_CONFIG.cocFacilities, // NEW
       foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies,
       localAgencies: currentConfig.localAgencies || SEED_CONFIG.localAgencies, // NEW
   });

@@ -4,12 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff } from 'lucide-react';
+import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff, Landmark } from 'lucide-react'; // Added Landmark
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
-import { CandidateDetail, Candidate } from '@/lib/types';
+import { CandidateDetail, Candidate, CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { Separator } from '@/components/ui/separator';
@@ -41,8 +41,9 @@ const EditCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_agency: z.string().min(1, "COC Agency is required."),
-  foreign_agency: z.string().optional(), // NEW FIELD
+  coc_facility_id: z.string().min(1, "COC Facility is required."), // Changed to ID
+  foreign_agency_id: z.string().optional(), // Changed to ID
+  local_agency_id: z.string().min(1, "Local Agency is required."), // NEW FIELD
   new_pin: z.string().optional().refine(
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
@@ -88,8 +89,9 @@ interface CandidateDetailEditorProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[];
-    foreignAgencies: string[]; // Added foreignAgencies
+    cocFacilities: CocFacility[]; // Changed
+    foreignAgencies: ForeignAgency[]; // Changed
+    localAgencies: LocalAgency[]; // NEW
 }
 
 const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
@@ -106,12 +108,13 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
   });
   
   const countryOptions = config.countryOptions;
-  const cocAgencies = config.cocAgencies;
-  const foreignAgencies = config.foreignAgencies; // NEW
+  const cocFacilities = config.cocFacilities; // Changed
+  const foreignAgencies = config.foreignAgencies; // Changed
+  const localAgencies = config.localAgencies; // NEW
   
   // Determine if the candidate's country is a custom entry (not in the standard list)
   const isCustomCountryInitial = !countryOptions.includes(candidate.country_of_origin);
@@ -133,8 +136,9 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       marital_status: candidate.marital_status, // Initialize marital status
       phone_number: candidate.phone_number || '', // Initialize phone number
       email: candidate.email, // Initialize email
-      coc_agency: candidate.coc_agency || '', // Initialize COC agency
-      foreign_agency: candidate.foreign_agency || '', // NEW: Initialize foreign agency
+      coc_facility_id: candidate.coc_facility_id || NONE_SELECT_VALUE, // Initialize COC facility ID
+      foreign_agency_id: candidate.foreign_agency_id || NONE_SELECT_VALUE, // Initialize foreign agency ID
+      local_agency_id: candidate.local_agency_id || NONE_SELECT_VALUE, // NEW: Initialize local agency ID
       new_pin: '', // Initialize new PIN field
       new_batch_name: '',
     },
@@ -147,11 +151,11 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
   const newPin = watch('new_pin');
   
-  const handleSelectLeastUsed = async () => {
+  const handleSelectLeastUsedCocFacility = async () => { // Renamed function
       try {
-          const agency = await api.selectLeastUsedCocAgency();
-          setValue('coc_agency', agency, { shouldValidate: true });
-          toast.info(`Automatically selected: ${agency}`);
+          const facility = await api.selectLeastUsedCocFacility(); // Renamed API call
+          setValue('coc_facility_id', facility.id, { shouldValidate: true }); // Set ID
+          toast.info(`Automatically selected: ${facility.name}`);
       } catch (error) {
           toast.error((error as Error).message);
       }
@@ -185,8 +189,9 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency || undefined, // Include foreign agency
+        coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
+        foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
+        local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
       }, actorId, actorEmail); // Pass actor info
       
       // 2. Update Credentials (Email/PIN) if changed
@@ -287,25 +292,50 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         </div>
       </div>
       
-      {/* COC Agency Selection */}
+      {/* Local Agency Selection */}
       <div className="space-y-2 border-t pt-4">
-        <Label htmlFor="coc_agency" className="flex items-center">
-            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+        <Label htmlFor="local_agency_id" className="flex items-center">
+            <Landmark className="h-4 w-4 mr-2" /> Managing Local Agency *
+        </Label>
+        <Select
+            value={watch('local_agency_id')}
+            onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
+            disabled={isSubmitting || localAgencies.length === 0}
+        >
+            <SelectTrigger id="local_agency_id">
+                <SelectValue placeholder="Select Local Agency" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
+                {localAgencies.map(agency => (
+                    <SelectItem key={agency.id} value={agency.id}>
+                        {agency.name}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+        {errors.local_agency_id && <p className="text-red-500 text-xs">{errors.local_agency_id.message}</p>}
+      </div>
+
+      {/* COC Facility Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="coc_facility_id" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Facility *
         </Label>
         <div className="flex gap-2">
             <Select
-                value={watch('coc_agency')}
-                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
-                disabled={isSubmitting}
+                value={watch('coc_facility_id')}
+                onValueChange={(value) => setValue('coc_facility_id', value, { shouldValidate: true })}
+                disabled={isSubmitting || cocFacilities.length === 0}
             >
-                <SelectTrigger id="coc_agency">
-                    <SelectValue placeholder="Select COC Agency" />
+                <SelectTrigger id="coc_facility_id">
+                    <SelectValue placeholder="Select COC Facility" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
-                    {cocAgencies.map(agency => (
-                        <SelectItem key={agency} value={agency}>
-                            {agency}
+                    {cocFacilities.map(facility => (
+                        <SelectItem key={facility.id} value={facility.id}>
+                            {facility.name}
                         </SelectItem>
                     ))}
                 </SelectContent>
@@ -314,39 +344,39 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                 type="button" 
                 variant="outline" 
                 size="icon" 
-                onClick={handleSelectLeastUsed}
-                disabled={isSubmitting || cocAgencies.length === 0}
-                title="Select Least Used Agency (Mock Load Balancer)"
+                onClick={handleSelectLeastUsedCocFacility} // Renamed
+                disabled={isSubmitting || cocFacilities.length === 0}
+                title="Select Least Used COC Facility (Mock Load Balancer)"
             >
                 <Shuffle className="h-4 w-4" />
             </Button>
         </div>
-        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
+        {errors.coc_facility_id && <p className="text-red-500 text-xs">{errors.coc_facility_id.message}</p>}
       </div>
       
       {/* Foreign Agency Selection */}
       <div className="space-y-2">
-        <Label htmlFor="foreign_agency" className="flex items-center">
+        <Label htmlFor="foreign_agency_id" className="flex items-center">
             <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
         </Label>
         <Select
-            value={watch('foreign_agency')}
-            onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
-            disabled={isSubmitting}
+            value={watch('foreign_agency_id')}
+            onValueChange={(value) => setValue('foreign_agency_id', value, { shouldValidate: true })}
+            disabled={isSubmitting || foreignAgencies.length === 0}
         >
-            <SelectTrigger id="foreign_agency">
+            <SelectTrigger id="foreign_agency_id">
                 <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem>
                 {foreignAgencies.map(agency => (
-                    <SelectItem key={agency} value={agency}>
-                        {agency}
+                    <SelectItem key={agency.id} value={agency.id}>
+                        {agency.name}
                     </SelectItem>
                 ))}
             </SelectContent>
         </Select>
-        {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
+        {errors.foreign_agency_id && <p className="text-red-500 text-xs">{errors.foreign_agency_id.message}</p>}
       </div>
       
       {/* Marital Status Selection */}

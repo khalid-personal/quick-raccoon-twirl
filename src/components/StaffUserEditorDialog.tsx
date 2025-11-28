@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
+import { StaffUser, STAFF_ROLES, UserRole, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Loader2, Save, Mail, Lock, UserCog, Building, Landmark } from 'lucide-react';
@@ -22,8 +22,8 @@ const EditStaffSchema = z.object({
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
   ),
-  foreign_agency: z.string().optional(),
-  coc_agency_name: z.string().optional(),
+  foreign_agency_id: z.string().optional(), // Changed to ID
+  local_agency_id: z.string().optional(), // Changed to ID
 });
 
 type EditStaffFormValues = z.infer<typeof EditStaffSchema>;
@@ -37,9 +37,9 @@ interface StaffUserEditorDialogProps {
 
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[];
-    foreignAgencies: string[];
-    localAgencies: string[];
+    cocFacilities: string[]; // Changed
+    foreignAgencies: ForeignAgency[]; // Changed
+    localAgencies: LocalAgency[]; // Changed
 }
 
 const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser, onSuccess, onClose, currentUserId }) => {
@@ -52,7 +52,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [], localAgencies: [] },
+    initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
   });
   const foreignAgencies = config.foreignAgencies;
   const localAgencies = config.localAgencies;
@@ -63,8 +63,8 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
       email: staffUser.email,
       role: staffUser.role,
       new_pin: '',
-      foreign_agency: staffUser.foreign_agency || '',
-      coc_agency_name: staffUser.coc_agency_name || '',
+      foreign_agency_id: staffUser.foreign_agency_id || '', // Initialize with ID
+      local_agency_id: staffUser.local_agency_id || '', // Initialize with ID
     },
   });
 
@@ -76,8 +76,8 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
     try {
       // Check if role or agency associations changed
       const roleChanged = data.role !== staffUser.role;
-      const foreignAgencyChanged = data.foreign_agency !== (staffUser.foreign_agency || '');
-      const cocAgencyNameChanged = data.coc_agency_name !== (staffUser.coc_agency_name || '');
+      const foreignAgencyChanged = data.foreign_agency_id !== (staffUser.foreign_agency_id || ''); // Changed
+      const localAgencyChanged = data.local_agency_id !== (staffUser.local_agency_id || ''); // Changed
 
       if (roleChanged) {
         if (isSelf && data.role !== 'admin') {
@@ -89,13 +89,13 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
       }
       
       // Update Credentials (Email/PIN) and Agency Associations if changed
-      if (data.email !== staffUser.email || newPin || foreignAgencyChanged || cocAgencyNameChanged) {
+      if (data.email !== staffUser.email || newPin || foreignAgencyChanged || localAgencyChanged) { // Changed
         await api.updateUserCredentials(
             staffUser.id, 
             data.email, 
             newPin, 
-            data.foreign_agency || undefined,
-            data.coc_agency_name || undefined,
+            data.foreign_agency_id || undefined, // Use ID
+            data.local_agency_id || undefined, // Use ID
             actorId,
             actorEmail
         );
@@ -141,8 +141,8 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
             onValueChange={(value: Exclude<UserRole, 'candidate'>) => {
               setValue('role', value, { shouldValidate: true });
               // Clear agency fields if role changes
-              if (value !== 'agency') setValue('foreign_agency', '');
-              if (value !== 'local-agency') setValue('coc_agency_name', '');
+              if (value !== 'agency') setValue('foreign_agency_id', ''); // Clear ID
+              if (value !== 'local-agency') setValue('local_agency_id', ''); // Clear ID
             }}
             disabled={isSubmitting || isSelf}
           >
@@ -164,52 +164,52 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
         {/* Foreign Agency Selection (Only for 'agency' role) */}
         {selectedRole === 'agency' && (
           <div className="space-y-2 pl-4 border-l-2 border-primary">
-            <Label htmlFor="foreign_agency" className="flex items-center">
+            <Label htmlFor="foreign_agency_id" className="flex items-center">
               <Building className="h-4 w-4 mr-2" /> Associated Foreign Agency *
             </Label>
             <Select
-              value={watch('foreign_agency')}
-              onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
+              value={watch('foreign_agency_id')}
+              onValueChange={(value) => setValue('foreign_agency_id', value, { shouldValidate: true })}
               disabled={isSubmitting || foreignAgencies.length === 0}
             >
-              <SelectTrigger id="foreign_agency">
+              <SelectTrigger id="foreign_agency_id">
                 <SelectValue placeholder="Select Agency" />
               </SelectTrigger>
               <SelectContent>
                 {foreignAgencies.map(agency => (
-                  <SelectItem key={agency} value={agency}>
-                    {agency}
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.foreign_agency && <p className="text-red-500 text-xs mt-1">{errors.foreign_agency.message}</p>}
+            {errors.foreign_agency_id && <p className="text-red-500 text-xs mt-1">{errors.foreign_agency_id.message}</p>}
           </div>
         )}
 
-        {/* COC Agency Selection (Only for 'local-agency' role) */}
+        {/* Local Agency Selection (Only for 'local-agency' role) */}
         {selectedRole === 'local-agency' && (
           <div className="space-y-2 pl-4 border-l-2 border-green-500">
-            <Label htmlFor="coc_agency_name" className="flex items-center">
-              <Landmark className="h-4 w-4 mr-2" /> Associated Local Agency (COC) *
+            <Label htmlFor="local_agency_id" className="flex items-center">
+              <Landmark className="h-4 w-4 mr-2" /> Associated Local Agency *
             </Label>
             <Select
-              value={watch('coc_agency_name')}
-              onValueChange={(value) => setValue('coc_agency_name', value, { shouldValidate: true })}
+              value={watch('local_agency_id')}
+              onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
               disabled={isSubmitting || localAgencies.length === 0}
             >
-              <SelectTrigger id="coc_agency_name">
+              <SelectTrigger id="local_agency_id">
                 <SelectValue placeholder="Select Local Agency" />
               </SelectTrigger>
               <SelectContent>
                 {localAgencies.map(agency => (
-                  <SelectItem key={agency} value={agency}>
-                    {agency}
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.coc_agency_name && <p className="text-red-500 text-xs mt-1">{errors.coc_agency_name.message}</p>}
+            {errors.local_agency_id && <p className="text-red-500 text-xs mt-1">{errors.local_agency_id.message}</p>}
           </div>
         )}
         

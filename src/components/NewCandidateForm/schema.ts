@@ -29,8 +29,9 @@ export const NewCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_agency: z.string().min(1, "COC Agency is required."),
-  foreign_agency: z.string().optional(), // NEW FIELD: Optional on creation
+  coc_facility_id: z.string().min(1, "COC Facility is required."), // Changed to ID
+  foreign_agency_id: z.string().optional(), // Changed to ID
+  local_agency_id: z.string().min(1, "Local Agency is required."), // NEW FIELD: Link to the Local Agency that manages this candidate by ID
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),

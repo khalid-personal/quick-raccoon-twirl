@@ -8,15 +8,15 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const PipelineProgressChart: React.FC = () => {
-  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const { userRole, userForeignAgencyName, userLocalAgencyName } = useAuth(); // Renamed
   const isLocalAgency = userRole === 'local-agency';
   const isAgency = userRole === 'agency';
 
   const { data: distribution = [], isLoading } = useQuery<PipelineDistribution[]>({
-    queryKey: ['pipelineDistribution', userForeignAgency, userCocAgency],
+    queryKey: ['pipelineDistribution', userForeignAgencyName, userLocalAgencyName], // Renamed
     queryFn: ({ queryKey }) => {
-      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
-      return api.getPipelineDistribution('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+      const [, foreignAgencyFilter, localAgencyFilter] = queryKey; // Renamed
+      return api.getPipelineDistribution('All', foreignAgencyFilter as string | undefined, localAgencyFilter as string | undefined); // Renamed
     },
     initialData: [],
   });

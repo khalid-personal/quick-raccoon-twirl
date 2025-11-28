@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth';
 import CandidateChat from '@/components/CandidateChat';
 import CandidateDocumentUploader from '@/components/CandidateDocumentUploader';
 import { format } from 'date-fns';
-import { CandidateDetail } from '@/lib/types';
+import { CandidateDetail, PublicTrackingData } from '@/lib/types'; // NEW IMPORT
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -29,7 +29,7 @@ const TrackingPage: React.FC = () => {
     return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
   }
   
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery<PublicTrackingData | null>({ // Added type
     queryKey: ['publicTracking', trackingCode],
     queryFn: () => api.getPublicTrackingData(trackingCode!),
     enabled: !!trackingCode,
@@ -105,24 +105,43 @@ const TrackingPage: React.FC = () => {
           <CardTitle className="text-3xl">Application Status: {data.candidate_name}</CardTitle>
           <p className="text-lg text-muted-foreground">Tracking Code: <span className="font-mono font-semibold">{data.tracking_code}</span></p>
           
-          {displayCandidateDetail && (
+          {/* Display additional candidate details for authenticated candidates or public view */}
+          {(displayCandidateDetail || isAdminOrStaffViewingPublic) && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-2 border-t mt-2">
                 <div>
                     <p className="font-medium text-muted-foreground">Passport</p>
-                    <p className="font-semibold">{displayCandidateDetail.passport_number}</p>
+                    <p className="font-semibold">{displayCandidateDetail?.passport_number || 'N/A'}</p>
                 </div>
                 <div>
                     <p className="font-medium text-muted-foreground">Date of Birth</p>
-                    <p className="font-semibold">{format(new Date(displayCandidateDetail.dob), 'PPP')}</p>
+                    <p className="font-semibold">{displayCandidateDetail?.dob ? format(new Date(displayCandidateDetail.dob), 'PPP') : 'N/A'}</p>
                 </div>
                 <div>
                     <p className="font-medium text-muted-foreground">Email</p>
-                    <p className="font-semibold">{displayCandidateDetail.email}</p>
+                    <p className="font-semibold">{displayCandidateDetail?.email || 'N/A'}</p>
                 </div>
                 <div>
                     <p className="font-medium text-muted-foreground">Phone</p>
-                    <p className="font-semibold">{displayCandidateDetail.phone_number || 'N/A'}</p>
+                    <p className="font-semibold">{displayCandidateDetail?.phone_number || 'N/A'}</p>
                 </div>
+                {data.coc_facility_name && (
+                    <div>
+                        <p className="font-medium text-muted-foreground">COC Facility</p>
+                        <p className="font-semibold">{data.coc_facility_name}</p>
+                    </div>
+                )}
+                {data.local_agency_name && (
+                    <div>
+                        <p className="font-medium text-muted-foreground">Local Agency</p>
+                        <p className="font-semibold">{data.local_agency_name}</p>
+                    </div>
+                )}
+                {data.foreign_agency_name && (
+                    <div>
+                        <p className="font-medium text-muted-foreground">Foreign Agency</p>
+                        <p className="font-semibold">{data.foreign_agency_name}</p>
+                    </div>
+                )}
             </div>
           )}
         </CardHeader>

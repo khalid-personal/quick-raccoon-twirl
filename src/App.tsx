@@ -67,13 +67,13 @@ const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
 
 // Component to protect Agency routes
 const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, userRole, isLoading, userForeignAgency } = useAuth();
+  const { isAuthenticated, userRole, isLoading, userForeignAgencyName } = useAuth(); // Renamed
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!isAuthenticated || userRole !== 'agency' || !userForeignAgency) {
+  if (!isAuthenticated || userRole !== 'agency' || !userForeignAgencyName) { // Renamed
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -81,19 +81,19 @@ const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
 
 // NEW: Component to protect Local Agency routes
 const LocalAgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, userRole, isLoading, userCocAgency } = useAuth();
+  const { isAuthenticated, userRole, isLoading, userLocalAgencyName } = useAuth(); // Renamed
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  console.log("[LocalAgencyProtectedRoute] Checking access:", { isAuthenticated, userRole, userCocAgency }); // ADDED LOG
+  console.log("[LocalAgencyProtectedRoute] Checking access:", { isAuthenticated, userRole, userLocalAgencyName }); // Renamed log
 
-  if (!isAuthenticated || userRole !== 'local-agency' || !userCocAgency) {
-    console.log("[LocalAgencyProtectedRoute] Redirecting: isAuthenticated:", isAuthenticated, "userRole:", userRole, "userCocAgency:", userCocAgency);
+  if (!isAuthenticated || userRole !== 'local-agency' || !userLocalAgencyName) { // Renamed
+    console.log("[LocalAgencyProtectedRoute] Redirecting: isAuthenticated:", isAuthenticated, "userRole:", userRole, "userLocalAgencyName:", userLocalAgencyName); // Renamed log
     return <Navigate to="/login" replace />;
   }
-  console.log("[LocalAgencyProtectedRoute] Access granted. userCocAgency:", userCocAgency);
+  console.log("[LocalAgencyProtectedRoute] Access granted. userLocalAgencyName:", userLocalAgencyName); // Renamed log
   return children;
 };
 

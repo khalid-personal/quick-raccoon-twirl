@@ -51,7 +51,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 
 const LocalAgencyDashboard: React.FC = () => {
   console.log("LocalAgencyDashboard rendered!"); // Debug log
-  const { userRole, user, isLoading: isAuthLoading, logout, userCocAgency } = useAuth();
+  const { userRole, user, isLoading: isAuthLoading, logout, userLocalAgencyName } = useAuth(); // Renamed
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -61,10 +61,10 @@ const LocalAgencyDashboard: React.FC = () => {
   const [sortBy, setSortBy] = useState<CandidateSortField>('tracking_code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  console.log("LocalAgencyDashboard: userCocAgency from useAuth:", userCocAgency); // NEW DEBUG LOG
+  console.log("LocalAgencyDashboard: userLocalAgencyName from useAuth:", userLocalAgencyName); // Renamed log
 
   const { data: candidates = [], isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['localAgencyCandidates', currentQuery, filterStatus, userCocAgency, sortBy, sortDirection],
+    queryKey: ['localAgencyCandidates', currentQuery, filterStatus, userLocalAgencyName, sortBy, sortDirection], // Renamed
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
@@ -73,9 +73,9 @@ const LocalAgencyDashboard: React.FC = () => {
       sortDirection,
       'All', // No time filter for local agency dashboard
       undefined, // No foreign agency filter here
-      userCocAgency // Filter by the logged-in COC agency
+      userLocalAgencyName // Filter by the logged-in Local Agency Name
     ),
-    enabled: !!userCocAgency, // Only fetch if COC agency is known
+    enabled: !!userLocalAgencyName, // Only fetch if Local Agency Name is known
     initialData: [],
   });
 
@@ -109,12 +109,12 @@ const LocalAgencyDashboard: React.FC = () => {
     );
   }
   
-  if (userRole !== 'local-agency' || !userCocAgency) {
+  if (userRole !== 'local-agency' || !userLocalAgencyName) { // Renamed
     return <Navigate to="/login" replace />;
   }
   
   const agencyEmail = user?.email || 'Local Agency';
-  const agencyName = userCocAgency; // Use the actual COC agency name
+  const agencyName = userLocalAgencyName; // Use the actual Local Agency name
 
   return (
     <div className="min-h-screen container mx-auto py-12 space-y-8">

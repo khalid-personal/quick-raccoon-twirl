@@ -14,8 +14,8 @@ export const createStaffUser = async (
     email: string, 
     pin: string, 
     role: Exclude<UserRole, 'candidate'>,
-    foreignAgency?: string, 
-    cocAgencyName?: string, // NEW PARAMETER
+    foreignAgencyId?: string, // Changed to ID
+    localAgencyId?: string, // Changed to ID
     actorId?: string, 
     actorEmail?: string 
 ): Promise<StaffUser> => {
@@ -36,8 +36,8 @@ export const createStaffUser = async (
         role: role,
         is_approved: true, // Directly approved by admin creation
         created_at: new Date().toISOString(),
-        foreign_agency: foreignAgency,
-        coc_agency_name: cocAgencyName, // NEW
+        foreign_agency_id: foreignAgencyId, // Changed
+        local_agency_id: localAgencyId, // Changed
     };
 
     saveStaffUsers([...users, newUser]);
@@ -45,8 +45,8 @@ export const createStaffUser = async (
     // --- LOGGING ---
     if (actorId && actorEmail) {
         let description = `Created new staff user: ${email} with role '${role}'.`;
-        if (foreignAgency) description += ` Associated with foreign agency: '${foreignAgency}'.`;
-        if (cocAgencyName) description += ` Associated with COC agency: '${cocAgencyName}'.`; // NEW
+        if (foreignAgencyId) description += ` Associated with foreign agency ID: '${foreignAgencyId}'.`;
+        if (localAgencyId) description += ` Associated with local agency ID: '${localAgencyId}'.`;
         await recordApprovalLog(actorId, actorEmail, 'StaffUser', newUser.id, 'Created', description);
     }
     // --- END LOGGING ---
@@ -92,13 +92,13 @@ export const updateUserRole = async (
     return updatedUser;
 };
 
-// NEW: Update staff user credentials (email and password/pin) and foreign agency
+// NEW: Update staff user credentials (email and password/pin) and agency associations
 export const updateUserCredentials = async (
     userId: string, 
     newEmail: string, 
     newPin?: string, 
-    newForeignAgency?: string, 
-    newCocAgencyName?: string, // NEW PARAMETER
+    newForeignAgencyId?: string, // Changed to ID
+    newLocalAgencyId?: string, // Changed to ID
     actorId?: string, 
     actorEmail?: string 
 ): Promise<StaffUser> => {
@@ -120,8 +120,8 @@ export const updateUserCredentials = async (
     const updatedUser = {
         ...existingUser,
         email: newEmail,
-        foreign_agency: newForeignAgency,
-        coc_agency_name: newCocAgencyName, // NEW
+        foreign_agency_id: newForeignAgencyId, // Changed
+        local_agency_id: newLocalAgencyId, // Changed
         // NOTE: In a real Supabase app, we would call:
         // await supabase.auth.admin.updateUserById(userId, { email: newEmail, password: newPin });
         // Since we are mocking, we just update the email in the mock store.
@@ -136,8 +136,8 @@ export const updateUserCredentials = async (
         let description = `Updated credentials for user ID ${userId}.`;
         if (newEmail !== existingUser.email) description += ` Email changed from '${existingUser.email}' to '${newEmail}'.`;
         if (newPin) description += ` PIN reset.`;
-        if (newForeignAgency !== existingUser.foreign_agency) description += ` Foreign agency changed from '${existingUser.foreign_agency || 'N/A'}' to '${newForeignAgency || 'N/A'}'.`;
-        if (newCocAgencyName !== existingUser.coc_agency_name) description += ` COC agency changed from '${existingUser.coc_agency_name || 'N/A'}' to '${newCocAgencyName || 'N/A'}'.`; // NEW
+        if (newForeignAgencyId !== existingUser.foreign_agency_id) description += ` Foreign agency ID changed from '${existingUser.foreign_agency_id || 'N/A'}' to '${newForeignAgencyId || 'N/A'}'.`;
+        if (newLocalAgencyId !== existingUser.local_agency_id) description += ` Local agency ID changed from '${existingUser.local_agency_id || 'N/A'}' to '${newLocalAgencyId || 'N/A'}'.`;
         await recordApprovalLog(actorId, actorEmail, 'StaffUser', userId, 'Updated', description);
     }
     // --- END LOGGING ---

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Loader2, PlusCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Candidate, CandidateDetail } from '@/lib/types';
+import { Candidate, CandidateDetail, CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
 import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { generateInitialStages } from '@/lib/data-seed';
@@ -15,7 +15,7 @@ import PersonalDetailsSection from './PersonalDetailsSection';
 import TrackingDetailsSection from './TrackingDetailsSection';
 import AgencyBatchDetailsSection from './AgencyBatchDetailsSection';
 import LoginCredentialsSection from './LoginCredentialsSection';
-import { NewCandidateSchema, NewCandidateFormValues, NEW_BATCH_OPTION, NO_BATCH_OPTION, isAdult } from './schema';
+import { NewCandidateSchema, NewCandidateFormValues, NEW_BATCH_OPTION, NO_BATCH_OPTION, isAdult, NONE_SELECT_VALUE } from './schema'; // Added NONE_SELECT_VALUE
 import { useAuth } from '@/lib/auth';
 
 interface NewCandidateFormProps {
@@ -26,8 +26,9 @@ interface NewCandidateFormProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[];
-    foreignAgencies: string[];
+    cocFacilities: CocFacility[]; // Changed
+    foreignAgencies: ForeignAgency[]; // Changed
+    localAgencies: LocalAgency[]; // NEW
 }
 
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
@@ -43,12 +44,13 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
   });
   
   const countryOptions = config.countryOptions;
-  const cocAgencies = config.cocAgencies;
-  const foreignAgencies = config.foreignAgencies;
+  const cocFacilities = config.cocFacilities; // Changed
+  const foreignAgencies = config.foreignAgencies; // Changed
+  const localAgencies = config.localAgencies; // NEW
   
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
@@ -64,8 +66,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       marital_status: 'Single',
       phone_number: '',
       email: '',
-      coc_agency: '',
-      foreign_agency: '',
+      coc_facility_id: NONE_SELECT_VALUE, // Initialize with NONE_SELECT_VALUE
+      foreign_agency_id: NONE_SELECT_VALUE, // Initialize with NONE_SELECT_VALUE
+      local_agency_id: NONE_SELECT_VALUE, // Initialize with NONE_SELECT_VALUE
       new_batch_name: '',
     },
   });
@@ -106,8 +109,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency,
+        coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
+        foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
+        local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
         profile_image_url: mockProfileImageUrl,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -121,6 +125,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         documents: [],
         medical_results: [],
         chat_messages: [],
+        coc_facility_name: cocFacilities.find(f => f.id === mockCandidate.coc_facility_id)?.name,
+        foreign_agency_name: foreignAgencies.find(a => a.id === mockCandidate.foreign_agency_id)?.name,
+        local_agency_name: localAgencies.find(a => a.id === mockCandidate.local_agency_id)?.name,
       };
 
       setPreviewCandidate(mockCandidateDetail);
@@ -162,8 +169,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency,
+        coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
+        foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
+        local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
         profile_image_url: profileImageUrl,
       }, actorId, actorEmail); // Pass actor info
       
@@ -210,8 +218,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           {/* Agency & Batch Details Section */}
           <AgencyBatchDetailsSection
             form={form}
-            cocAgencies={cocAgencies}
-            foreignAgencies={foreignAgencies}
+            cocFacilities={cocFacilities} // Changed
+            foreignAgencies={foreignAgencies} // Changed
+            localAgencies={localAgencies} // NEW
             activeBatches={activeBatches}
             isSubmitting={isSubmitting}
             isCreatingNewBatch={isCreatingNewBatch}

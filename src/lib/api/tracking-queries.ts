@@ -3,7 +3,7 @@ import {
     ALL_STAGES,
     StageStatus,
 } from '../types';
-import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, getPaymentStatuses } from '../data-store';
+import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, getPaymentStatuses, getCocFacilities, getForeignAgencies, getLocalAgencies } from '../data-store'; // Import new getters
 import { calculateProgress } from '../utils-data';
 import { getStageId } from './utils';
 import { getCandidateDetail } from './candidate-crud';
@@ -19,6 +19,9 @@ export const getPublicTrackingData = async (trackingCode: string): Promise<Publi
     const medicalResults = getMedicalResults().filter(mr => mr.candidate_id === candidate.id);
     const documents = getDocuments().filter(d => d.candidate_id === candidate.id);
     const paymentStatuses = getPaymentStatuses(); // Get mock payment statuses
+    const cocFacilities = getCocFacilities();
+    const foreignAgencies = getForeignAgencies();
+    const localAgencies = getLocalAgencies();
 
     const progress_percent = calculateProgress(stages);
 
@@ -81,11 +84,18 @@ export const getPublicTrackingData = async (trackingCode: string): Promise<Publi
             return stageA - stageB;
         });
 
+    const cocFacility = candidate.coc_facility_id ? cocFacilities.find(cf => cf.id === candidate.coc_facility_id) : undefined;
+    const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+    const localAgency = candidate.local_agency_id ? localAgencies.find(la => la.id === candidate.local_agency_id) : undefined;
+
     return {
         candidate_name: `${candidate.first_name} ${candidate.last_name}`,
         tracking_code: candidate.tracking_code,
         progress_percent,
         timeline,
+        coc_facility_name: cocFacility?.name, // NEW
+        foreign_agency_name: foreignAgency?.name, // NEW
+        local_agency_name: localAgency?.name, // NEW
     };
 };
 

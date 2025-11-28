@@ -9,3 +9,6 @@ export const LS_CHAT_MESSAGES = 'mock_chat_messages';
 export const LS_APPROVAL_LOGS = 'mock_approval_logs'; // NEW KEY
 export const LS_ATTENDANCE = 'mock_attendance'; // NEW KEY
 export const LS_AUTH_CODES = 'mock_auth_codes'; // NEW KEY
+export const LS_COC_FACILITIES = 'mock_coc_facilities'; // NEW KEY
+export const LS_LOCAL_AGENCIES = 'mock_local_agencies'; // NEW KEY
+export const LS_FOREIGN_AGENCIES = 'mock_foreign_agencies'; // NEW KEY

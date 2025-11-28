@@ -72,12 +72,16 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
             <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
           </div>
           <div className="text-sm">
-            <p className="font-medium text-muted-foreground">COC Training Agency</p>
-            <p className="text-lg font-semibold">{candidate.coc_agency || 'N/A'}</p>
+            <p className="font-medium text-muted-foreground">COC Training Facility</p> {/* Updated Label */}
+            <p className="text-lg font-semibold">{candidate.coc_facility_name || 'N/A'}</p> {/* Display name */}
+          </div>
+          <div className="text-sm">
+            <p className="font-medium text-muted-foreground">Managing Local Agency</p> {/* Updated Label */}
+            <p className="text-lg font-semibold">{candidate.local_agency_name || 'N/A'}</p> {/* Display name */}
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Foreign Employment Agency</p>
-            <p className="text-lg font-semibold">{candidate.foreign_agency || 'N/A'}</p>
+            <p className="text-lg font-semibold">{candidate.foreign_agency_name || 'N/A'}</p> {/* Display name */}
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Labor ID Registration Status</p>

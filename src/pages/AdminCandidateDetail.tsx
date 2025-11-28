@@ -21,7 +21,7 @@ const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const { userRole, userCocAgency, user } = useAuth(); // Get user role, COC agency, and user for logging
+  const { userRole, userLocalAgencyName, user } = useAuth(); // Renamed
   
   const actorId = user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
@@ -45,7 +45,7 @@ const AdminCandidateDetail: React.FC = () => {
   const handleSendProfile = async () => {
     if (!candidate) return;
     try {
-      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency || 'N/A', actorId, actorEmail);
+      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency_name || 'N/A', actorId, actorEmail); // Use foreign_agency_name
       toast.success(`Candidate profile for ${candidate.tracking_code} sent to foreign agency.`);
     } catch (error) {
       toast.error(`Failed to send profile: ${(error as Error).message}`);
@@ -75,7 +75,8 @@ const AdminCandidateDetail: React.FC = () => {
   }
 
   const isLocalAgencyUser = userRole === 'local-agency';
-  const canSendProfile = isLocalAgencyUser && candidate.coc_agency === userCocAgency && candidate.foreign_agency;
+  // Check if the local agency user's associated local agency name matches the candidate's local agency name
+  const canSendProfile = isLocalAgencyUser && candidate.local_agency_name === userLocalAgencyName && candidate.foreign_agency_name; // Renamed
 
   return (
     <div className="space-y-6">

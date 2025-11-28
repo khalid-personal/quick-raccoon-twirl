@@ -5,15 +5,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Shuffle, GraduationCap, PlaneTakeoff } from 'lucide-react';
+import { Shuffle, GraduationCap, PlaneTakeoff, Landmark } from 'lucide-react'; // Added Landmark icon
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { NewCandidateFormValues, NEW_BATCH_OPTION, NO_BATCH_OPTION, NONE_SELECT_VALUE } from './schema';
+import { CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
 
 interface AgencyBatchDetailsSectionProps {
   form: UseFormReturn<NewCandidateFormValues>;
-  cocAgencies: string[];
-  foreignAgencies: string[];
+  cocFacilities: CocFacility[]; // Changed to CocFacility[]
+  foreignAgencies: ForeignAgency[]; // Changed to ForeignAgency[]
+  localAgencies: LocalAgency[]; // NEW: Added localAgencies
   activeBatches: string[];
   isSubmitting: boolean;
   isCreatingNewBatch: boolean;
@@ -21,8 +23,9 @@ interface AgencyBatchDetailsSectionProps {
 
 const AgencyBatchDetailsSection: React.FC<AgencyBatchDetailsSectionProps> = ({
   form,
-  cocAgencies,
+  cocFacilities,
   foreignAgencies,
+  localAgencies, // NEW
   activeBatches,
   isSubmitting,
   isCreatingNewBatch,
@@ -30,11 +33,11 @@ const AgencyBatchDetailsSection: React.FC<AgencyBatchDetailsSectionProps> = ({
   const { register, formState: { errors }, watch, setValue } = form;
   const selectedBatch = watch('batch_name');
 
-  const handleSelectLeastUsed = async () => {
+  const handleSelectLeastUsedCocFacility = async () => { // Renamed function
       try {
-          const agency = await api.selectLeastUsedCocAgency();
-          setValue('coc_agency', agency, { shouldValidate: true });
-          toast.info(`Automatically selected: ${agency}`);
+          const facility = await api.selectLeastUsedCocFacility(); // Renamed API call
+          setValue('coc_facility_id', facility.id, { shouldValidate: true }); // Set ID
+          toast.info(`Automatically selected: ${facility.name}`);
       } catch (error) {
           toast.error((error as Error).message);
       }
@@ -44,25 +47,50 @@ const AgencyBatchDetailsSection: React.FC<AgencyBatchDetailsSectionProps> = ({
     <>
       <h3 className="text-lg font-semibold border-b pb-2">Agency & Batch Details</h3>
       
-      {/* COC Agency Selection */}
+      {/* Local Agency Selection */}
       <div className="space-y-2 pt-4">
-        <Label htmlFor="coc_agency" className="flex items-center">
-            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+        <Label htmlFor="local_agency_id" className="flex items-center">
+            <Landmark className="h-4 w-4 mr-2" /> Managing Local Agency *
+        </Label>
+        <Select
+            value={watch('local_agency_id')}
+            onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
+            disabled={isSubmitting || localAgencies.length === 0}
+        >
+            <SelectTrigger id="local_agency_id">
+                <SelectValue placeholder="Select Local Agency" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
+                {localAgencies.map(agency => (
+                    <SelectItem key={agency.id} value={agency.id}>
+                        {agency.name}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+        {errors.local_agency_id && <p className="text-red-500 text-xs">{errors.local_agency_id.message}</p>}
+      </div>
+
+      {/* COC Facility Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="coc_facility_id" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Facility *
         </Label>
         <div className="flex gap-2">
             <Select
-                value={watch('coc_agency')}
-                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
-                disabled={isSubmitting}
+                value={watch('coc_facility_id')}
+                onValueChange={(value) => setValue('coc_facility_id', value, { shouldValidate: true })}
+                disabled={isSubmitting || cocFacilities.length === 0}
             >
-                <SelectTrigger id="coc_agency">
-                    <SelectValue placeholder="Select COC Agency" />
+                <SelectTrigger id="coc_facility_id">
+                    <SelectValue placeholder="Select COC Facility" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
-                    {cocAgencies.map(agency => (
-                        <SelectItem key={agency} value={agency}>
-                            {agency}
+                    {cocFacilities.map(facility => (
+                        <SelectItem key={facility.id} value={facility.id}>
+                            {facility.name}
                         </SelectItem>
                     ))}
                 </SelectContent>
@@ -71,39 +99,39 @@ const AgencyBatchDetailsSection: React.FC<AgencyBatchDetailsSectionProps> = ({
                 type="button" 
                 variant="outline" 
                 size="icon" 
-                onClick={handleSelectLeastUsed}
-                disabled={isSubmitting || cocAgencies.length === 0}
-                title="Select Least Used Agency (Mock Load Balancer)"
+                onClick={handleSelectLeastUsedCocFacility} // Renamed
+                disabled={isSubmitting || cocFacilities.length === 0}
+                title="Select Least Used COC Facility (Mock Load Balancer)"
             >
                 <Shuffle className="h-4 w-4" />
             </Button>
         </div>
-        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
+        {errors.coc_facility_id && <p className="text-red-500 text-xs">{errors.coc_facility_id.message}</p>}
       </div>
       
       {/* Foreign Agency Selection */}
       <div className="space-y-2">
-        <Label htmlFor="foreign_agency" className="flex items-center">
+        <Label htmlFor="foreign_agency_id" className="flex items-center">
             <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
         </Label>
         <Select
-            value={watch('foreign_agency')}
-            onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
-            disabled={isSubmitting}
+            value={watch('foreign_agency_id')}
+            onValueChange={(value) => setValue('foreign_agency_id', value, { shouldValidate: true })}
+            disabled={isSubmitting || foreignAgencies.length === 0}
         >
-            <SelectTrigger id="foreign_agency">
+            <SelectTrigger id="foreign_agency_id">
                 <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem>
                 {foreignAgencies.map(agency => (
-                    <SelectItem key={agency} value={agency}>
-                        {agency}
+                    <SelectItem key={agency.id} value={agency.id}>
+                        {agency.name}
                     </SelectItem>
                 ))}
             </SelectContent>
         </Select>
-        {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
+        {errors.foreign_agency_id && <p className="text-red-500 text-xs">{errors.foreign_agency_id.message}</p>}
       </div>
       
       {/* Batch Selection */}

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Candidate, CandidateDetail, ALL_STAGES } from '../types'; // Added ALL_STAGES import
-import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages } from '../data-store';
+import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages, getCocFacilities, getForeignAgencies, getLocalAgencies } from '../data-store'; // Import new getters
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
@@ -20,16 +20,23 @@ export const getCandidateDetail = async (candidateId: string): Promise<Candidate
     const documents = getDocuments().filter(d => d.candidate_id === candidate.id);
     const chat_messages = getChatMessages().filter(m => m.candidate_id === candidate.id);
 
+    const cocFacility = candidate.coc_facility_id ? getCocFacilities().find(cf => cf.id === candidate.coc_facility_id) : undefined;
+    const foreignAgency = candidate.foreign_agency_id ? getForeignAgencies().find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+    const localAgency = candidate.local_agency_id ? getLocalAgencies().find(la => la.id === candidate.local_agency_id) : undefined;
+
     return {
         ...candidate,
         stages: stages.sort((a, b) => {
-            const stageA = getStageId(ALL_STAGES.find(s => s.id === a.stage_id)?.slug || '')?.ordinal || 0;
-            const stageB = getStageId(ALL_STAGES.find(s => s.id === b.stage_id)?.slug || '')?.ordinal || 0;
+            const stageA = ALL_STAGES.find(s => s.id === a.stage_id)?.ordinal || 0;
+            const stageB = ALL_STAGES.find(s => s.id === b.stage_id)?.ordinal || 0;
             return stageA - stageB;
         }),
         medical_results,
         documents,
         chat_messages,
+        coc_facility_name: cocFacility?.name,
+        foreign_agency_name: foreignAgency?.name,
+        local_agency_name: localAgency?.name,
     };
 };
 
@@ -104,7 +111,9 @@ export const updateCandidateDetails = async (
     if (data.first_name !== existingCandidate.first_name) description += ` First name changed to '${data.first_name}'.`;
     if (data.last_name !== existingCandidate.last_name) description += ` Last name changed to '${data.last_name}'.`;
     if (data.passport_number !== existingCandidate.passport_number) description += ` Passport changed to '${data.passport_number}'.`;
-    if (data.foreign_agency !== existingCandidate.foreign_agency) description += ` Foreign agency changed to '${data.foreign_agency || 'N/A'}'.`;
+    if (data.foreign_agency_id !== existingCandidate.foreign_agency_id) description += ` Foreign agency ID changed to '${data.foreign_agency_id || 'N/A'}'.`;
+    if (data.local_agency_id !== existingCandidate.local_agency_id) description += ` Local agency ID changed to '${data.local_agency_id || 'N/A'}'.`;
+    if (data.coc_facility_id !== existingCandidate.coc_facility_id) description += ` COC facility ID changed to '${data.coc_facility_id || 'N/A'}'.`;
     if (data.profile_image_url !== existingCandidate.profile_image_url) description += ` Profile image URL updated.`;
 
 
@@ -157,7 +166,9 @@ export const createCandidate = async (
 
     // --- LOGGING ---
     let description = `Created new candidate: ${newCandidate.first_name} ${newCandidate.last_name} (${newCandidate.tracking_code}).`;
-    if (newCandidate.foreign_agency) description += ` Assigned to foreign agency: '${newCandidate.foreign_agency}'.`;
+    if (newCandidate.foreign_agency_id) description += ` Assigned to foreign agency ID: '${newCandidate.foreign_agency_id}'.`;
+    if (newCandidate.local_agency_id) description += ` Assigned to local agency ID: '${newCandidate.local_agency_id}'.`;
+    if (newCandidate.coc_facility_id) description += ` Assigned to COC facility ID: '${newCandidate.coc_facility_id}'.`;
     if (newCandidate.profile_image_url) description += ` Profile image uploaded.`;
     await recordApprovalLog(actorId, actorEmail, 'Candidate', newCandidate.id, 'Created', description);
     // --- END LOGGING ---

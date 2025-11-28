@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'; // NEW IMPORT
 import { AuthorizationCode } from '../types';
-import { getAuthorizationCodes as getAuthorizationCodesFromStore, saveAuthorizationCodes } from '../data-store';
+import { getAuthorizationCodes as getAuthorizationCodesFromStore, saveAuthorizationCodes, getLocalAgencies, getForeignAgencies } from '../data-store'; // Import new getters
 import { recordApprovalLog } from './log-management';
 
 // GET /api/admin/auth-codes
@@ -12,8 +12,8 @@ export const getAuthorizationCodes = async (): Promise<AuthorizationCode[]> => {
 
 // NEW: Generate Authorization Code
 export const generateAuthorizationCode = async (
-    cocAgencyName: string | undefined,
-    foreignAgencyName: string | undefined,
+    localAgencyId: string | undefined, // Changed from cocAgencyName
+    foreignAgencyId: string | undefined, // Changed from foreignAgencyName
     actorId: string,
     actorEmail: string,
     expiresInDays?: number, // Optional expiry
@@ -24,8 +24,8 @@ export const generateAuthorizationCode = async (
     
     const newCode: AuthorizationCode = {
         code: uuidv4(),
-        coc_agency_name: cocAgencyName,
-        foreign_agency_name: foreignAgencyName,
+        local_agency_id: localAgencyId, // Changed
+        foreign_agency_id: foreignAgencyId, // Changed
         created_by_admin_id: actorId,
         created_at: new Date().toISOString(),
         expires_at: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString() : undefined,
@@ -38,8 +38,14 @@ export const generateAuthorizationCode = async (
     saveAuthorizationCodes(allCodes);
 
     let description = `Generated new authorization code: ${newCode.code}.`;
-    if (cocAgencyName) description += ` Linked to COC Agency: ${cocAgencyName}.`;
-    if (foreignAgencyName) description += ` Linked to Foreign Agency: ${foreignAgencyName}.`;
+    if (localAgencyId) {
+        const localAgency = getLocalAgencies().find(la => la.id === localAgencyId);
+        description += ` Linked to Local Agency: ${localAgency?.name || localAgencyId}.`;
+    }
+    if (foreignAgencyId) {
+        const foreignAgency = getForeignAgencies().find(fa => fa.id === foreignAgencyId);
+        description += ` Linked to Foreign Agency: ${foreignAgency?.name || foreignAgencyId}.`;
+    }
     if (expiresInDays) description += ` Expires in ${expiresInDays} days.`;
     if (maxUses) description += ` Max uses: ${maxUses}.`;
 

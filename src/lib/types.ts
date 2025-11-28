@@ -2,6 +2,36 @@ export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Iss
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
 export type UserRole = 'admin' | 'staff' | 'agency' | 'local-agency' | 'candidate'; // Added 'local-agency' role
 
+// NEW: COC Training Facility Interface
+export interface CocFacility {
+  id: string;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  phone_number?: string;
+  created_at: string;
+}
+
+// NEW: Local Agency Interface
+export interface LocalAgency {
+  id: string;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  phone_number?: string;
+  created_at: string;
+}
+
+// NEW: Foreign Agency Interface (if not already defined, for consistency)
+export interface ForeignAgency {
+  id: string;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  phone_number?: string;
+  created_at: string;
+}
+
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
@@ -10,8 +40,8 @@ export interface StaffUser {
   is_approved: boolean;
   created_at: string;
   auth_code_used?: string; // NEW: Store the authorization code used for signup
-  foreign_agency?: string; // NEW: Link staff/agency users to a specific foreign agency
-  coc_agency_name?: string; // NEW: For 'local-agency' role, this links to the Local Agency (e.g., 'NuraLink') that employs the staff.
+  foreign_agency_id?: string; // NEW: Link staff/agency users to a specific foreign agency by ID
+  local_agency_id?: string; // NEW: For 'local-agency' role, this links to the Local Agency that employs the staff.
 }
 
 export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'agency', 'local-agency'];
@@ -70,9 +100,9 @@ export interface Candidate {
   marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed'; // New field
   phone_number?: string; // NEW FIELD
   email: string; // NEW FIELD: Candidate login email
-  coc_agency?: string; // NEW FIELD: COC Training Agency
-  foreign_agency?: string; // NEW FIELD: Foreign Employment Agency
-  managing_local_agency?: string; // NEW FIELD: The Local Agency managing this candidate
+  coc_facility_id?: string; // NEW FIELD: Link to COC Training Facility by ID
+  foreign_agency_id?: string; // NEW FIELD: Link to Foreign Employment Agency by ID
+  local_agency_id?: string; // NEW FIELD: Link to the Local Agency that manages this candidate by ID
   profile_image_url?: string; // NEW FIELD: URL for candidate's profile image
   created_at: string;
   updated_at: string;
@@ -117,8 +147,8 @@ export interface AttendanceRecord {
 // NEW: Authorization Code Type
 export interface AuthorizationCode {
     code: string;
-    coc_agency_name?: string; // Optional: For 'local-agency' staff, this links to the Local Agency (e.g., 'NuraLink') that employs them.
-    foreign_agency_name?: string; // Optional: Link to a specific foreign agency
+    local_agency_id?: string; // Optional: For 'local-agency' staff, this links to the Local Agency (e.g., 'NuraLink') that employs them.
+    foreign_agency_id?: string; // Optional: Link to a specific foreign agency
     created_by_admin_id: string;
     created_at: string;
     expires_at?: string; // Optional expiry date
@@ -133,6 +163,9 @@ export interface CandidateDetail extends Candidate {
   documents: Document[];
   medical_results: MedicalResult[];
   chat_messages: ChatMessage[]; // NEW: Include chat messages
+  coc_facility_name?: string; // For display purposes
+  foreign_agency_name?: string; // For display purposes
+  local_agency_name?: string; // For display purposes
 }
 
 // Summary data structure for Admin Dashboard view
@@ -143,6 +176,9 @@ export interface CandidateSummary extends Candidate {
   // NEW Payment Status fields
   is_initial_medical_paid: boolean;
   is_final_medical_paid: boolean;
+  coc_facility_name?: string; // For display purposes
+  foreign_agency_name?: string; // For display purposes
+  local_agency_name?: string; // For display purposes
   // Removed is_minor: boolean;
 }
 
@@ -197,7 +233,7 @@ export interface PaymentAnalytics {
 }
 
 // --- Sorting Types ---
-export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status' | 'foreign_agency'; // Added foreign_agency
+export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status' | 'foreign_agency_name' | 'local_agency_name' | 'coc_facility_name'; // Added foreign_agency_name, local_agency_name, coc_facility_name
 export type SortDirection = 'asc' | 'desc';
 
 // NEW: Time Filter Type

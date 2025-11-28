@@ -8,7 +8,7 @@ import {
     PaymentAnalytics,
     TimeFilter,
 } from '../types';
-import { getCandidates, getCandidateStages, getPaymentStatuses } from '../data-store';
+import { getCandidates, getCandidateStages, getPaymentStatuses, getLocalAgencies, getForeignAgencies, getCocFacilities } from '../data-store'; // Import new getters
 import { calculateProgress, calculateOverallStatus, getFilterStartDate } from '../utils-data';
 import { getStageId } from './utils';
 
@@ -25,21 +25,28 @@ const filterCandidatesByTime = (candidates: CandidateSummary[], filter: TimeFilt
     });
 };
 
-// Helper function to filter candidates by foreign agency
-const filterCandidatesByForeignAgency = (candidates: CandidateSummary[], foreignAgency?: string): CandidateSummary[] => {
-    if (!foreignAgency) return candidates; // No filter applied if foreignAgency is not provided
-    return candidates.filter(c => c.foreign_agency === foreignAgency);
+// Helper function to filter candidates by foreign agency ID
+const filterCandidatesByForeignAgencyId = (candidates: CandidateSummary[], foreignAgencyName?: string): CandidateSummary[] => {
+    if (!foreignAgencyName) return candidates;
+    const foreignAgency = getForeignAgencies().find(fa => fa.name === foreignAgencyName);
+    if (!foreignAgency) return []; // If agency name doesn't exist, no candidates match
+    return candidates.filter(c => c.foreign_agency_id === foreignAgency.id);
 };
 
-// NEW: Helper function to filter candidates by COC agency (now correctly filters by managing_local_agency)
-const filterCandidatesByCocAgency = (candidates: CandidateSummary[], cocAgency?: string): CandidateSummary[] => {
-    console.log(`[filterCandidatesByCocAgency] Filtering by COC Agency: ${cocAgency}`); // NEW DEBUG LOG
-    if (!cocAgency) {
-        console.log("[filterCandidatesByCocAgency] No COC agency provided, returning all candidates.");
-        return candidates; // No filter applied if cocAgency is not provided
+// NEW: Helper function to filter candidates by Local Agency ID
+const filterCandidatesByLocalAgencyName = (candidates: CandidateSummary[], localAgencyName?: string): CandidateSummary[] => {
+    console.log(`[filterCandidatesByLocalAgencyName] Filtering by Local Agency Name: ${localAgencyName}`);
+    if (!localAgencyName) {
+        console.log("[filterCandidatesByLocalAgencyName] No Local Agency name provided, returning all candidates.");
+        return candidates;
     }
-    const filtered = candidates.filter(c => (c.managing_local_agency || '') === cocAgency); // Added || '' for robustness
-    console.log(`[filterCandidatesByCocAgency] Candidates before filter: ${candidates.length}, after filter: ${filtered.length}`); // NEW DEBUG LOG
+    const localAgency = getLocalAgencies().find(la => la.name === localAgencyName);
+    if (!localAgency) {
+        console.log(`[filterCandidatesByLocalAgencyName] Local Agency '${localAgencyName}' not found, returning empty array.`);
+        return []; // If agency name doesn't exist, no candidates match
+    }
+    const filtered = candidates.filter(c => c.local_agency_id === localAgency.id);
+    console.log(`[filterCandidatesByLocalAgencyName] Candidates before filter: ${candidates.length}, after filter: ${filtered.length}`);
     return filtered;
 };
 
@@ -76,28 +83,39 @@ export const getBatches = async (): Promise<string[]> => {
 // GET /api/admin/summary
 export const getDashboardSummary = async (
     filter: TimeFilter = 'All', 
-    foreignAgencyFilter?: string,
-    cocAgencyFilter?: string
+    foreignAgencyNameFilter?: string, // Changed to name
+    localAgencyNameFilter?: string // Changed to name
 ): Promise<DashboardSummary> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
 
-    // 1. Augment candidates with status
+    // 1. Augment candidates with status and names
     const candidatesWithStatus = candidates.map(candidate => {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const overall_status = calculateOverallStatus(candidateStages);
-        return { ...candidate, overall_status };
+
+        const foreignAgency = candidate.foreign_agency_id ? getForeignAgencies().find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+        const localAgency = candidate.local_agency_id ? getLocalAgencies().find(la => la.id === candidate.local_agency_id) : undefined;
+        const cocFacility = candidate.coc_facility_id ? getCocFacilities().find(cf => cf.id === candidate.coc_facility_id) : undefined;
+
+        return { 
+            ...candidate, 
+            overall_status,
+            foreign_agency_name: foreignAgency?.name,
+            local_agency_name: localAgency?.name,
+            coc_facility_name: cocFacility?.name,
+        };
     }) as CandidateSummary[];
 
     // 2. Apply time filter
     let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
     
     // 3. Apply foreign agency filter
-    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
+    filteredCandidates = filterCandidatesByForeignAgencyId(filteredCandidates, foreignAgencyNameFilter);
 
-    // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
+    // 4. Apply Local agency filter
+    filteredCandidates = filterCandidatesByLocalAgencyName(filteredCandidates, localAgencyNameFilter);
 
     let pending = 0;
     let in_progress = 0;
@@ -130,13 +148,16 @@ export const searchCandidates = async (
     sortBy: CandidateSortField = 'tracking_code', // Default sort
     sortDirection: SortDirection = 'asc', // Default direction
     timeFilter: TimeFilter = 'All',
-    foreignAgencyFilter?: string,
-    cocAgencyFilter?: string
+    foreignAgencyNameFilter?: string, // Changed to name
+    localAgencyNameFilter?: string // Changed to name
 ): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
     const allStages = getCandidateStages();
     const paymentStatuses = getPaymentStatuses();
+    const foreignAgencies = getForeignAgencies();
+    const localAgencies = getLocalAgencies();
+    const cocFacilities = getCocFacilities();
     const q = query.toLowerCase();
     
     const initialMedicalStage = ALL_STAGES.find(s => s.slug === 'initial_medical');
@@ -154,6 +175,10 @@ export const searchCandidates = async (
         const is_final_medical_paid = paymentStatuses.some(ps => 
             ps.candidateId === candidate.id && ps.stageId === finalMedicalStage?.id && ps.isPaid
         );
+
+        const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+        const localAgency = candidate.local_agency_id ? localAgencies.find(la => la.id === candidate.local_agency_id) : undefined;
+        const cocFacility = candidate.coc_facility_id ? cocFacilities.find(cf => cf.id === candidate.coc_facility_id) : undefined;
         
         return {
             ...candidate,
@@ -161,6 +186,9 @@ export const searchCandidates = async (
             overall_status,
             is_initial_medical_paid,
             is_final_medical_paid,
+            foreign_agency_name: foreignAgency?.name,
+            local_agency_name: localAgency?.name,
+            coc_facility_name: cocFacility?.name,
         };
     });
 
@@ -168,11 +196,11 @@ export const searchCandidates = async (
     let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, timeFilter);
     
     // 3. Apply foreign agency filter
-    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
+    filteredCandidates = filterCandidatesByForeignAgencyId(filteredCandidates, foreignAgencyNameFilter);
 
-    // 4. Apply COC agency filter
-    console.log(`[searchCandidates] Applying COC agency filter: ${cocAgencyFilter}`); // NEW DEBUG LOG
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
+    // 4. Apply Local agency filter
+    console.log(`[searchCandidates] Applying Local agency filter: ${localAgencyNameFilter}`);
+    filteredCandidates = filterCandidatesByLocalAgencyName(filteredCandidates, localAgencyNameFilter);
 
     // 5. Apply search/status/batch filters
     filteredCandidates = filteredCandidates.filter(c => {
@@ -180,7 +208,10 @@ export const searchCandidates = async (
             c.first_name.toLowerCase().includes(q) ||
             c.last_name.toLowerCase().includes(q) ||
             c.passport_number.toLowerCase().includes(q) ||
-            c.tracking_code.toLowerCase().includes(q);
+            c.tracking_code.toLowerCase().includes(q) ||
+            (c.foreign_agency_name?.toLowerCase().includes(q)) ||
+            (c.local_agency_name?.toLowerCase().includes(q)) ||
+            (c.coc_facility_name?.toLowerCase().includes(q));
 
         const matchesStatus = !filterStatus || c.overall_status === filterStatus;
 
@@ -226,8 +257,14 @@ export const searchCandidates = async (
             case 'country_of_origin':
                 compareStrings(a.country_of_origin, b.country_of_origin);
                 break;
-            case 'foreign_agency':
-                compareStrings(a.foreign_agency, b.foreign_agency);
+            case 'foreign_agency_name':
+                compareStrings(a.foreign_agency_name, b.foreign_agency_name);
+                break;
+            case 'local_agency_name':
+                compareStrings(a.local_agency_name, b.local_agency_name);
+                break;
+            case 'coc_facility_name':
+                compareStrings(a.coc_facility_name, b.coc_facility_name);
                 break;
             case 'tracking_code':
                 compareStrings(a.tracking_code, b.tracking_code);
@@ -247,24 +284,39 @@ export const searchCandidates = async (
 // GET /api/admin/pipeline-distribution
 export const getPipelineDistribution = async (
     filter: TimeFilter = 'All', 
-    foreignAgencyFilter?: string,
-    cocAgencyFilter?: string
+    foreignAgencyNameFilter?: string, // Changed to name
+    localAgencyNameFilter?: string // Changed to name
 ): Promise<PipelineDistribution[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
+    const foreignAgencies = getForeignAgencies();
+    const localAgencies = getLocalAgencies();
+    const cocFacilities = getCocFacilities();
     
-    // 1. Augment candidates with status
-    const candidatesWithStatus = candidates.map(candidate => ({ ...candidate, overall_status: calculateOverallStatus(allStages.filter(cs => cs.candidate_id === candidate.id)) })) as CandidateSummary[];
+    // 1. Augment candidates with status and names
+    const candidatesWithStatus = candidates.map(candidate => {
+        const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+        const localAgency = candidate.local_agency_id ? localAgencies.find(la => la.id === candidate.local_agency_id) : undefined;
+        const cocFacility = candidate.coc_facility_id ? cocFacilities.find(cf => cf.id === candidate.coc_facility_id) : undefined;
+
+        return { 
+            ...candidate, 
+            overall_status: calculateOverallStatus(allStages.filter(cs => cs.candidate_id === candidate.id)),
+            foreign_agency_name: foreignAgency?.name,
+            local_agency_name: localAgency?.name,
+            coc_facility_name: cocFacility?.name,
+        };
+    }) as CandidateSummary[];
 
     // 2. Apply time filter
     let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
     
     // 3. Apply foreign agency filter
-    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
+    filteredCandidates = filterCandidatesByForeignAgencyId(filteredCandidates, foreignAgencyNameFilter);
 
-    // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
+    // 4. Apply Local agency filter
+    filteredCandidates = filterCandidatesByLocalAgencyName(filteredCandidates, localAgencyNameFilter);
 
     // Initialize distribution map for all stages
     const distributionMap = new Map<number, { pending: number, inProgress: number, blocked: number }>();
@@ -325,24 +377,39 @@ export const getPipelineDistribution = async (
 // GET /api/admin/payment-analytics
 export const getPaymentAnalytics = async (
     filter: TimeFilter = 'All', 
-    foreignAgencyFilter?: string,
-    cocAgencyFilter?: string
+    foreignAgencyNameFilter?: string, // Changed to name
+    localAgencyNameFilter?: string // Changed to name
 ): Promise<PaymentAnalytics> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const paymentStatuses = getPaymentStatuses();
+    const foreignAgencies = getForeignAgencies();
+    const localAgencies = getLocalAgencies();
+    const cocFacilities = getCocFacilities();
     
     // 1. Augment candidates with status (needed for filtering utility)
-    const candidatesWithStatus = candidates.map(candidate => ({ ...candidate, overall_status: 'Pending' })) as CandidateSummary[];
+    const candidatesWithStatus = candidates.map(candidate => {
+        const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
+        const localAgency = candidate.local_agency_id ? localAgencies.find(la => la.id === candidate.local_agency_id) : undefined;
+        const cocFacility = candidate.coc_facility_id ? cocFacilities.find(cf => cf.id === candidate.coc_facility_id) : undefined;
+
+        return { 
+            ...candidate, 
+            overall_status: 'Pending', // Placeholder, not used for payment analytics filtering
+            foreign_agency_name: foreignAgency?.name,
+            local_agency_name: localAgency?.name,
+            coc_facility_name: cocFacility?.name,
+        };
+    }) as CandidateSummary[];
     
     // 2. Apply time filter
     let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
     
     // 3. Apply foreign agency filter
-    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
+    filteredCandidates = filterCandidatesByForeignAgencyId(filteredCandidates, foreignAgencyNameFilter);
 
-    // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
+    // 4. Apply Local agency filter
+    filteredCandidates = filterCandidatesByLocalAgencyName(filteredCandidates, localAgencyNameFilter);
     
     const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
     

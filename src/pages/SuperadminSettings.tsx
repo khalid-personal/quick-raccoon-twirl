@@ -10,6 +10,15 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
+import { CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
+import { v4 as uuidv4 } from 'uuid'; // NEW IMPORT
+
+interface AppConfig {
+    countryOptions: string[];
+    cocFacilities: CocFacility[];
+    foreignAgencies: ForeignAgency[];
+    localAgencies: LocalAgency[];
+}
 
 const SuperadminSettings: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading } = useAuth();
@@ -32,7 +41,7 @@ const SuperadminSettings: React.FC = () => {
   const actorId = user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
 
-  const { data: config, isLoading } = useQuery({
+  const { data: config, isLoading } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
   });
@@ -40,34 +49,32 @@ const SuperadminSettings: React.FC = () => {
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [newCountry, setNewCountry] = useState('');
   
-  const [cocAgencies, setCocAgencies] = useState<string[]>([]);
-  const [newCocAgency, setNewCocAgency] = useState('');
+  const [cocFacilities, setCocFacilities] = useState<CocFacility[]>([]); // Changed to array of objects
+  const [newCocFacilityName, setNewCocFacilityName] = useState(''); // For new facility name
 
-  const [foreignAgencies, setForeignAgencies] = useState<string[]>([]);
-  const [newForeignAgency, setNewForeignAgency] = useState('');
+  const [foreignAgencies, setForeignAgencies] = useState<ForeignAgency[]>([]); // Changed to array of objects
+  const [newForeignAgencyName, setNewForeignAgencyName] = useState(''); // For new agency name
 
-  const [localAgencies, setLocalAgencies] = useState<string[]>([]); // NEW STATE
-  const [newLocalAgency, setNewLocalAgency] = useState(''); // NEW STATE
+  const [localAgencies, setLocalAgencies] = useState<LocalAgency[]>([]); // Changed to array of objects
+  const [newLocalAgencyName, setNewLocalAgencyName] = useState(''); // For new agency name
 
   useEffect(() => {
     if (config) {
       // Filter out 'Other' as it's a special case not meant for direct editing here
       setCountryOptions(config.countryOptions.filter(c => c !== 'Other'));
-      setCocAgencies(config.cocAgencies);
+      setCocFacilities(config.cocFacilities);
       setForeignAgencies(config.foreignAgencies);
-      setLocalAgencies(config.localAgencies); // NEW
+      setLocalAgencies(config.localAgencies);
     }
   }, [config]);
 
   const mutation = useMutation({
-    mutationFn: (updatedConfig: { countryOptions: string[], cocAgencies: string[], foreignAgencies: string[], localAgencies: string[] }) => {
+    mutationFn: (updatedConfig: AppConfig) => { // Updated type
       // Re-add 'Other' to country options before saving
       const finalCountryOptions = [...updatedConfig.countryOptions, 'Other'];
       const finalConfig = { 
+          ...updatedConfig,
           countryOptions: finalCountryOptions, 
-          cocAgencies: updatedConfig.cocAgencies,
-          foreignAgencies: updatedConfig.foreignAgencies,
-          localAgencies: updatedConfig.localAgencies, // NEW
       };
       return api.updateAppConfig(finalConfig, actorId, actorEmail);
     },
@@ -97,55 +104,55 @@ const SuperadminSettings: React.FC = () => {
     setCountryOptions(countryOptions.filter(c => c !== countryToRemove));
   };
   
-  const handleAddCocAgency = () => {
-    const trimmedAgency = newCocAgency.trim();
-    if (!trimmedAgency) return;
+  const handleAddCocFacility = () => { // NEW FUNCTION
+    const trimmedName = newCocFacilityName.trim();
+    if (!trimmedName) return;
     
-    if (cocAgencies.includes(trimmedAgency)) {
-        toast.warning("This COC agency is already in the list.");
+    if (cocFacilities.some(f => f.name === trimmedName)) {
+        toast.warning("This COC facility is already in the list.");
         return;
     }
     
-    setCocAgencies([...cocAgencies, trimmedAgency]);
-    setNewCocAgency('');
+    setCocFacilities([...cocFacilities, { id: uuidv4(), name: trimmedName, created_at: new Date().toISOString() }]);
+    setNewCocFacilityName('');
   };
 
-  const handleRemoveCocAgency = (agencyToRemove: string) => {
-    setCocAgencies(cocAgencies.filter(a => a !== agencyToRemove));
+  const handleRemoveCocFacility = (idToRemove: string) => { // NEW FUNCTION
+    setCocFacilities(cocFacilities.filter(f => f.id !== idToRemove));
   };
   
-  const handleAddForeignAgency = () => {
-    const trimmedAgency = newForeignAgency.trim();
-    if (!trimmedAgency) return;
+  const handleAddForeignAgency = () => { // NEW FUNCTION
+    const trimmedName = newForeignAgencyName.trim();
+    if (!trimmedName) return;
     
-    if (foreignAgencies.includes(trimmedAgency)) {
+    if (foreignAgencies.some(a => a.name === trimmedName)) {
         toast.warning("This Foreign Employment Agency is already in the list.");
         return;
     }
     
-    setForeignAgencies([...foreignAgencies, trimmedAgency]);
-    setNewForeignAgency('');
+    setForeignAgencies([...foreignAgencies, { id: uuidv4(), name: trimmedName, created_at: new Date().toISOString() }]);
+    setNewForeignAgencyName('');
   };
 
-  const handleRemoveForeignAgency = (agencyToRemove: string) => {
-    setForeignAgencies(foreignAgencies.filter(a => a !== agencyToRemove));
+  const handleRemoveForeignAgency = (idToRemove: string) => { // NEW FUNCTION
+    setForeignAgencies(foreignAgencies.filter(a => a.id !== idToRemove));
   };
 
   const handleAddLocalAgency = () => { // NEW FUNCTION
-    const trimmedAgency = newLocalAgency.trim();
-    if (!trimmedAgency) return;
+    const trimmedName = newLocalAgencyName.trim();
+    if (!trimmedName) return;
     
-    if (localAgencies.includes(trimmedAgency)) {
+    if (localAgencies.some(a => a.name === trimmedName)) {
         toast.warning("This Local Agency is already in the list.");
         return;
     }
     
-    setLocalAgencies([...localAgencies, trimmedAgency]);
-    setNewLocalAgency('');
+    setLocalAgencies([...localAgencies, { id: uuidv4(), name: trimmedName, created_at: new Date().toISOString() }]);
+    setNewLocalAgencyName('');
   };
 
-  const handleRemoveLocalAgency = (agencyToRemove: string) => { // NEW FUNCTION
-    setLocalAgencies(localAgencies.filter(a => a !== agencyToRemove));
+  const handleRemoveLocalAgency = (idToRemove: string) => { // NEW FUNCTION
+    setLocalAgencies(localAgencies.filter(a => a.id !== idToRemove));
   };
 
   const handleSave = () => {
@@ -153,13 +160,13 @@ const SuperadminSettings: React.FC = () => {
         toast.error("The country list cannot be empty.");
         return;
     }
-    if (cocAgencies.length === 0) {
-        toast.error("The COC agency list cannot be empty.");
+    if (cocFacilities.length === 0) {
+        toast.error("The COC facility list cannot be empty.");
         return;
     }
     // Foreign agencies and Local agencies can be empty, as they are optional for candidates/users
     
-    mutation.mutate({ countryOptions, cocAgencies, foreignAgencies, localAgencies });
+    mutation.mutate({ countryOptions, cocFacilities, foreignAgencies, localAgencies }); // Updated payload
   };
 
   if (isLoading) {
@@ -230,19 +237,19 @@ const SuperadminSettings: React.FC = () => {
       
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>COC Training Agencies</CardTitle>
+          <CardTitle>COC Training Facilities</CardTitle> {/* Updated Title */}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Current COC Agencies</Label>
+            <Label>Current COC Facilities</Label> {/* Updated Label */}
             <div className="space-y-2">
-              {cocAgencies.map((agency) => (
-                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
-                  <span>{agency}</span>
+              {cocFacilities.map((facility) => (
+                <div key={facility.id} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{facility.name}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => handleRemoveCocAgency(agency)}
+                    onClick={() => handleRemoveCocFacility(facility.id)}
                     disabled={mutation.isPending}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -254,18 +261,18 @@ const SuperadminSettings: React.FC = () => {
 
           <div className="flex space-x-2 pt-2">
             <Input 
-              placeholder="Add new COC agency"
-              value={newCocAgency}
-              onChange={(e) => setNewCocAgency(e.target.value)}
+              placeholder="Add new COC facility"
+              value={newCocFacilityName}
+              onChange={(e) => setNewCocFacilityName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handleAddCocAgency();
+                  handleAddCocFacility();
                 }
               }}
               disabled={mutation.isPending}
             />
-            <Button onClick={handleAddCocAgency} type="button" disabled={mutation.isPending || !newCocAgency.trim()}>
+            <Button onClick={handleAddCocFacility} type="button" disabled={mutation.isPending || !newCocFacilityName.trim()}>
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>
@@ -281,12 +288,12 @@ const SuperadminSettings: React.FC = () => {
             <Label>Current Foreign Agencies</Label>
             <div className="space-y-2">
               {foreignAgencies.map((agency) => (
-                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
-                  <span>{agency}</span>
+                <div key={agency.id} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{agency.name}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => handleRemoveForeignAgency(agency)}
+                    onClick={() => handleRemoveForeignAgency(agency.id)}
                     disabled={mutation.isPending}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -299,8 +306,8 @@ const SuperadminSettings: React.FC = () => {
           <div className="flex space-x-2 pt-2">
             <Input 
               placeholder="Add new foreign agency"
-              value={newForeignAgency}
-              onChange={(e) => setNewForeignAgency(e.target.value)}
+              value={newForeignAgencyName}
+              onChange={(e) => setNewForeignAgencyName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -309,28 +316,28 @@ const SuperadminSettings: React.FC = () => {
               }}
               disabled={mutation.isPending}
             />
-            <Button onClick={handleAddForeignAgency} type="button" disabled={mutation.isPending || !newForeignAgency.trim()}>
+            <Button onClick={handleAddForeignAgency} type="button" disabled={mutation.isPending || !newForeignAgencyName.trim()}>
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="max-w-lg"> {/* NEW CARD FOR LOCAL AGENCIES */}
+      <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Local Agencies (COC)</CardTitle>
+          <CardTitle>Local Agencies</CardTitle> {/* Updated Title */}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Current Local Agencies</Label>
+            <Label>Current Local Agencies</Label> {/* Updated Label */}
             <div className="space-y-2">
               {localAgencies.map((agency) => (
-                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
-                  <span>{agency}</span>
+                <div key={agency.id} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{agency.name}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => handleRemoveLocalAgency(agency)}
+                    onClick={() => handleRemoveLocalAgency(agency.id)}
                     disabled={mutation.isPending}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -343,8 +350,8 @@ const SuperadminSettings: React.FC = () => {
           <div className="flex space-x-2 pt-2">
             <Input 
               placeholder="Add new local agency"
-              value={newLocalAgency}
-              onChange={(e) => setNewLocalAgency(e.target.value)}
+              value={newLocalAgencyName}
+              onChange={(e) => setNewLocalAgencyName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -353,7 +360,7 @@ const SuperadminSettings: React.FC = () => {
               }}
               disabled={mutation.isPending}
             />
-            <Button onClick={handleAddLocalAgency} type="button" disabled={mutation.isPending || !newLocalAgency.trim()}>
+            <Button onClick={handleAddLocalAgency} type="button" disabled={mutation.isPending || !newLocalAgencyName.trim()}>
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>

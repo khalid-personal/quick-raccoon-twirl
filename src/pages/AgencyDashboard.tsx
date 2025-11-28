@@ -50,7 +50,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AgencyDashboard: React.FC = () => {
-  const { userRole, user, isLoading: isAuthLoading, logout, userForeignAgency } = useAuth();
+  const { userRole, user, isLoading: isAuthLoading, logout, userForeignAgencyName } = useAuth(); // Renamed
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -61,7 +61,7 @@ const AgencyDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const { data: candidates = [], isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['agencyCandidates', currentQuery, filterStatus, userForeignAgency, sortBy, sortDirection],
+    queryKey: ['agencyCandidates', currentQuery, filterStatus, userForeignAgencyName, sortBy, sortDirection], // Renamed
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
@@ -69,9 +69,10 @@ const AgencyDashboard: React.FC = () => {
       sortBy,
       sortDirection,
       'All', // No time filter for agency dashboard
-      userForeignAgency // Filter by the logged-in agency
+      userForeignAgencyName, // Filter by the logged-in agency name
+      undefined // No local agency filter here
     ),
-    enabled: !!userForeignAgency, // Only fetch if agency is known
+    enabled: !!userForeignAgencyName, // Only fetch if agency is known
     initialData: [],
   });
   
@@ -103,12 +104,12 @@ const AgencyDashboard: React.FC = () => {
     );
   }
   
-  if (userRole !== 'agency' || !userForeignAgency) {
+  if (userRole !== 'agency' || !userForeignAgencyName) { // Renamed
     return <Navigate to="/login" replace />;
   }
   
   const agencyEmail = user?.email || 'Foreign Agency';
-  const agencyName = userForeignAgency; // Use the actual foreign agency name
+  const agencyName = userForeignAgencyName; // Use the actual foreign agency name
 
   return (
     <div className="min-h-screen container mx-auto py-12 space-y-8">

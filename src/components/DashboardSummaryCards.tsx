@@ -32,15 +32,15 @@ interface DashboardSummaryCardsProps {
 }
 
 const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus }) => {
-  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const { userRole, userForeignAgencyName, userLocalAgencyName } = useAuth(); // Renamed
   const isLocalAgency = userRole === 'local-agency';
   const isAgency = userRole === 'agency';
 
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
-    queryKey: ['dashboardSummary', userForeignAgency, userCocAgency],
+    queryKey: ['dashboardSummary', userForeignAgencyName, userLocalAgencyName], // Renamed
     queryFn: ({ queryKey }) => {
-      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
-      return api.getDashboardSummary('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+      const [, foreignAgencyFilter, localAgencyFilter] = queryKey; // Renamed
+      return api.getDashboardSummary('All', foreignAgencyFilter as string | undefined, localAgencyFilter as string | undefined); // Renamed
     },
     initialData: { total: 0, pending: 0, in_progress: 0, completed: 0, blocked: 0 },
   });

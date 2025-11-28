@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { UserRole, StaffUser } from './types';
+import { UserRole, StaffUser, LocalAgency, ForeignAgency, CocFacility } from './types';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { api } from './api';
-import { getStaffUsers, saveStaffUsers } from './data-store';
+import { getStaffUsers, saveStaffUsers, getLocalAgencies, getForeignAgencies, getCocFacilities } from './data-store'; // Import new getters
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
@@ -12,8 +12,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   candidateTrackingCode: string | null;
-  userForeignAgency: string | null;
-  userCocAgency: string | null;
+  userForeignAgencyName: string | null; // Renamed from userForeignAgency
+  userLocalAgencyName: string | null; // Renamed from userCocAgency
   login: (identifier: string, pin: string) => Promise<{ error: Error | null }>;
   signup: (email: string, pin: string, authCode: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
@@ -36,14 +36,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [candidateTrackingCode, setCandidateTrackingCode] = useState<string | null>(null);
-  const [userForeignAgency, setUserForeignAgency] = useState<string | null>(null);
-  const [userCocAgency, setUserCocAgency] = useState<string | null>(null);
+  const [userForeignAgencyName, setUserForeignAgencyName] = useState<string | null>(null); // Renamed
+  const [userLocalAgencyName, setUserLocalAgencyName] = useState<string | null>(null); // Renamed
   const [isLoading, setIsLoading] = useState(true);
 
-  const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null, foreignAgency: string | null, cocAgency: string | null }> => {
+  const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null, foreignAgencyName: string | null, localAgencyName: string | null }> => { // Updated return type
     if (!user || !user.email) {
         console.log("[AUTH] determineRole: No user or email, returning null role.");
-        return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null };
+        return { role: null, trackingCode: null, foreignAgencyName: null, localAgencyName: null };
     }
     
     const email = user.email.toLowerCase();
@@ -53,29 +53,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const candidate = await api.getCandidateByEmail(email);
     if (candidate) {
         console.log(`[AUTH] determineRole: Role determined: candidate (${candidate.tracking_code})`);
-        return { role: 'candidate', trackingCode: candidate.tracking_code, foreignAgency: null, cocAgency: null };
+        return { role: 'candidate', trackingCode: candidate.tracking_code, foreignAgencyName: null, localAgencyName: null };
     }
     
     // 2. Check for Staff/Admin/Viewer role using mock store
     const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email);
     
     if (staffUser) {
-        console.log(`[AUTH] determineRole: Found staff user:`, staffUser); // ADDED LOG
+        console.log(`[AUTH] determineRole: Found staff user:`, staffUser); 
         if (!staffUser.is_approved) {
             console.log(`[AUTH] determineRole: Staff user ${email} is registered but not approved. Treating as unauthenticated.`);
-            return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 
+            return { role: null, trackingCode: null, foreignAgencyName: null, localAgencyName: null }; 
         }
-        console.log(`[AUTH] determineRole: Role determined: ${staffUser.role}, Foreign Agency: ${staffUser.foreign_agency || 'N/A'}, COC Agency: ${staffUser.coc_agency_name || 'N/A'}`);
+
+        let foreignAgencyName: string | null = null;
+        if (staffUser.foreign_agency_id) {
+            const foreignAgency = getForeignAgencies().find(fa => fa.id === staffUser.foreign_agency_id);
+            foreignAgencyName = foreignAgency?.name || null;
+        }
+
+        let localAgencyName: string | null = null;
+        if (staffUser.local_agency_id) {
+            const localAgency = getLocalAgencies().find(la => la.id === staffUser.local_agency_id);
+            localAgencyName = localAgency?.name || null;
+        }
+        
+        console.log(`[AUTH] determineRole: Role determined: ${staffUser.role}, Foreign Agency: ${foreignAgencyName || 'N/A'}, Local Agency: ${localAgencyName || 'N/A'}`);
         return { 
             role: staffUser.role, 
             trackingCode: null, 
-            foreignAgency: staffUser.foreign_agency || null,
-            cocAgency: staffUser.coc_agency_name || null,
+            foreignAgencyName: foreignAgencyName,
+            localAgencyName: localAgencyName,
         };
     }
     
     console.log(`[AUTH] determineRole: User ${email} found in Supabase but not in mock staff store. Defaulting to unauthenticated.`);
-    return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 
+    return { role: null, trackingCode: null, foreignAgencyName: null, localAgencyName: null }; 
   };
   
   const updateAuthStatus = async (newSession: Session | null) => {
@@ -85,18 +98,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(user);
     
     if (user) {
-        const { role, trackingCode, foreignAgency, cocAgency } = await determineRole(user);
-        console.log(`[AUTH] updateAuthStatus: Setting state: Role=${role}, TrackingCode=${trackingCode}, ForeignAgency=${foreignAgency}, COCAgency=${cocAgency}`);
+        const { role, trackingCode, foreignAgencyName, localAgencyName } = await determineRole(user); // Updated destructuring
+        console.log(`[AUTH] updateAuthStatus: Setting state: Role=${role}, TrackingCode=${trackingCode}, ForeignAgencyName=${foreignAgencyName}, LocalAgencyName=${localAgencyName}`); // Updated log
         setUserRole(role);
         setCandidateTrackingCode(trackingCode);
-        setUserForeignAgency(foreignAgency);
-        setUserCocAgency(cocAgency);
+        setUserForeignAgencyName(foreignAgencyName); // Updated state setter
+        setUserLocalAgencyName(localAgencyName); // Updated state setter
     } else {
         console.log(`[AUTH] updateAuthStatus: No user in session. Setting state: Logged out`);
         setUserRole(null);
         setCandidateTrackingCode(null);
-        setUserForeignAgency(null);
-        setUserCocAgency(null);
+        setUserForeignAgencyName(null); // Updated state setter
+        setUserLocalAgencyName(null); // Updated state setter
     }
     setIsLoading(false); // Only set isLoading to false here
   };
@@ -226,8 +239,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserRole(null);
     setSession(null);
     setCandidateTrackingCode(null);
-    setUserForeignAgency(null);
-    setUserCocAgency(null);
+    setUserForeignAgencyName(null); // Updated state setter
+    setUserLocalAgencyName(null); // Updated state setter
     setIsLoading(false);
     console.log("[AUTH] logout: State cleared.");
   };
@@ -236,7 +249,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   console.log(`[AUTH] AuthProvider render: isAuthenticated=${isAuthenticated}, userRole=${userRole}, isLoading=${isLoading}`);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, candidateTrackingCode, userForeignAgency, userCocAgency, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, candidateTrackingCode, userForeignAgencyName, userLocalAgencyName, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

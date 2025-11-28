@@ -55,7 +55,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole, userCocAgency } = useAuth();
+  const { userRole, userLocalAgencyName } = useAuth(); // Renamed
   const isSuperAdmin = userRole === 'admin';
   const isLocalAgency = userRole === 'local-agency';
   
@@ -70,10 +70,10 @@ const AdminDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
-  const effectiveCocAgencyFilter = isLocalAgency ? userCocAgency : undefined;
+  const effectiveLocalAgencyFilter = isLocalAgency ? userLocalAgencyName : undefined; // Renamed
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, effectiveCocAgencyFilter],
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, effectiveLocalAgencyFilter], // Renamed
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
@@ -81,8 +81,8 @@ const AdminDashboard: React.FC = () => {
       sortBy,
       sortDirection,
       'All',
-      undefined,
-      effectiveCocAgencyFilter
+      undefined, // No foreign agency filter here
+      effectiveLocalAgencyFilter // Filter by the logged-in Local Agency Name
     ),
     initialData: [],
   });
@@ -240,6 +240,27 @@ const AdminDashboard: React.FC = () => {
                       onSort={handleSort} 
                     />
                     <SortableHeader 
+                      field="coc_facility_name" // NEW
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="COC Facility" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
+                      field="local_agency_name" // NEW
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Local Agency" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
+                      field="foreign_agency_name" // NEW
+                      currentSort={sortBy} 
+                      currentDirection={sortDirection} 
+                      label="Foreign Agency" 
+                      onSort={handleSort} 
+                    />
+                    <SortableHeader 
                       field="progress_percent" 
                       currentSort={sortBy} 
                       currentDirection={sortDirection} 
@@ -305,6 +326,9 @@ const AdminDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
                       <TableCell>{candidate.country_of_origin}</TableCell>
+                      <TableCell>{candidate.coc_facility_name || 'N/A'}</TableCell> {/* NEW */}
+                      <TableCell>{candidate.local_agency_name || 'N/A'}</TableCell> {/* NEW */}
+                      <TableCell>{candidate.foreign_agency_name || 'N/A'}</TableCell> {/* NEW */}
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
                       </TableCell>

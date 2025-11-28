@@ -1,8 +1,8 @@
-import { getConfig, saveConfig, getAuthorizationCodes, saveAuthorizationCodes } from '../data-store';
-import { AppConfig } from '../data-seed';
+import { getConfig, saveConfig, getAuthorizationCodes, saveAuthorizationCodes, getCocFacilities, getForeignAgencies, getLocalAgencies, saveCocFacilities, saveForeignAgencies, saveLocalAgencies } from '../data-store';
+import { AppConfig, SEED_CONFIG } from '../data-seed';
 import { recordApprovalLog } from './log-management';
 import { v4 as uuidv4 } from 'uuid';
-import { AuthorizationCode } from '../types';
+import { AuthorizationCode, CocFacility, ForeignAgency, LocalAgency } from '../types';
 
 // Get configuration
 export const getAppConfig = async (): Promise<AppConfig> => {
@@ -25,20 +25,20 @@ export const updateAppConfig = async (
     const oldCountries = oldConfig.countryOptions.filter(c => c !== 'Other').join(', ');
     const newCountries = config.countryOptions.filter(c => c !== 'Other').join(', ');
     
-    const oldCocAgencies = oldConfig.cocAgencies.join(', ');
-    const newCocAgencies = config.cocAgencies.join(', ');
+    const oldCocFacilities = oldConfig.cocFacilities.map(f => f.name).join(', ');
+    const newCocFacilities = config.cocFacilities.map(f => f.name).join(', ');
 
-    const oldForeignAgencies = oldConfig.foreignAgencies.join(', ');
-    const newForeignAgencies = config.foreignAgencies.join(', ');
+    const oldForeignAgencies = oldConfig.foreignAgencies.map(a => a.name).join(', ');
+    const newForeignAgencies = config.foreignAgencies.map(a => a.name).join(', ');
 
-    const oldLocalAgencies = oldConfig.localAgencies.join(', '); // NEW
-    const newLocalAgencies = config.localAgencies.join(', '); // NEW
+    const oldLocalAgencies = oldConfig.localAgencies.map(a => a.name).join(', ');
+    const newLocalAgencies = config.localAgencies.map(a => a.name).join(', ');
     
     let description = `Updated application configuration.`;
     if (oldCountries !== newCountries) description += ` Country list changed from [${oldCountries}] to [${newCountries}].`;
-    if (oldCocAgencies !== newCocAgencies) description += ` COC Agencies changed from [${oldCocAgencies}] to [${newCocAgencies}].`;
+    if (oldCocFacilities !== newCocFacilities) description += ` COC Facilities changed from [${oldCocFacilities}] to [${newCocFacilities}].`;
     if (oldForeignAgencies !== newForeignAgencies) description += ` Foreign Agencies changed from [${oldForeignAgencies}] to [${newForeignAgencies}].`;
-    if (oldLocalAgencies !== newLocalAgencies) description += ` Local Agencies changed from [${oldLocalAgencies}] to [${newLocalAgencies}].`; // NEW
+    if (oldLocalAgencies !== newLocalAgencies) description += ` Local Agencies changed from [${oldLocalAgencies}] to [${newLocalAgencies}].`;
 
     await recordApprovalLog(actorId, actorEmail, 'Config', 'global_config', 'Updated', description);
     // --- END LOGGING ---
@@ -46,42 +46,42 @@ export const updateAppConfig = async (
     return config;
 };
 
-// NEW: Get COC Agencies
-export const getCocAgencies = async (): Promise<string[]> => {
-    const config = await getAppConfig();
-    return config.cocAgencies;
+// NEW: Get COC Facilities
+export const getCocFacilityList = async (): Promise<CocFacility[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return getCocFacilities();
 };
 
 // NEW: Get Foreign Agencies
-export const getForeignAgencies = async (): Promise<string[]> => {
-    const config = await getAppConfig();
-    return config.foreignAgencies;
+export const getForeignAgencyList = async (): Promise<ForeignAgency[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return getForeignAgencies();
 };
 
 // NEW: Get Local Agencies
-export const getLocalAgencies = async (): Promise<string[]> => {
-    const config = await getAppConfig();
-    return config.localAgencies;
+export const getLocalAgencyList = async (): Promise<LocalAgency[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return getLocalAgencies();
 };
 
-// NEW: Mock function to select the least used COC agency
-export const selectLeastUsedCocAgency = async (): Promise<string> => {
+// NEW: Mock function to select the least used COC facility
+export const selectLeastUsedCocFacility = async (): Promise<CocFacility> => {
     await new Promise(resolve => setTimeout(resolve, 100));
-    const agencies = await getCocAgencies();
+    const facilities = await getCocFacilityList();
     
-    if (agencies.length === 0) {
-        throw new Error("No COC agencies configured.");
+    if (facilities.length === 0) {
+        throw new Error("No COC facilities configured.");
     }
     
     // Mock logic: randomly select one, simulating load balancing
-    const randomIndex = Math.floor(Math.random() * agencies.length);
-    return agencies[randomIndex];
+    const randomIndex = Math.floor(Math.random() * facilities.length);
+    return facilities[randomIndex];
 };
 
 // NEW: Generate Authorization Code
 export const generateAuthorizationCode = async (
-    cocAgencyName: string | undefined,
-    foreignAgencyName: string | undefined,
+    localAgencyId: string | undefined, // Changed from cocAgencyName
+    foreignAgencyId: string | undefined, // Changed from foreignAgencyName
     actorId: string,
     actorEmail: string,
     expiresInDays?: number, // Optional expiry
@@ -92,8 +92,8 @@ export const generateAuthorizationCode = async (
     
     const newCode: AuthorizationCode = {
         code: uuidv4(),
-        coc_agency_name: cocAgencyName,
-        foreign_agency_name: foreignAgencyName,
+        local_agency_id: localAgencyId, // Changed
+        foreign_agency_id: foreignAgencyId, // Changed
         created_by_admin_id: actorId,
         created_at: new Date().toISOString(),
         expires_at: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString() : undefined,
@@ -106,8 +106,14 @@ export const generateAuthorizationCode = async (
     saveAuthorizationCodes(allCodes);
 
     let description = `Generated new authorization code: ${newCode.code}.`;
-    if (cocAgencyName) description += ` Linked to COC Agency: ${cocAgencyName}.`;
-    if (foreignAgencyName) description += ` Linked to Foreign Agency: ${foreignAgencyName}.`;
+    if (localAgencyId) {
+        const localAgency = getLocalAgencies().find(la => la.id === localAgencyId);
+        description += ` Linked to Local Agency: ${localAgency?.name || localAgencyId}.`;
+    }
+    if (foreignAgencyId) {
+        const foreignAgency = getForeignAgencies().find(fa => fa.id === foreignAgencyId);
+        description += ` Linked to Foreign Agency: ${foreignAgency?.name || foreignAgencyId}.`;
+    }
     if (expiresInDays) description += ` Expires in ${expiresInDays} days.`;
     if (maxUses) description += ` Max uses: ${maxUses}.`;
 

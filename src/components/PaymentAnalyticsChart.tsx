@@ -8,15 +8,15 @@ import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const PaymentAnalyticsChart: React.FC = () => {
-  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const { userRole, userForeignAgencyName, userLocalAgencyName } = useAuth(); // Renamed
   const isLocalAgency = userRole === 'local-agency';
   const isAgency = userRole === 'agency';
 
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
-    queryKey: ['paymentAnalytics', userForeignAgency, userCocAgency],
+    queryKey: ['paymentAnalytics', userForeignAgencyName, userLocalAgencyName], // Renamed
     queryFn: ({ queryKey }) => {
-      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
-      return api.getPaymentAnalytics('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+      const [, foreignAgencyFilter, localAgencyFilter] = queryKey; // Renamed
+      return api.getPaymentAnalytics('All', foreignAgencyFilter as string | undefined, localAgencyFilter as string | undefined); // Renamed
     },
     initialData: { totalFeesDue: 0, totalFeesPaid: 0, stages: [] },
   });

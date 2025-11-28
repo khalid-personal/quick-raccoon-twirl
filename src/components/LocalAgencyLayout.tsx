@@ -47,7 +47,7 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, unreadCoun
 };
 
 const LocalAgencyLayout: React.FC<LocalAgencyLayoutProps> = ({ children }) => {
-  const { logout, userRole, userCocAgency } = useAuth();
+  const { logout, userRole, userLocalAgencyName } = useAuth(); // Renamed
   const location = useLocation();
   const addisAbabaTime = useAddisAbabaTime();
   
@@ -115,9 +115,9 @@ const LocalAgencyLayout: React.FC<LocalAgencyLayoutProps> = ({ children }) => {
                 <Landmark className="h-6 w-6" />
                 <span className="text-lg">Local Agency Portal</span>
                 <span className="text-sm font-medium text-muted-foreground ml-2">({userRole})</span>
-                {userCocAgency && (
+                {userLocalAgencyName && ( // Renamed
                     <Badge variant="secondary" className="ml-2 text-xs">
-                        {userCocAgency}
+                        {userLocalAgencyName}
                     </Badge>
                 )}
             </Link>
