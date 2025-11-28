@@ -50,6 +50,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const LocalAgencyDashboard: React.FC = () => {
+  console.log("LocalAgencyDashboard rendered!"); // Debug log
   const { userRole, user, isLoading: isAuthLoading, logout, userCocAgency } = useAuth();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,6 +76,8 @@ const LocalAgencyDashboard: React.FC = () => {
     enabled: !!userCocAgency, // Only fetch if COC agency is known
     initialData: [],
   });
+
+  console.log("LocalAgencyDashboard candidates:", candidates); // Debug log
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +174,10 @@ const LocalAgencyDashboard: React.FC = () => {
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : candidates.length === 0 ? (
-                <p className="text-center text-muted-foreground p-8">No candidates found matching your criteria or agency.</p>
+                <div className="text-center p-8 bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-500 text-yellow-800 dark:text-yellow-200 rounded-md">
+                  <p className="font-bold text-lg mb-2">No candidates found!</p>
+                  <p className="text-sm">There are no candidates matching your criteria or associated with your agency ({agencyName}).</p>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
