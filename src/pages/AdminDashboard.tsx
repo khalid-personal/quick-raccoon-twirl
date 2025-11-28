@@ -263,11 +263,22 @@ const AdminDashboard: React.FC = () => {
                 <TableBody>
                   {candidates.map((candidate) => (
                     <TableRow key={candidate.id}>
-                      <TableCell className="font-medium">{candidate.first_name} {candidate.last_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link 
+                          to={`/admin/candidate/${candidate.id}`} 
+                          className="hover:text-primary hover:underline transition-colors"
+                        >
+                          {candidate.first_name} {candidate.last_name}
+                        </Link>
+                      </TableCell>
                       
-                      {/* NEW: Fees Paid Cell */}
+                      {/* Fees Paid Cell (Now clickable via the icons) */}
                       <TableCell className="text-center">
-                        <div className="flex items-center justify-center space-x-2">
+                        <Link 
+                          to={`/admin/candidate/${candidate.id}?tab=medical`} 
+                          className="flex items-center justify-center space-x-2 hover:opacity-80 transition-opacity"
+                          title="View Medical/Payment Status"
+                        >
                           <CheckCircle 
                             className={cn(
                               "h-4 w-4", 
@@ -282,7 +293,7 @@ const AdminDashboard: React.FC = () => {
                             )}
                             title={candidate.is_final_medical_paid ? "Final Medical Paid" : "Final Medical Fee Due"}
                           />
-                        </div>
+                        </Link>
                       </TableCell>
                       
                       <TableCell>{candidate.tracking_code}</TableCell>
