@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api } => '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import TrackingTimeline from '@/components/TrackingTimeline';
@@ -21,6 +21,7 @@ const TrackingPage: React.FC = () => {
   const navigate = useNavigate();
   
   const isCandidateAuthenticated = userRole === 'candidate';
+  const isAdminOrStaffViewingPublic = userRole && userRole !== 'candidate' && location.pathname.startsWith('/public-track');
 
   // Security check: If the user is a candidate, ensure the URL matches their code
   if (isCandidateAuthenticated && trackingCode !== candidateTrackingCode) {
@@ -51,21 +52,19 @@ const TrackingPage: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    const previousRole = userRole; // Capture role before logging out
-    await logout();
-    
-    // Redirect based on the role before logout
-    if (previousRole === 'admin') {
-      navigate('/admin', { replace: true });
-    } else if (previousRole === 'staff') {
-      navigate('/admin', { replace: true }); // Staff also go to admin dashboard
-    } else if (previousRole === 'agency') {
-      navigate('/agency', { replace: true });
-    } else if (previousRole === 'local-agency') {
-      navigate('/local-agency', { replace: true });
+  const handleMainActionButtonClick = async () => {
+    if (isAdminOrStaffViewingPublic) {
+      // If admin/staff is viewing public page, go back to their dashboard
+      if (userRole === 'admin' || userRole === 'staff') {
+        navigate('/admin', { replace: true });
+      } else if (userRole === 'agency') {
+        navigate('/agency', { replace: true });
+      } else if (userRole === 'local-agency') {
+        navigate('/local-agency', { replace: true });
+      }
     } else {
-      // Default for candidates or unauthenticated users
+      // If it's a candidate or unauthenticated user, perform logout
+      await logout();
       navigate('/login', { replace: true });
     }
   };
@@ -176,7 +175,9 @@ const TrackingPage: React.FC = () => {
               <Printer className="h-4 w-4 mr-2" /> Generate Printable Progress Sheet (Mock)
             </Button>
             
-            <Button variant="secondary" onClick={handleLogout}>Logout</Button>
+            <Button variant="secondary" onClick={handleMainActionButtonClick}>
+              {isAdminOrStaffViewingPublic ? 'Back to Dashboard' : 'Logout'}
+            </Button>
           </div>
         </CardContent>
       </Card>
