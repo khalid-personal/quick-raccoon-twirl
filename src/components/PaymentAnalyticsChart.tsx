@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { PaymentAnalytics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Loader2, DollarSign } from 'lucide-react';
+import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
 const PaymentAnalyticsChart: React.FC = () => {
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
@@ -27,6 +27,8 @@ const PaymentAnalyticsChart: React.FC = () => {
     Unpaid: item.feesDue - item.feesPaid,
   }));
   
+  const totalUnpaid = analytics.totalFeesDue - analytics.totalFeesPaid;
+  
   const paidPercentage = analytics.totalFeesDue > 0 
     ? Math.round((analytics.totalFeesPaid / analytics.totalFeesDue) * 100) 
     : 0;
@@ -37,51 +39,82 @@ const PaymentAnalyticsChart: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center">
-                <DollarSign className="h-5 w-5 mr-2 text-green-600" />
-                Payment Analytics
+            <div className="flex items-center text-2xl font-bold">
+                <DollarSign className="h-6 w-6 mr-2 text-primary" />
+                Financial Overview
             </div>
             <div className="text-sm font-medium text-muted-foreground">
-                Overall Paid: <span className="font-bold text-primary">{paidPercentage}%</span>
+                Overall Paid: <span className="font-bold text-primary text-lg">{paidPercentage}%</span>
             </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="p-3 border rounded-lg bg-green-50 dark:bg-green-950/50">
-                <p className="text-sm text-muted-foreground">Total Fees Paid</p>
-                <p className="text-xl font-bold text-green-600">{formatCurrency(analytics.totalFeesPaid)}</p>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="p-4 border rounded-xl shadow-sm bg-green-50 dark:bg-green-900/20">
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Total Fees Paid</p>
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                </div>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-400 mt-1">{formatCurrency(analytics.totalFeesPaid)}</p>
             </div>
-            <div className="p-3 border rounded-lg bg-red-50 dark:bg-red-950/50">
-                <p className="text-sm text-muted-foreground">Total Fees Unpaid</p>
-                <p className="text-xl font-bold text-red-600">{formatCurrency(analytics.totalFeesDue - analytics.totalFeesPaid)}</p>
+            <div className="p-4 border rounded-xl shadow-sm bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Total Fees Unpaid</p>
+                    <TrendingDown className="h-5 w-5 text-red-600" />
+                </div>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-400 mt-1">{formatCurrency(totalUnpaid)}</p>
             </div>
-            <div className="p-3 border rounded-lg bg-gray-50 dark:bg-gray-800">
-                <p className="text-sm text-muted-foreground">Total Fees Due</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency(analytics.totalFeesDue)}</p>
+            <div className="p-4 border rounded-xl shadow-sm bg-gray-50 dark:bg-gray-800">
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Total Fees Due</p>
+                    <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(analytics.totalFeesDue)}</p>
             </div>
         </div>
         
+        {/* Bar Chart */}
+        <h3 className="text-lg font-semibold mb-4 border-b pb-2">Fees Distribution by Stage</h3>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 20, right: 10, left: 10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-              <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-gray-700" />
+              <XAxis dataKey="name" stroke="hsl(var(--foreground))" tickLine={false} axisLine={false} />
               <YAxis 
                 stroke="hsl(var(--foreground))" 
                 tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                axisLine={false}
+                tickLine={false}
               />
               <Tooltip 
                 formatter={(value: number) => formatCurrency(value)}
-                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '0.5rem',
+                    padding: '0.5rem'
+                }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
               />
-              <Legend />
-              <Bar dataKey="Paid" stackId="a" fill="hsl(142.1 76.2% 36.3%)" name="Paid (ETB)" /> {/* Green */}
-              <Bar dataKey="Unpaid" stackId="a" fill="hsl(0 84.2% 60.2%)" name="Unpaid (ETB)" /> {/* Red */}
+              <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
+              <Bar 
+                dataKey="Paid" 
+                stackId="a" 
+                fill="hsl(142.1 76.2% 36.3%)" // A nice green
+                name="Paid (ETB)" 
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar 
+                dataKey="Unpaid" 
+                stackId="a" 
+                fill="hsl(0 84.2% 60.2%)" // A clear red
+                name="Unpaid (ETB)" 
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
