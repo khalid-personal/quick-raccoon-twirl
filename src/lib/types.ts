@@ -1,17 +1,19 @@
 export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
-export type UserRole = 'admin' | 'staff' | 'candidate'; // Removed 'viewer'
+export type UserRole = 'admin' | 'staff' | 'agency' | 'candidate'; // Added 'agency' role
 
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
   email: string;
-  role: Exclude<UserRole, 'candidate'>; // admin, staff
+  role: Exclude<UserRole, 'candidate'>; // admin, staff, agency
   is_approved: boolean;
   created_at: string;
+  auth_code_used?: string; // NEW: Store the authorization code used for signup
+  foreign_agency?: string; // NEW: Link staff/agency users to a specific foreign agency
 }
 
-export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff']; // Removed 'viewer'
+export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'agency'];
 
 export interface Stage {
   id: number;
@@ -68,6 +70,8 @@ export interface Candidate {
   phone_number?: string; // NEW FIELD
   email: string; // NEW FIELD: Candidate login email
   coc_agency?: string; // NEW FIELD: COC Training Agency
+  foreign_agency?: string; // NEW FIELD: Foreign Employment Agency
+  profile_image_url?: string; // NEW FIELD: URL for candidate's profile image
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +88,40 @@ export interface ChatMessage {
     timestamp: string; // ISO date string
     is_read_by_admin: boolean;
     is_read_by_candidate: boolean;
+}
+
+// NEW: Approval Log Type
+export interface ApprovalLog {
+    id: string;
+    timestamp: string;
+    actor_id: string;
+    actor_email: string;
+    target_type: 'StaffUser' | 'AuthorizationCode' | 'Config';
+    target_id: string; // ID of the user/code/config item affected
+    action: 'Created' | 'Approved' | 'Rejected' | 'Updated' | 'Deleted';
+    description: string;
+}
+
+// NEW: Attendance Record Type
+export interface AttendanceRecord {
+    id: string;
+    staff_id: string;
+    staff_email: string;
+    check_in_time: string; // ISO date string
+    check_out_time?: string; // ISO date string, optional if still checked in
+}
+
+// NEW: Authorization Code Type
+export interface AuthorizationCode {
+    code: string;
+    coc_agency_name?: string; // Optional: Link to a specific COC agency
+    foreign_agency_name?: string; // Optional: Link to a specific foreign agency
+    created_by_admin_id: string;
+    created_at: string;
+    expires_at?: string; // Optional expiry date
+    is_active: boolean;
+    usage_count: number;
+    max_uses?: number; // Optional max usage count
 }
 
 // Combined data structure for Admin view
@@ -156,8 +194,11 @@ export interface PaymentAnalytics {
 }
 
 // --- Sorting Types ---
-export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status';
+export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status' | 'foreign_agency'; // Added foreign_agency
 export type SortDirection = 'asc' | 'desc';
+
+// NEW: Time Filter Type
+export type TimeFilter = 'All' | 'Month' | 'Bi-Yearly' | 'Yearly';
 
 // Constants for Stages (based on SQL seed)
 export const ALL_STAGES: Stage[] = [

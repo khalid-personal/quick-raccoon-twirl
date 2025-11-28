@@ -4,6 +4,7 @@ import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, sav
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
+import { recordApprovalLog } from './log-management'; // NEW IMPORT
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
@@ -42,7 +43,12 @@ export const getCandidateDetailByTrackingCode = async (trackingCode: string): Pr
 };
 
 // PATCH /api/admin/candidate/:id/details
-export const updateCandidateDetails = async (candidateId: string, data: CandidateUpdateData): Promise<Candidate> => {
+export const updateCandidateDetails = async (
+    candidateId: string, 
+    data: CandidateUpdateData,
+    actorId: string, // NEW PARAMETER for logging
+    actorEmail: string // NEW PARAMETER for logging
+): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const index = candidates.findIndex(c => c.id === candidateId);
@@ -91,11 +97,27 @@ export const updateCandidateDetails = async (candidateId: string, data: Candidat
 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
+
+    // --- LOGGING ---
+    let description = `Updated candidate details for ${existingCandidate.tracking_code}.`;
+    // Add more detailed logging based on what fields changed
+    if (data.first_name !== existingCandidate.first_name) description += ` First name changed to '${data.first_name}'.`;
+    if (data.last_name !== existingCandidate.last_name) description += ` Last name changed to '${data.last_name}'.`;
+    if (data.passport_number !== existingCandidate.passport_number) description += ` Passport changed to '${data.passport_number}'.`;
+    if (data.foreign_agency !== existingCandidate.foreign_agency) description += ` Foreign agency changed to '${data.foreign_agency || 'N/A'}'.`;
+
+    await recordApprovalLog(actorId, actorEmail, 'Candidate', candidateId, 'Updated', description);
+    // --- END LOGGING ---
+
     return updatedCandidate;
 };
 
 // POST /api/admin/candidate
-export const createCandidate = async (data: CandidateCreationData): Promise<Candidate> => {
+export const createCandidate = async (
+    data: CandidateCreationData,
+    actorId: string, // NEW PARAMETER for logging
+    actorEmail: string // NEW PARAMETER for logging
+): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
 
@@ -130,6 +152,12 @@ export const createCandidate = async (data: CandidateCreationData): Promise<Cand
     const initialStages = generateInitialStages(newCandidate);
     const allStages = getCandidateStages();
     saveCandidateStages([...allStages, ...initialStages]);
+
+    // --- LOGGING ---
+    let description = `Created new candidate: ${newCandidate.first_name} ${newCandidate.last_name} (${newCandidate.tracking_code}).`;
+    if (newCandidate.foreign_agency) description += ` Assigned to foreign agency: '${newCandidate.foreign_agency}'.`;
+    await recordApprovalLog(actorId, actorEmail, 'Candidate', newCandidate.id, 'Created', description);
+    // --- END LOGGING ---
 
     return newCandidate;
 };
@@ -166,7 +194,13 @@ export const getRandomCandidate = async (): Promise<{ identifier: string, pin: s
 };
 
 // NEW: Update candidate credentials (email and password/pin)
-export const updateCandidateCredentials = async (candidateId: string, newEmail: string, newPin?: string): Promise<Candidate> => {
+export const updateCandidateCredentials = async (
+    candidateId: string, 
+    newEmail: string, 
+    newPin?: string,
+    actorId?: string, // NEW PARAMETER for logging
+    actorEmail?: string // NEW PARAMETER for logging
+): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const index = candidates.findIndex(c => c.id === candidateId);
@@ -194,5 +228,14 @@ export const updateCandidateCredentials = async (candidateId: string, newEmail: 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
     
+    // --- LOGGING ---
+    if (actorId && actorEmail) {
+        let description = `Updated login credentials for candidate ${existingCandidate.tracking_code}.`;
+        if (newEmail !== existingCandidate.email) description += ` Email changed from '${existingCandidate.email}' to '${newEmail}'.`;
+        if (newPin) description += ` PIN reset.`;
+        await recordApprovalLog(actorId, actorEmail, 'Candidate', candidateId, 'Updated', description);
+    }
+    // --- END LOGGING ---
+
     return updatedCandidate;
 };

@@ -63,6 +63,10 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
             <p className="text-lg font-semibold">{candidate.coc_agency || 'N/A'}</p>
           </div>
           <div className="text-sm">
+            <p className="font-medium text-muted-foreground">Foreign Employment Agency</p>
+            <p className="text-lg font-semibold">{candidate.foreign_agency || 'N/A'}</p>
+          </div>
+          <div className="text-sm">
             <p className="font-medium text-muted-foreground">Labor ID Registration Status</p>
             <Badge className={getStatusColor(laborIdStatus)}>
               {laborIdStatus.toUpperCase()}

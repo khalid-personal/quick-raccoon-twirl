@@ -5,13 +5,15 @@ import * as z from 'zod';
 import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Mail, Lock, UserCog } from 'lucide-react';
+import { Loader2, Save, Mail, Lock, UserCog, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/lib/auth'; // Import useAuth
 
 const EditStaffSchema = z.object({
   email: z.string().email("Must be a valid email address."),
@@ -20,6 +22,7 @@ const EditStaffSchema = z.object({
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
   ),
+  foreign_agency: z.string().optional(), // NEW FIELD
 });
 
 type EditStaffFormValues = z.infer<typeof EditStaffSchema>;
@@ -31,38 +34,67 @@ interface StaffUserEditorDialogProps {
   currentUserId: string;
 }
 
+interface AppConfig {
+    countryOptions: string[];
+    cocAgencies: string[];
+    foreignAgencies: string[];
+}
+
 const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser, onSuccess, onClose, currentUserId }) => {
+  const { user } = useAuth(); // Get current user for logging
+  const actorId = user?.id || 'unknown-admin';
+  const actorEmail = user?.email || 'unknown-admin@agency.com';
+
   const isSelf = staffUser.id === currentUserId;
   
+  const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
+    queryKey: ['appConfig'],
+    queryFn: api.getAppConfig,
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+  });
+  const foreignAgencies = config.foreignAgencies;
+
   const form = useForm<EditStaffFormValues>({
     resolver: zodResolver(EditStaffSchema),
     defaultValues: {
       email: staffUser.email,
       role: staffUser.role,
       new_pin: '',
+      foreign_agency: staffUser.foreign_agency || '', // Initialize
     },
   });
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = form;
   const newPin = watch('new_pin');
+  const selectedRole = watch('role');
 
   const onSubmit = async (data: EditStaffFormValues) => {
     try {
-      // 1. Update Role (if changed)
-      if (data.role !== staffUser.role) {
+      // Check if role or foreign agency changed
+      const roleChanged = data.role !== staffUser.role;
+      const foreignAgencyChanged = data.foreign_agency !== (staffUser.foreign_agency || '');
+
+      if (roleChanged) {
         if (isSelf && data.role !== 'admin') {
             if (!window.confirm("WARNING: You are about to demote yourself from 'admin'. You may lose access to user management. Proceed?")) {
                 return;
             }
         }
-        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved);
+        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved, actorId, actorEmail);
       }
       
-      // 2. Update Credentials (Email/PIN)
-      if (data.email !== staffUser.email || data.new_pin) {
-        await api.updateUserCredentials(staffUser.id, data.email, data.new_pin);
+      // Update Credentials (Email/PIN) and Foreign Agency if changed
+      if (data.email !== staffUser.email || newPin || foreignAgencyChanged) {
+        await api.updateUserCredentials(
+            staffUser.id, 
+            data.email, 
+            newPin, 
+            data.foreign_agency || undefined, // Pass foreign agency
+            actorId,
+            actorEmail
+        );
         toast.success(`Credentials for ${data.email} updated successfully.`);
-      } else if (data.role !== staffUser.role) {
+      } else if (roleChanged) {
         toast.success(`Role for ${staffUser.email} updated successfully.`);
       } else {
         toast.info("No changes detected.");
@@ -76,6 +108,14 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
       toast.error(`Failed to update user: ${(error as Error).message}`);
     }
   };
+  
+  if (isLoadingConfig) {
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <DialogContent className="sm:max-w-[500px]">
@@ -91,7 +131,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
             <UserCog className="h-4 w-4 mr-2" /> Account Role
           </Label>
           <Select
-            value={watch('role')}
+            value={selectedRole}
             onValueChange={(value: Exclude<UserRole, 'candidate'>) => setValue('role', value, { shouldValidate: true })}
             disabled={isSubmitting || isSelf} // Prevent self-demotion via select
           >
@@ -109,6 +149,32 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
           {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role.message}</p>}
           {isSelf && <p className="text-xs text-muted-foreground mt-1">You cannot change your own role via this dropdown.</p>}
         </div>
+        
+        {/* Foreign Agency Selection (Only for 'agency' role) */}
+        {selectedRole === 'agency' && (
+          <div className="space-y-2 pl-4 border-l-2 border-primary">
+            <Label htmlFor="foreign_agency" className="flex items-center">
+              <Building className="h-4 w-4 mr-2" /> Associated Foreign Agency *
+            </Label>
+            <Select
+              value={watch('foreign_agency')}
+              onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
+              disabled={isSubmitting || foreignAgencies.length === 0}
+            >
+              <SelectTrigger id="foreign_agency">
+                <SelectValue placeholder="Select Agency" />
+              </SelectTrigger>
+              <SelectContent>
+                {foreignAgencies.map(agency => (
+                  <SelectItem key={agency} value={agency}>
+                    {agency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.foreign_agency && <p className="text-red-500 text-xs mt-1">{errors.foreign_agency.message}</p>}
+          </div>
+        )}
         
         <Separator />
         

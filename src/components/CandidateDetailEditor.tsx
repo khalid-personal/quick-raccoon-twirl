@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap } from 'lucide-react';
+import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,11 +12,13 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { CandidateDetail, Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___';
 const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
+const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
 
 // Helper function to check if DOB is 18+
 const isAdult = (dob: string): boolean => {
@@ -39,8 +41,9 @@ const EditCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_agency: z.string().min(1, "COC Agency is required."), // NEW FIELD
-  new_pin: z.string().optional().refine( // NEW PIN FIELD
+  coc_agency: z.string().min(1, "COC Agency is required."),
+  foreign_agency: z.string().optional(), // NEW FIELD
+  new_pin: z.string().optional().refine(
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
   ),
@@ -85,10 +88,15 @@ interface CandidateDetailEditorProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[]; // Added cocAgencies
+    cocAgencies: string[];
+    foreignAgencies: string[]; // Added foreignAgencies
 }
 
 const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
+  const { user } = useAuth(); // Get current user for logging
+  const actorId = user?.id || 'unknown-admin';
+  const actorEmail = user?.email || 'unknown-admin@agency.com';
+
   const { data: activeBatches = [], refetch: refetchBatches } = useQuery<string[]>({
     queryKey: ['activeBatches'],
     queryFn: api.getBatches,
@@ -98,11 +106,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
   });
   
   const countryOptions = config.countryOptions;
   const cocAgencies = config.cocAgencies;
+  const foreignAgencies = config.foreignAgencies; // NEW
   
   // Determine if the candidate's country is a custom entry (not in the standard list)
   const isCustomCountryInitial = !countryOptions.includes(candidate.country_of_origin);
@@ -125,6 +134,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       phone_number: candidate.phone_number || '', // Initialize phone number
       email: candidate.email, // Initialize email
       coc_agency: candidate.coc_agency || '', // Initialize COC agency
+      foreign_agency: candidate.foreign_agency || '', // NEW: Initialize foreign agency
       new_pin: '', // Initialize new PIN field
       new_batch_name: '',
     },
@@ -175,12 +185,13 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency, // Include COC agency
-      });
+        coc_agency: data.coc_agency,
+        foreign_agency: data.foreign_agency || undefined, // Include foreign agency
+      }, actorId, actorEmail); // Pass actor info
       
       // 2. Update Credentials (Email/PIN) if changed
       if (data.email !== candidate.email || newPin) {
-          await api.updateCandidateCredentials(candidate.id, data.email, newPin);
+          await api.updateCandidateCredentials(candidate.id, data.email, newPin, actorId, actorEmail); // Pass actor info
           toast.success(`Candidate credentials updated.`);
       }
       
@@ -291,6 +302,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                     <SelectValue placeholder="Select COC Agency" />
                 </SelectTrigger>
                 <SelectContent>
+                    <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
                     {cocAgencies.map(agency => (
                         <SelectItem key={agency} value={agency}>
                             {agency}
@@ -310,6 +322,31 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
             </Button>
         </div>
         {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
+      </div>
+      
+      {/* Foreign Agency Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="foreign_agency" className="flex items-center">
+            <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
+        </Label>
+        <Select
+            value={watch('foreign_agency')}
+            onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
+            disabled={isSubmitting}
+        >
+            <SelectTrigger id="foreign_agency">
+                <SelectValue placeholder="Select Foreign Agency" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem>
+                {foreignAgencies.map(agency => (
+                    <SelectItem key={agency} value={agency}>
+                        {agency}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+        {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
       </div>
       
       {/* Marital Status Selection */}
