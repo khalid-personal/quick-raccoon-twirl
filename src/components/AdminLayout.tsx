@@ -11,10 +11,10 @@ import { UserRole, ChatMessage } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'; // NEW IMPORTS
-import { Input } from '@/components/ui/input'; // NEW IMPORT
-import { Label } from '@/components/ui/label'; // NEW IMPORT
-import { toast } from 'sonner'; // NEW IMPORT
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -28,7 +28,7 @@ interface NavLinkProps {
     isSuperAdminRoute?: boolean;
     userRole: UserRole | null;
     unreadCount?: number;
-    onClick?: () => void; // Added onClick for dialog trigger
+    onClick?: () => void;
 }
 
 const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0, onClick }) => {
@@ -60,31 +60,31 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdm
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { logout, userRole } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate(); // NEW
+  const navigate = useNavigate();
   const addisAbabaTime = useAddisAbabaTime();
   
   const isSuperAdmin = userRole === 'admin';
   
-  // State for Public Tracking Test dialog
-  const [isTrackingTestDialogOpen, setIsTrackingTestDialogOpen] = React.useState(false); // NEW
-  const [trackingCodeInput, setTrackingCodeInput] = React.useState(''); // NEW
+  const [isTrackingTestDialogOpen, setIsTrackingTestDialogOpen] = React.useState(false);
+  const [trackingCodeInput, setTrackingCodeInput] = React.useState('');
   
-  // Fetch inbox summary for unread count
   const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
     queryKey: ['adminInboxSummary'],
     queryFn: api.getAdminInboxSummary,
     enabled: userRole === 'admin' || userRole === 'staff',
-    refetchInterval: 10000, // Poll for new messages
+    refetchInterval: 10000,
   });
   
   const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
   
-  // Handle navigation for public tracking test
   const handleViewPublicTracking = () => {
+    console.log("handleViewPublicTracking called. Input:", trackingCodeInput); // Debug log
     if (trackingCodeInput.trim()) {
-      navigate(`/track/${trackingCodeInput.trim()}`);
+      const targetPath = `/track/${trackingCodeInput.trim()}`;
+      console.log("Navigating to:", targetPath); // Debug log
+      navigate(targetPath);
       setIsTrackingTestDialogOpen(false);
-      setTrackingCodeInput(''); // Clear input after navigation
+      setTrackingCodeInput('');
     } else {
       toast.error("Please enter a tracking code.");
     }
@@ -94,13 +94,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
     { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays className="h-4 w-4" />, isSuperAdminRoute: false },
-    // Updated link to open a dialog instead of direct navigation
     { 
-      to: '#', // Use '#' or a dummy path as it will be intercepted by onClick
+      to: '#',
       label: 'Public Tracking Test', 
       icon: <Home className="h-4 w-4" />, 
       isSuperAdminRoute: false,
-      onClick: () => setIsTrackingTestDialogOpen(true), // Open dialog on click
+      onClick: () => setIsTrackingTestDialogOpen(true),
     },
     { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
@@ -112,7 +111,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <header className="sticky top-0 z-40 w-full border-b bg-white/90 backdrop-blur-sm dark:bg-gray-950/90">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           
-          {/* Left: Hamburger Menu (Mobile Only) */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -133,7 +131,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
                       unreadCount={item.unreadCount}
-                      onClick={item.onClick} // Pass onClick handler
+                      onClick={item.onClick}
                     />
                   ))}
                 </nav>
@@ -146,12 +144,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </Sheet>
           </div>
           
-          {/* Center: Addis Ababa Time */}
           <div className="absolute left-1/2 transform -translate-x-1/2 text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
             {addisAbabaTime}
           </div>
 
-          {/* Desktop Navigation (Hidden on Mobile) */}
           <div className="hidden md:flex items-center space-x-4">
             <Link to="/admin" className="text-xl font-extrabold tracking-tight text-primary flex items-center space-x-2">
                 <Home className="h-6 w-6" />
@@ -170,13 +166,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
                       unreadCount={item.unreadCount}
-                      onClick={item.onClick} // Pass onClick handler
+                      onClick={item.onClick}
                     />
                 ))}
             </nav>
           </div>
           
-          {/* Right: Logout Button (Always visible, or only visible on desktop if mobile has sheet) */}
           <div className="flex items-center space-x-4">
             <Button onClick={logout} variant="destructive" size="sm" className="hidden md:inline-flex">
               <LogOut className="h-4 w-4 mr-2" /> Logout
@@ -194,7 +189,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         © 2024 Domestic Agency Workforce Management
       </footer>
 
-      {/* Public Tracking Test Dialog */}
       <Dialog open={isTrackingTestDialogOpen} onOpenChange={setIsTrackingTestDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
