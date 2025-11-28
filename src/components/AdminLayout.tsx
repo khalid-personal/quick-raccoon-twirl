@@ -57,7 +57,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   
   const isSuperAdmin = userRole === 'admin';
   
-  // Fetch inbox summary for unread count
+  // 1. Fetch inbox summary for unread chat count
   const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
     queryKey: ['adminInboxSummary'],
     queryFn: api.getAdminInboxSummary,
@@ -65,18 +65,26 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     refetchInterval: 10000, // Poll for new messages
   });
   
-  const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
+  const unreadChatCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
+  
+  // 2. Fetch unapproved staff count (only for admin)
+  const { data: unapprovedStaffCount = 0 } = useQuery<number>({
+    queryKey: ['unapprovedStaffCount'],
+    queryFn: api.getUnapprovedStaffCount,
+    enabled: userRole === 'admin',
+    refetchInterval: 10000, // Poll for new signups
+  });
   
   // Use a mock tracking code for easy testing of the public view
   const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
   
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
-    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
+    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadChatCount },
     // Updated link to point to a specific candidate's tracking page for testing
     { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
-    { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
+    { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true, unreadCount: unapprovedStaffCount },
     { to: '/admin/logs', label: 'Approval Log', icon: <ScrollText className="h-4 w-4" />, isSuperAdminRoute: true }, // NEW LOG LINK
   ];
 

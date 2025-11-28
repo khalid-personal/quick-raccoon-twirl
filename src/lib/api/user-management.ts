@@ -9,6 +9,13 @@ export const getAllStaffUsers = async (): Promise<StaffUser[]> => {
     return getStaffUsers();
 };
 
+// NEW: Get count of unapproved staff users
+export const getUnapprovedStaffCount = async (): Promise<number> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const users = getStaffUsers();
+    return users.filter(u => !u.is_approved).length;
+};
+
 // POST: Create a new staff user (Admin bypasses signup)
 export const createStaffUser = async (
     email: string, 
