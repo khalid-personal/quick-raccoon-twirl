@@ -56,8 +56,8 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole, isLoading: isAuthLoading } = useAuth();
-  const isSuperAdmin = userRole === 'admin';
+  const { userRole, user, isLoading: isAuthLoading } = useAuth();
+  const isSuperAdmin = userRole === 'admin' && user?.email === 'admin@agency.com'; // Define Superadmin explicitly
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -276,6 +276,7 @@ const AdminDashboard: React.FC = () => {
                       label="Origin" 
                       onSort={handleSort} 
                     />
+                    {isSuperAdmin && <TableHead>Foreign Agency</TableHead>} {/* NEW: Foreign Agency Header */}
                     <SortableHeader 
                       field="progress_percent" 
                       currentSort={sortBy} 
@@ -342,6 +343,7 @@ const AdminDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
                       <TableCell>{candidate.country_of_origin}</TableCell>
+                      {isSuperAdmin && <TableCell>{candidate.foreign_agency || 'N/A'}</TableCell>} {/* NEW: Foreign Agency Cell */}
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
                       </TableCell>

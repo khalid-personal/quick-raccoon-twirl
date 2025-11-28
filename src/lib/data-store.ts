@@ -42,35 +42,35 @@ export const saveAuthorizationCodes = (data: AuthorizationCode[]) => localStorag
 export function initializeDataStore() {
   // Only re-seed if candidates are missing, otherwise use existing local storage data
   // We use a fixed number (53) based on the seed data generation (3 existing + 50 new)
-  if (getCandidates().length !== 53) { 
-    localStorage.setItem(LS_CANDIDATES, JSON.stringify(SEED_CANDIDATES));
-    localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
-    localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
-    localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
-    localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES));
-    localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(SEED_APPROVAL_LOGS));
-    localStorage.setItem(LS_ATTENDANCE, JSON.stringify(SEED_ATTENDANCE)); // NEW ATTENDANCE SEED
-    localStorage.setItem(LS_AUTH_CODES, JSON.stringify(SEED_AUTH_CODES)); // NEW AUTH CODES SEED
-    localStorage.removeItem(LS_PAYMENT_STATUS); // Clear payment status to re-initialize mock payments
-  }
-  // Initialize config if not present
-  if (!localStorage.getItem(LS_CONFIG)) {
-      localStorage.setItem(LS_CONFIG, JSON.stringify(SEED_CONFIG));
-  } else {
-      // Ensure new fields are added if config exists but is old
-      const currentConfig = getConfig();
-      if (!currentConfig.cocAgencies || !currentConfig.foreignAgencies) {
-          saveConfig({ 
-              ...currentConfig, 
-              cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
-              foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies, // NEW
-          });
-      }
-  }
-  // Initialize staff users if not present
-  if (getStaffUsers().length === 0) {
-      localStorage.setItem(LS_STAFF_USERS, JSON.stringify(SEED_STAFF_USERS));
-  }
+  // To force re-seed for this change, we'll clear candidates and staff users
+  localStorage.removeItem(LS_CANDIDATES);
+  localStorage.removeItem(LS_CANDIDATE_STAGES);
+  localStorage.removeItem(LS_MEDICAL_RESULTS);
+  localStorage.removeItem(LS_DOCUMENTS);
+  localStorage.removeItem(LS_CHAT_MESSAGES);
+  localStorage.removeItem(LS_APPROVAL_LOGS);
+  localStorage.removeItem(LS_ATTENDANCE);
+  localStorage.removeItem(LS_AUTH_CODES);
+  localStorage.removeItem(LS_PAYMENT_STATUS);
+  localStorage.removeItem(LS_STAFF_USERS); // Clear staff users to include new mock admin
+
+  localStorage.setItem(LS_CANDIDATES, JSON.stringify(SEED_CANDIDATES));
+  localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
+  localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
+  localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
+  localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES));
+  localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(SEED_APPROVAL_LOGS));
+  localStorage.setItem(LS_ATTENDANCE, JSON.stringify(SEED_ATTENDANCE)); // NEW ATTENDANCE SEED
+  localStorage.setItem(LS_AUTH_CODES, JSON.stringify(SEED_AUTH_CODES)); // NEW AUTH CODES SEED
+  localStorage.setItem(LS_STAFF_USERS, JSON.stringify(SEED_STAFF_USERS)); // Re-seed staff users
+
+  // Initialize config if not present or update with new fields
+  const currentConfig = getConfig();
+  saveConfig({ 
+      ...currentConfig, 
+      cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
+      foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies,
+  });
 }
 
 // Run initialization immediately
