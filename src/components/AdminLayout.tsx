@@ -5,7 +5,10 @@ import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare } from 'luc
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
-import { UserRole } from '@/lib/types';
+import { UserRole, ChatMessage } from '@/lib/types';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -18,9 +21,10 @@ interface NavLinkProps {
     isActive: boolean;
     isSuperAdminRoute?: boolean;
     userRole: UserRole | null;
+    unreadCount?: number;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0 }) => {
     if (isSuperAdminRoute && userRole !== 'admin') {
         return null;
     }
@@ -29,10 +33,18 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdm
         <Link to={to} className="w-full">
             <Button 
                 variant={isActive ? "secondary" : "ghost"} 
-                className="w-full justify-start"
+                className="w-full justify-start relative"
             >
                 {icon}
                 <span className="ml-2">{label}</span>
+                {unreadCount > 0 && (
+                    <Badge 
+                        variant="destructive" 
+                        className="ml-auto h-5 px-2 rounded-full text-xs font-bold"
+                    >
+                        {unreadCount}
+                    </Badge>
+                )}
             </Button>
         </Link>
     );
@@ -45,12 +57,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   
   const isSuperAdmin = userRole === 'admin';
   
+  // Fetch inbox summary for unread count
+  const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
+    queryKey: ['adminInboxSummary'],
+    queryFn: api.getAdminInboxSummary,
+    enabled: userRole === 'admin' || userRole === 'staff',
+    refetchInterval: 10000, // Poll for new messages
+  });
+  
+  const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
+  
   // Use a mock tracking code for easy testing of the public view
   const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
   
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
-    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false }, // NEW CHAT LINK
+    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
     // Updated link to point to a specific candidate's tracking page for testing
     { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
@@ -82,6 +104,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isActive={location.pathname === item.to}
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
+                      unreadCount={item.unreadCount}
                     />
                   ))}
                 </nav>
@@ -117,6 +140,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isActive={location.pathname === item.to}
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
+                      unreadCount={item.unreadCount}
                     />
                 ))}
             </nav>
