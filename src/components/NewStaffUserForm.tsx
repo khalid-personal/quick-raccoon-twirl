@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { STAFF_ROLES, UserRole } from '@/lib/types';
-import { useAuth } from '@/lib/auth';
 
 const NewStaffUserSchema = z.object({
   email: z.string().email("Must be a valid email address."),
@@ -29,10 +28,6 @@ interface NewStaffUserFormProps {
 }
 
 const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose }) => {
-  const { user } = useAuth();
-  const actorId = user?.id || 'unknown';
-  const actorEmail = user?.email || 'unknown@agency.com';
-  
   const form = useForm<NewStaffUserFormValues>({
     resolver: zodResolver(NewStaffUserSchema),
     defaultValues: {
@@ -46,8 +41,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
 
   const onSubmit = async (data: NewStaffUserFormValues) => {
     try {
-      // Pass actor details for logging
-      await api.createStaffUser(data.email, data.pin, data.role as Exclude<UserRole, 'candidate' | 'agency'>, actorId, actorEmail);
+      await api.createStaffUser(data.email, data.pin, data.role);
       
       toast.success(`Staff user ${data.email} created successfully with role: ${data.role}.`);
       onSuccess();
@@ -76,7 +70,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
         </Label>
         <Select
           value={watch('role')}
-          onValueChange={(value: Exclude<UserRole, 'candidate' | 'agency'>) => setValue('role', value, { shouldValidate: true })}
+          onValueChange={(value: Exclude<UserRole, 'candidate'>) => setValue('role', value, { shouldValidate: true })}
           disabled={isSubmitting}
         >
           <SelectTrigger id="role">
@@ -114,7 +108,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
       <DialogFooter className="pt-4">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
-          Register Account
+          Create Staff Account
         </Button>
       </DialogFooter>
     </form>

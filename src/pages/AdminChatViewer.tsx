@@ -68,7 +68,7 @@ const AdminChatViewer: React.FC = () => {
                     to={`/admin/candidate/${msg.candidate_id}?tab=chat`}
                     className={cn(
                       "flex items-center justify-between p-4 border rounded-lg transition-all hover:shadow-md",
-                      isUnread ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-300' : 'bg-white dark:bg-gray-900 border-gray-200'
+                      isUnread ? 'bg-blue-50 dark:bg-blue-950 border-blue-300' : 'bg-white dark:bg-gray-900 border-gray-200'
                     )}
                   >
                     <div className="flex items-center space-x-4 min-w-0 flex-grow">
@@ -76,7 +76,7 @@ const AdminChatViewer: React.FC = () => {
                       <div className="min-w-0 flex-grow">
                         <div className="flex items-center space-x-2">
                             <span className="font-semibold text-lg truncate">{candidateName}</span>
-                            <Badge variant="secondary" className="text-xs font-mono flex-shrink-0">{msg.candidate?.tracking_code || 'N/A'}</Badge>
+                            <Badge variant="secondary" className="text-xs font-mono flex-shrink-0">{msg.trackingCode || 'N/A'}</Badge>
                             {isUnread && <Badge className="bg-red-500 hover:bg-red-600 text-white flex-shrink-0">New</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground truncate mt-1">

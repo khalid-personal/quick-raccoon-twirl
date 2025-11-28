@@ -12,11 +12,8 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 
 const SuperadminSettings: React.FC = () => {
-  const { userRole, isLoading: isAuthLoading, user } = useAuth();
+  const { userRole, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
-  
-  const actorId = user?.id || 'unknown';
-  const actorEmail = user?.email || 'unknown@agency.com';
   
   // Role check and redirect
   if (isAuthLoading) {
@@ -50,13 +47,8 @@ const SuperadminSettings: React.FC = () => {
   const mutation = useMutation({
     mutationFn: (updatedCountries: string[]) => {
       // Re-add 'Other' before saving to maintain the required structure
-      const finalConfig = { 
-        countryOptions: [...updatedCountries, 'Other'],
-        cocAgencies: config?.cocAgencies || [],
-        foreignAgencies: config?.foreignAgencies || []
-      };
-      // Pass actor details for logging
-      return api.updateAppConfig(finalConfig, actorId, actorEmail);
+      const finalConfig = { countryOptions: [...updatedCountries, 'Other'] };
+      return api.updateAppConfig(finalConfig);
     },
     onSuccess: () => {
       toast.success("Application settings updated successfully.");

@@ -5,7 +5,7 @@ import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, CheckCircle, XCircle, Save, UserCheck, UserX, UserCog, Pencil, UserPlus, KeyRound } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Save, UserCheck, UserX, UserCog, Pencil, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import StaffUserEditorDialog from '@/components/StaffUserEditorDialog';
-import NewStaffUserForm from '@/components/NewStaffUserForm';
-import GenerateAuthCodeDialog from '@/components/GenerateAuthCodeDialog'; // NEW IMPORT
+import NewStaffUserForm from '@/components/NewStaffUserForm'; // NEW IMPORT
 
 const AdminUserManagement: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading, logout } = useAuth();
@@ -22,8 +21,7 @@ const AdminUserManagement: React.FC = () => {
   
   // State for the editor dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isGenerateCodeDialogOpen, setIsGenerateCodeDialogOpen] = useState(false); // NEW state for Generate Code dialog
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false); // NEW state for Add dialog
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
   
   // Role check and redirect
@@ -41,7 +39,6 @@ const AdminUserManagement: React.FC = () => {
   }
   
   const currentUserId = user?.id;
-  const currentUserEmail = user?.email || 'Unknown Admin'; // Get current user email for logging
 
   const { data: users = [], isLoading, refetch } = useQuery<StaffUser[]>({
     queryKey: ['staffUsers'],
@@ -50,9 +47,8 @@ const AdminUserManagement: React.FC = () => {
   
   // Mutation for quick approval/disapproval toggle
   const approvalMutation = useMutation({
-    mutationFn: ({ userId, role, isApproved }: { userId: string, role: Exclude<UserRole, 'candidate' | 'agency'>, isApproved: boolean }) => {
-      // Pass actor details for logging
-      return api.updateUserRole(userId, role, isApproved, currentUserId!, currentUserEmail);
+    mutationFn: ({ userId, role, isApproved }: { userId: string, role: Exclude<UserRole, 'candidate'>, isApproved: boolean }) => {
+      return api.updateUserRole(userId, role, isApproved);
     },
     onSuccess: (updatedUser) => {
       toast.success(`User ${updatedUser.email} approval status updated.`);
@@ -114,37 +110,22 @@ const AdminUserManagement: React.FC = () => {
             <h1 className="text-3xl font-bold">Staff User Management</h1>
         </div>
         
-        <div className="flex space-x-2">
-            {/* Generate Auth Code Button (Superadmin only) */}
-            {userRole === 'admin' && (
-                <Dialog open={isGenerateCodeDialogOpen} onOpenChange={setIsGenerateCodeDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline">
-                            <KeyRound className="h-4 w-4 mr-2" /> Generate Auth Code
-                        </Button>
-                    </DialogTrigger>
-                    <GenerateAuthCodeDialog onClose={() => setIsGenerateCodeDialogOpen(false)} />
-                </Dialog>
-            )}
-
-            {/* Add New User Button */}
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button>
-                        <UserPlus className="h-4 w-4 mr-2" /> Add New User
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Create New Staff Account</DialogTitle>
-                    </DialogHeader>
-                    <NewStaffUserForm 
-                        onSuccess={handleAddSuccess} 
-                        onClose={() => setIsAddDialogOpen(false)} 
-                    />
-                </DialogContent>
-            </Dialog>
-        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <UserPlus className="h-4 w-4 mr-2" /> Add New User
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>Create New Staff Account</DialogTitle>
+                </DialogHeader>
+                <NewStaffUserForm 
+                    onSuccess={handleAddSuccess} 
+                    onClose={() => setIsAddDialogOpen(false)} 
+                />
+            </DialogContent>
+        </Dialog>
       </div>
       <p className="text-muted-foreground">Manage roles, approval status, and credentials for all staff accounts. New signups appear here as 'Pending' until approved.</p>
 

@@ -1,20 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { PipelineDistribution, TimeFilter } from '@/lib/types';
+import { PipelineDistribution } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
-interface PipelineProgressChartProps {
-    timeFilter: TimeFilter; // NEW PROP
-    foreignAgencyFilter?: string; // NEW PROP
-}
-
-const PipelineProgressChart: React.FC<PipelineProgressChartProps> = ({ timeFilter, foreignAgencyFilter }) => {
+const PipelineProgressChart: React.FC = () => {
   const { data: distribution, isLoading } = useQuery<PipelineDistribution[]>({
-    queryKey: ['pipelineDistribution', timeFilter, foreignAgencyFilter], // ADD foreignAgencyFilter to query key
-    queryFn: () => api.getPipelineDistribution(timeFilter, foreignAgencyFilter), // PASS foreignAgencyFilter
+    queryKey: ['pipelineDistribution'],
+    queryFn: api.getPipelineDistribution,
     initialData: [],
   });
 

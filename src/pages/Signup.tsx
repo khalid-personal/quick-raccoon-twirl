@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, UserPlus } from 'lucide-react';
-import { api } from '@/lib/api'; // NEW IMPORT
 
 const Signup: React.FC = () => {
   const { signup, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -35,25 +34,15 @@ const Signup: React.FC = () => {
     }
     
     setIsSigningUp(true);
-    try {
-        // Validate the authorization code first
-        const validatedCode = await api.validateAuthorizationCode(authCode.trim());
-        
-        // If validation passes, proceed with signup
-        const { error } = await signup(email, pin, authCode.trim());
-        
-        if (error) {
-            toast.error(`Registration failed: ${error.message}`);
-            console.error("Supabase Signup Error:", error);
-        } else {
-            toast.success("Registration successful! Your account is pending admin review. You will be notified once approved.");
-            navigate('/login');
-        }
-    } catch (error) {
-        toast.error(`Authorization Code Error: ${(error as Error).message}`);
-        console.error("Authorization Code Validation Error:", error);
-    } finally {
-        setIsSigningUp(false);
+    const { error } = await signup(email, pin, authCode.trim());
+    setIsSigningUp(false);
+
+    if (error) {
+        toast.error(`Registration failed: ${error.message}`);
+        console.error("Supabase Signup Error:", error);
+    } else {
+        toast.success("Registration successful! Your account is pending admin review. You will be notified once approved.");
+        navigate('/login');
     }
   };
   

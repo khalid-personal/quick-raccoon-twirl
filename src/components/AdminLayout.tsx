@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, ScrollText, CalendarCheck } from 'lucide-react';
+import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -19,15 +19,13 @@ interface NavLinkProps {
     icon: React.ReactNode;
     label: string;
     isActive: boolean;
-    isSuperadminOnly?: boolean; // Changed from isSuperAdminRoute
+    isSuperAdminRoute?: boolean;
     userRole: UserRole | null;
-    userEmail: string | undefined; // Added userEmail
     unreadCount?: number;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperadminOnly = false, userRole, userEmail, unreadCount = 0 }) => {
-    // Only render if not superadmin-only OR if it is superadmin-only AND the user is the superadmin
-    if (isSuperadminOnly && (userRole !== 'admin' || userEmail !== 'admin@agency.com')) {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0 }) => {
+    if (isSuperAdminRoute && userRole !== 'admin') {
         return null;
     }
     
@@ -53,13 +51,13 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperadm
 };
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { logout, userRole, user } = useAuth(); // Get user object
+  const { logout, userRole } = useAuth();
   const location = useLocation();
   const addisAbabaTime = useAddisAbabaTime();
   
-  const isSuperAdmin = userRole === 'admin' && user?.email === 'admin@agency.com'; // Define Superadmin explicitly
+  const isSuperAdmin = userRole === 'admin';
   
-  // 1. Fetch inbox summary for unread chat count
+  // Fetch inbox summary for unread count
   const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
     queryKey: ['adminInboxSummary'],
     queryFn: api.getAdminInboxSummary,
@@ -67,30 +65,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     refetchInterval: 10000, // Poll for new messages
   });
   
-  const unreadChatCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
-  
-  // 2. Fetch unapproved staff count (only for admin)
-  const { data: unapprovedStaffCount = 0 } = useQuery<number>({
-    queryKey: ['unapprovedStaffCount'],
-    queryFn: api.getUnapprovedStaffCount,
-    enabled: userRole === 'admin',
-    refetchInterval: 10000, // Poll for new signups
-  });
+  const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
   
   // Use a mock tracking code for easy testing of the public view
   const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
   
   const navItems = [
-    { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" /> },
-    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, unreadCount: unreadChatCount },
-    // Conditional attendance link based on role
-    isSuperAdmin 
-        ? { to: '/admin/all-attendance', label: 'All Attendance', icon: <CalendarCheck className="h-4 w-4" />, isSuperadminOnly: true }
-        : { to: '/admin/my-attendance', label: 'My Attendance', icon: <CalendarCheck className="h-4 w-4" /> },
-    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" /> },
-    { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperadminOnly: true },
-    { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperadminOnly: true, unreadCount: unapprovedStaffCount },
-    { to: '/admin/logs', label: 'Approval Log', icon: <ScrollText className="h-4 w-4" />, isSuperadminOnly: true },
+    { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
+    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
+    // Updated link to point to a specific candidate's tracking page for testing
+    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
+    { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
+    { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
   ];
 
   return (
@@ -116,9 +102,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       icon={item.icon}
                       label={item.label}
                       isActive={location.pathname === item.to}
-                      isSuperadminOnly={item.isSuperadminOnly}
+                      isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
-                      userEmail={user?.email}
                       unreadCount={item.unreadCount}
                     />
                   ))}
@@ -153,9 +138,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       icon={item.icon}
                       label={item.label}
                       isActive={location.pathname === item.to}
-                      isSuperadminOnly={item.isSuperadminOnly}
+                      isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
-                      userEmail={user?.email}
                       unreadCount={item.unreadCount}
                     />
                 ))}

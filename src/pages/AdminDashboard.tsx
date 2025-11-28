@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { CandidateSummary, CandidateSortField, SortDirection, TimeFilter } from '@/lib/types';
+import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle, Calendar } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
 import ProgressIndicator from '@/components/ProgressIndicator';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import PipelineProgressChart from '@/components/PipelineProgressChart';
-import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart';
+import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart'; // NEW IMPORT
 import { cn } from '@/lib/utils';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
@@ -26,8 +26,7 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
 };
 
-const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER';
-const TIME_FILTER_OPTIONS: TimeFilter[] = ['All', 'Month', 'Bi-Yearly', 'Yearly'];
+const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
 
 interface SortableHeaderProps {
   field: CandidateSortField;
@@ -56,14 +55,13 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole, user, isLoading: isAuthLoading, userForeignAgency } = useAuth(); // NEW: Get userForeignAgency
-  const isSuperAdmin = userRole === 'admin' && user?.email === 'admin@agency.com'; // Define Superadmin explicitly
+  const { userRole } = useAuth();
+  const isSuperAdmin = userRole === 'admin';
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
   const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('All');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   // Sorting state
@@ -71,20 +69,15 @@ const AdminDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
-  
-  // Determine the foreign agency filter to apply
-  const foreignAgencyFilter = isSuperAdmin ? undefined : userForeignAgency; // Only apply if not Superadmin
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter, foreignAgencyFilter], // Add foreignAgencyFilter to key
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection],
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
       effectiveFilterBatch,
       sortBy,
-      sortDirection,
-      timeFilter,
-      foreignAgencyFilter // Pass foreignAgencyFilter
+      sortDirection
     ),
     initialData: [],
   });
@@ -115,12 +108,6 @@ const AdminDashboard: React.FC = () => {
     setSearchQuery('');
   };
   
-  const handleTimeFilterSelect = (filter: TimeFilter) => {
-    setTimeFilter(filter);
-    setCurrentQuery(''); 
-    setSearchQuery('');
-  };
-  
   const handleSort = (field: CandidateSortField) => {
     if (field === sortBy) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -129,19 +116,6 @@ const AdminDashboard: React.FC = () => {
       setSortDirection('asc');
     }
   };
-  
-  if (isAuthLoading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  // Redirect Agency users who somehow land on /admin
-  if (userRole === 'agency') {
-      return <Navigate to="/agency/dashboard" replace />;
-  }
 
   return (
     <div className="space-y-6">
@@ -168,35 +142,15 @@ const AdminDashboard: React.FC = () => {
         </Dialog>
       </div>
       
-      {/* Time Filter Selector */}
-      <div className="flex justify-end">
-        <Select
-          value={timeFilter}
-          onValueChange={handleTimeFilterSelect}
-        >
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Filter by Time" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIME_FILTER_OPTIONS.map(filter => (
-              <SelectItem key={filter} value={filter}>
-                {filter}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
       {/* Superadmin Pipeline Chart */}
       {isSuperAdmin && (
-        <PipelineProgressChart timeFilter={timeFilter} foreignAgencyFilter={foreignAgencyFilter} /> // Pass foreignAgencyFilter
+        <PipelineProgressChart />
       )}
       
       {/* Payment Analytics Chart (Visible to all staff/admin) */}
-      <PaymentAnalyticsChart timeFilter={timeFilter} foreignAgencyFilter={foreignAgencyFilter} /> // Pass foreignAgencyFilter
+      <PaymentAnalyticsChart />
 
-      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} timeFilter={timeFilter} />
+      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />
 
       <Card>
         <CardHeader>
@@ -263,7 +217,7 @@ const AdminDashboard: React.FC = () => {
                       label="Name" 
                       onSort={handleSort} 
                     />
-                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead>
+                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead> {/* NEW HEADER */}
                     <SortableHeader 
                       field="tracking_code" 
                       currentSort={sortBy} 
@@ -273,6 +227,7 @@ const AdminDashboard: React.FC = () => {
                     />
                     <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
+                    {/* Removed Phone column */}
                     <SortableHeader 
                       field="country_of_origin" 
                       currentSort={sortBy} 
@@ -280,7 +235,6 @@ const AdminDashboard: React.FC = () => {
                       label="Origin" 
                       onSort={handleSort} 
                     />
-                    {isSuperAdmin && <TableHead>Foreign Agency</TableHead>} {/* NEW: Foreign Agency Header */}
                     <SortableHeader 
                       field="progress_percent" 
                       currentSort={sortBy} 
@@ -318,6 +272,7 @@ const AdminDashboard: React.FC = () => {
                         </Link>
                       </TableCell>
                       
+                      {/* Fees Paid Cell (Now clickable via the icons) */}
                       <TableCell className="text-center">
                         <Link 
                           to={`/admin/candidate/${candidate.id}?tab=medical`} 
@@ -329,12 +284,14 @@ const AdminDashboard: React.FC = () => {
                               "h-4 w-4", 
                               candidate.is_initial_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
+                            title={candidate.is_initial_medical_paid ? "Initial Medical Paid" : "Initial Medical Fee Due"}
                           />
                           <CheckCircle 
                             className={cn(
                               "h-4 w-4", 
                               candidate.is_final_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
+                            title={candidate.is_final_medical_paid ? "Final Medical Paid" : "Final Medical Fee Due"}
                           />
                         </Link>
                       </TableCell>
@@ -346,8 +303,8 @@ const AdminDashboard: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
+                      {/* Removed Phone cell */}
                       <TableCell>{candidate.country_of_origin}</TableCell>
-                      {isSuperAdmin && <TableCell>{candidate.foreign_agency || 'N/A'}</TableCell>} {/* NEW: Foreign Agency Cell */}
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
                       </TableCell>

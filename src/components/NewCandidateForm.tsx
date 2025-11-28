@@ -4,24 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, PlusCircle, Shuffle, GraduationCap, PlaneTakeoff, Eye } from 'lucide-react';
+import { Loader2, PlusCircle, Shuffle, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Candidate, CandidateDetail, ALL_STAGES } from '@/lib/types'; // Import CandidateDetail and ALL_STAGES
+import { DialogFooter } from '@/components/ui/dialog';
+import { Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
-import { Separator } from '@/components/ui/separator';
-import { v4 as uuidv4 } from 'uuid'; // Import uuid for mock ID
-import { generateInitialStages } from '@/lib/data-seed'; // Import for mock stages
-import CandidateProfilePreview from './CandidateProfilePreview'; // NEW IMPORT
-import PassportPhotoInput from './PassportPhotoInput'; // NEW IMPORT
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
 const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
-const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
 
 // Helper function to check if DOB is 18+
 const isAdult = (dob: string): boolean => {
@@ -44,12 +38,10 @@ const NewCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_agency: z.string().min(1, "COC Agency is required."),
-  foreign_agency: z.string().optional(), // NEW FIELD: Optional on creation
+  coc_agency: z.string().min(1, "COC Agency is required."), // NEW FIELD
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
-  // profile_image_file: z.any().optional(), // No direct validation for file object here, handled by state
 }).superRefine((data, ctx) => {
   // Age validation
   if (data.dob && !isAdult(data.dob)) {
@@ -87,8 +79,7 @@ interface NewCandidateFormProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[];
-    foreignAgencies: string[]; // Added foreignAgencies
+    cocAgencies: string[]; // Added cocAgencies
 }
 
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
@@ -97,16 +88,15 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     queryFn: api.getBatches,
   });
   
-  // Fetch country, COC agency, and Foreign agency options from API
+  // Fetch country and COC agency options from API
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [] },
   });
   
   const countryOptions = config.countryOptions;
   const cocAgencies = config.cocAgencies;
-  const foreignAgencies = config.foreignAgencies; // NEW
   
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
@@ -122,8 +112,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       marital_status: 'Single',
       phone_number: '',
       email: '',
-      coc_agency: '',
-      foreign_agency: '', // Initialize new field
+      coc_agency: '', // Initialize COC agency
       new_batch_name: '',
     },
   });
@@ -134,10 +123,6 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const isCustomCountry = selectedCountry === 'Other';
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
   
-  const [profileImageFile, setProfileImageFile] = React.useState<File | null>(null); // NEW state for profile image
-  const [previewCandidate, setPreviewCandidate] = React.useState<CandidateDetail | null>(null);
-  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = React.useState(false);
-
   const handleSelectLeastUsed = async () => {
       try {
           const agency = await api.selectLeastUsedCocAgency();
@@ -146,58 +131,6 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       } catch (error) {
           toast.error((error as Error).message);
       }
-  };
-  
-  const handlePreview = async () => {
-    const isValid = await form.trigger(); // Validate all fields
-    if (isValid) {
-      const data = form.getValues();
-      const finalCountry = data.country_of_origin === 'Other' ? data.custom_country : data.country_of_origin;
-      let finalBatchName: string | undefined = undefined;
-      if (data.batch_name === NEW_BATCH_OPTION) {
-          finalBatchName = data.new_batch_name;
-      } else if (data.batch_name && data.batch_name !== NO_BATCH_OPTION) {
-          finalBatchName = data.batch_name;
-      }
-
-      // Generate mock profile_image_url for preview if a file is selected
-      const mockProfileImageUrl = profileImageFile ? URL.createObjectURL(profileImageFile) : undefined;
-
-      const mockCandidate: Candidate = {
-        id: uuidv4(), // Mock ID
-        first_name: data.first_name,
-        last_name: data.last_name,
-        dob: data.dob,
-        passport_number: data.passport_number,
-        tracking_code: data.tracking_code,
-        country_of_origin: finalCountry || '',
-        batch_name: finalBatchName,
-        marital_status: data.marital_status as Candidate['marital_status'],
-        phone_number: data.phone_number || undefined,
-        email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
-        profile_image_url: mockProfileImageUrl, // Use mock image URL for preview
-        created_at: new Date().toISOString(), // Mock creation date
-        updated_at: new Date().toISOString(), // Mock update date
-      };
-
-      // Generate initial stages for the preview
-      const initialStages = generateInitialStages(mockCandidate);
-
-      const mockCandidateDetail: CandidateDetail = {
-        ...mockCandidate,
-        stages: initialStages,
-        documents: [],
-        medical_results: [],
-        chat_messages: [],
-      };
-
-      setPreviewCandidate(mockCandidateDetail);
-      setIsPreviewDialogOpen(true);
-    } else {
-      toast.error("Please correct the errors in the form before previewing.");
-    }
   };
 
   const onSubmit = async (data: NewCandidateFormValues) => {
@@ -216,12 +149,6 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           finalBatchName = data.batch_name;
       }
 
-      // Handle profile image upload (mock)
-      let profileImageUrl: string | undefined = undefined;
-      if (profileImageFile) {
-        profileImageUrl = URL.createObjectURL(profileImageFile); // Simulate upload
-      }
-
       const newCandidate = await api.createCandidate({
         first_name: data.first_name,
         last_name: data.last_name,
@@ -233,9 +160,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency === NONE_SELECT_VALUE ? undefined : data.coc_agency, // Handle 'none'
-        foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
-        profile_image_url: profileImageUrl, // Pass the generated URL
+        coc_agency: data.coc_agency, // Include COC agency
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -256,255 +181,184 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   }
 
   return (
-    <>
-      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]"> {/* Added flex-col and max-h */}
-        <DialogHeader>
-          <DialogTitle>Create New Candidate Record</DialogTitle>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 flex-grow overflow-y-auto pr-2"> {/* Added flex-grow and overflow-y-auto */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Adjusted grid for photo */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name *</Label>
-                  <Input id="first_name" {...register('first_name')} />
-                  {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input id="last_name" {...register('last_name')} />
-                  {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
-                </div>
-              </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="first_name">First Name *</Label>
+          <Input id="first_name" {...register('first_name')} />
+          {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="last_name">Last Name *</Label>
+          <Input id="last_name" {...register('last_name')} />
+          {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
+        </div>
+      </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tracking_code">Tracking Code *</Label>
-                  <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
-                  {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country_of_origin">Country of Origin *</Label>
-                  <Select
-                    value={selectedCountry}
-                    onValueChange={(value) => {
-                      setValue('country_of_origin', value, { shouldValidate: true });
-                      if (value !== 'Other') {
-                        setValue('custom_country', '');
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="country_of_origin">
-                      <SelectValue placeholder="Select Country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countryOptions.map(country => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
-                </div>
-              </div>
-              
-              {isCustomCountry && (
-                <div className="space-y-2">
-                  <Label htmlFor="custom_country">Specify Country *</Label>
-                  <Input id="custom_country" {...register('custom_country')} />
-                  {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
-                </div>
-              )}
-            </div>
-            
-            {/* Passport Photo Input */}
-            <div className="md:col-span-1 flex justify-center items-start pt-4 md:pt-0">
-              <PassportPhotoInput 
-                value={profileImageFile} 
-                onChange={setProfileImageFile} 
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="tracking_code">Tracking Code *</Label>
+          <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
+          {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="country_of_origin">Country of Origin *</Label>
+          <Select
+            value={selectedCountry}
+            onValueChange={(value) => {
+              setValue('country_of_origin', value, { shouldValidate: true });
+              if (value !== 'Other') {
+                setValue('custom_country', '');
+              }
+            }}
+          >
+            <SelectTrigger id="country_of_origin">
+              <SelectValue placeholder="Select Country" />
+            </SelectTrigger>
+            <SelectContent>
+              {countryOptions.map(country => (
+                <SelectItem key={country} value={country}>
+                  {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
+        </div>
+      </div>
+      
+      {isCustomCountry && (
+        <div className="space-y-2">
+          <Label htmlFor="custom_country">Specify Country *</Label>
+          <Input id="custom_country" {...register('custom_country')} />
+          {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
+        </div>
+      )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="passport_number">Passport Number *</Label>
-              <Input id="passport_number" {...register('passport_number')} />
-              {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
-              <Input id="dob" type="date" {...register('dob')} />
-              {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
-            </div>
-          </div>
-          
-          {/* Marital Status Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="marital_status">Marital Status *</Label>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="passport_number">Passport Number *</Label>
+          <Input id="passport_number" {...register('passport_number')} />
+          {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
+          <Input id="dob" type="date" {...register('dob')} />
+          {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
+        </div>
+      </div>
+      
+      {/* COC Agency Selection */}
+      <div className="space-y-2 border-t pt-4">
+        <Label htmlFor="coc_agency" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+        </Label>
+        <div className="flex gap-2">
             <Select
-              value={watch('marital_status')}
-              onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
-            >
-              <SelectTrigger id="marital_status">
-                <SelectValue placeholder="Select Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {MARITAL_STATUS_OPTIONS.map(status => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
-          </div>
-          
-          <Separator className="my-6" />
-          <h3 className="text-lg font-semibold border-b pb-2">Agency & Batch Details</h3>
-          
-          {/* COC Agency Selection */}
-          <div className="space-y-2 pt-4">
-            <Label htmlFor="coc_agency" className="flex items-center">
-                <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
-            </Label>
-            <div className="flex gap-2">
-                <Select
-                    value={watch('coc_agency')}
-                    onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
-                    disabled={isSubmitting}
-                >
-                    <SelectTrigger id="coc_agency">
-                        <SelectValue placeholder="Select COC Agency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
-                        {cocAgencies.map(agency => (
-                            <SelectItem key={agency} value={agency}>
-                                {agency}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={handleSelectLeastUsed}
-                    disabled={isSubmitting || cocAgencies.length === 0}
-                    title="Select Least Used Agency (Mock Load Balancer)"
-                >
-                    <Shuffle className="h-4 w-4" />
-                </Button>
-            </div>
-            {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
-          </div>
-          
-          {/* Foreign Agency Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="foreign_agency" className="flex items-center">
-                <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
-            </Label>
-            <Select
-                value={watch('foreign_agency')}
-                onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
+                value={watch('coc_agency')}
+                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
                 disabled={isSubmitting}
             >
-                <SelectTrigger id="foreign_agency">
-                    <SelectValue placeholder="Select Foreign Agency" />
+                <SelectTrigger id="coc_agency">
+                    <SelectValue placeholder="Select COC Agency" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem> {/* Changed value="" to "none" */}
-                    {foreignAgencies.map(agency => (
+                    {cocAgencies.map(agency => (
                         <SelectItem key={agency} value={agency}>
                             {agency}
                         </SelectItem>
                     ))}
                 </SelectContent>
             </Select>
-            {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
-          </div>
-          
-          {/* Batch Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="batch_name">Batch Group (Optional)</Label>
-            <Select
-              value={selectedBatch}
-              onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
-            >
-              <SelectTrigger id="batch_name">
-                <SelectValue placeholder="Select or Create Batch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
-                {activeBatches.map(batch => (
-                  <SelectItem key={batch} value={batch}>
-                    {batch}
-                  </SelectItem>
-                ))}
-                <SelectItem value={NEW_BATCH_OPTION}>
-                  + Create New Batch
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
-          </div>
-          
-          {isCreatingNewBatch && (
-            <div className="space-y-2 pl-4 border-l-2 border-primary">
-              <Label htmlFor="new_batch_name">New Batch Name *</Label>
-              <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
-              {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
-            </div>
-          )}
-          
-          <Separator className="my-6" />
-          <h3 className="text-lg font-semibold border-b pb-2">Candidate Login Credentials</h3>
-
-          {/* Email Input for Candidate Login */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Candidate Email (Login) *</Label>
-            <Input id="email" {...register('email')} placeholder="candidate@example.com" />
-            {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-          </div>
-          
-          {/* Phone Number Input */}
-          <div className="space-y-2">
-            <Label htmlFor="phone_number">Phone Number (Optional)</Label>
-            <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
-            {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
-          </div>
-
-          <DialogFooter className="pt-4 flex justify-between">
             <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handlePreview} 
-              disabled={isSubmitting}
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                onClick={handleSelectLeastUsed}
+                disabled={isSubmitting || cocAgencies.length === 0}
+                title="Select Least Used Agency (Mock Load Balancer)"
             >
-              <Eye className="h-4 w-4 mr-2" /> Preview Profile
+                <Shuffle className="h-4 w-4" />
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-2" />}
-              Create Candidate
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+        </div>
+        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
+      </div>
+      
+      {/* Email Input for Candidate Login */}
+      <div className="space-y-2">
+        <Label htmlFor="email">Candidate Email (Login) *</Label>
+        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+      </div>
+      
+      {/* Phone Number Input */}
+      <div className="space-y-2">
+        <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+        <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
+        {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
+      </div>
+      
+      {/* Marital Status Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="marital_status">Marital Status *</Label>
+        <Select
+          value={watch('marital_status')}
+          onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
+        >
+          <SelectTrigger id="marital_status">
+            <SelectValue placeholder="Select Status" />
+          </SelectTrigger>
+          <SelectContent>
+            {MARITAL_STATUS_OPTIONS.map(status => (
+              <SelectItem key={status} value={status}>
+                {status}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
+      </div>
+      
+      {/* Batch Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="batch_name">Batch Group (Optional)</Label>
+        <Select
+          value={selectedBatch}
+          onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
+        >
+          <SelectTrigger id="batch_name">
+            <SelectValue placeholder="Select or Create Batch" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
+            {activeBatches.map(batch => (
+              <SelectItem key={batch} value={batch}>
+                {batch}
+              </SelectItem>
+            ))}
+            <SelectItem value={NEW_BATCH_OPTION}>
+              + Create New Batch
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
+      </div>
+      
+      {isCreatingNewBatch && (
+        <div className="space-y-2 pl-4 border-l-2 border-primary">
+          <Label htmlFor="new_batch_name">New Batch Name *</Label>
+          <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
+          {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
+        </div>
+      )}
 
-      {/* Preview Dialog */}
-      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Candidate Profile Preview</DialogTitle>
-          </DialogHeader>
-          {previewCandidate && <CandidateProfilePreview candidate={previewCandidate} />}
-        </DialogContent>
-      </Dialog>
-    </>
+      <DialogFooter className="pt-4">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+          Create Candidate
+        </Button>
+      </DialogFooter>
+    </form>
   );
 };
 

@@ -7,9 +7,7 @@ import * as UserManagement from './user-management';
 import * as MedicalManagement from './medical-management';
 import * as PaymentManagement from './payment-management';
 import * as TrackingQueries from './tracking-queries';
-import * as ChatManagement from './chat-management';
-import * as LogManagement from './log-management';
-import * as StaffManagement from './staff-management';
+import * as ChatManagement from './chat-management'; // NEW IMPORT
 
 // Combine all modules into a single API object
 export const api = {
@@ -22,7 +20,5 @@ export const api = {
     ...MedicalManagement,
     ...PaymentManagement,
     ...TrackingQueries,
-    ...ChatManagement,
-    ...LogManagement,
-    ...StaffManagement,
+    ...ChatManagement, // NEW
 };

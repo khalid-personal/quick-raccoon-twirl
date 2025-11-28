@@ -12,16 +12,10 @@ import AuthPage from "./pages/AuthPage";
 import Signup from "./pages/Signup"; 
 import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
-import AdminChatViewer from "./pages/AdminChatViewer";
-import MyAttendancePage from "./pages/MyAttendancePage";
-import AdminAllAttendancePage from "./pages/AdminAllAttendancePage";
-import AdminApprovalLog from "./pages/AdminApprovalLog";
-import AgencyDashboard from "./pages/AgencyDashboard";
-import AgencyStagedCandidates from "./pages/AgencyStagedCandidates"; // NEW IMPORT
+import AdminChatViewer from "./pages/AdminChatViewer"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
-import AgencyLayout from "./components/AgencyLayout"; // NEW IMPORT
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react'; // Added Loader2 import
 
 const queryClient = new QueryClient();
 
@@ -33,7 +27,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  if (!isAuthenticated || userRole === 'candidate' || userRole === 'agency') {
+  if (!isAuthenticated || userRole === 'candidate') {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -55,19 +49,6 @@ const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
-// Component to protect Agency routes
-const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, userRole, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-  
-  if (!isAuthenticated || userRole !== 'agency') {
-    return <Navigate to="/login?tab=agency" replace />;
-  }
-  return children;
-};
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -125,26 +106,6 @@ const AppRoutes = () => (
         } 
       />
       <Route 
-        path="/admin/my-attendance"
-        element={
-          <ProtectedRoute>
-            <AdminLayout>
-              <MyAttendancePage />
-            </AdminLayout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/admin/all-attendance"
-        element={
-          <ProtectedRoute>
-            <AdminLayout>
-              <AdminAllAttendancePage />
-            </AdminLayout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
         path="/admin/settings" 
         element={
           <ProtectedRoute>
@@ -164,42 +125,13 @@ const AppRoutes = () => (
           </ProtectedRoute>
         } 
       />
-      <Route 
-        path="/admin/logs" 
-        element={
-          <ProtectedRoute>
-            <AdminLayout>
-              <AdminApprovalLog />
-            </AdminLayout>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Agency Routes (Protected) */}
-      <Route 
-        path="/agency/dashboard" 
-        element={
-          <AgencyProtectedRoute>
-            <AgencyDashboard />
-          </AgencyProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/agency/staged-candidates" 
-        element={
-          <AgencyProtectedRoute>
-            <AgencyLayout> {/* Use AgencyLayout for this page */}
-              <AgencyStagedCandidates />
-            </AgencyLayout>
-          </AgencyProtectedRoute>
-        } 
-      />
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   </BrowserRouter>
 );
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

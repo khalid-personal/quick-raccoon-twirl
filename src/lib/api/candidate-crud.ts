@@ -1,10 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Candidate, CandidateDetail, ALL_STAGES } from '../types';
+import { Candidate, CandidateDetail } from '../types';
 import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages } from '../data-store';
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
-import { recordApprovalLog } from './log-management'; // Import for logging
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
@@ -23,10 +22,8 @@ export const getCandidateDetail = async (candidateId: string): Promise<Candidate
     return {
         ...candidate,
         stages: stages.sort((a, b) => {
-            const stageAObj = ALL_STAGES.find(s => s.id === a.stage_id);
-            const stageBObj = ALL_STAGES.find(s => s.id === b.stage_id);
-            const stageA = stageAObj?.ordinal || 0;
-            const stageB = stageBObj?.ordinal || 0;
+            const stageA = getStageId(a.stage_id.toString())?.ordinal || 0;
+            const stageB = getStageId(b.stage_id.toString())?.ordinal || 0;
             return stageA - stageB;
         }),
         medical_results,
@@ -90,7 +87,7 @@ export const updateCandidateDetails = async (candidateId: string, data: Candidat
         ...existingCandidate,
         ...data,
         updated_at: new Date().toISOString(),
-    } as Candidate;
+    } as Candidate; // Cast back to Candidate to satisfy return type
 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
@@ -124,7 +121,7 @@ export const createCandidate = async (data: CandidateCreationData): Promise<Cand
         id: uuidv4(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-    } as Candidate;
+    } as Candidate; // Cast back to Candidate to satisfy return type
 
     candidates.push(newCandidate);
     saveCandidates(candidates);
@@ -182,7 +179,7 @@ export const updateCandidateCredentials = async (candidateId: string, newEmail: 
 
     // Check for duplicate email if changing
     if (newEmail.toLowerCase() !== existingCandidate.email.toLowerCase() && candidates.some(c => c.email.toLowerCase() === newEmail.toLowerCase())) {
-        throw new Error(`Email '${newEmail}' already exists by another candidate.`);
+        throw new Error(`Email '${newEmail}' is already registered by another candidate.`);
     }
 
     const updatedCandidate = {
@@ -197,43 +194,5 @@ export const updateCandidateCredentials = async (candidateId: string, newEmail: 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
     
-    return updatedCandidate;
-};
-
-// NEW: Agency matches a candidate
-export const matchCandidateToAgency = async (
-    candidateId: string,
-    agencyName: string,
-    actorId: string, // Agency user ID
-    actorEmail: string // Agency user email
-): Promise<Candidate> => {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const candidates = getCandidates();
-    const index = candidates.findIndex(c => c.id === candidateId);
-
-    if (index === -1) {
-        throw new Error('Candidate not found.');
-    }
-
-    const existingCandidate = candidates[index];
-
-    if (existingCandidate.foreign_agency && existingCandidate.foreign_agency !== agencyName) {
-        throw new Error(`Candidate is already matched with another agency: ${existingCandidate.foreign_agency}.`);
-    }
-    if (existingCandidate.foreign_agency === agencyName) {
-        throw new Error(`Candidate is already matched with ${agencyName}.`);
-    }
-
-    const updatedCandidate: Candidate = {
-        ...existingCandidate,
-        foreign_agency: agencyName,
-        updated_at: new Date().toISOString(),
-    };
-
-    candidates[index] = updatedCandidate;
-    saveCandidates(candidates);
-
-    await recordApprovalLog(actorId, actorEmail, 'CandidateDetail', candidateId, 'Updated', `Candidate ${existingCandidate.tracking_code} matched to foreign agency: ${agencyName}.`);
-
     return updatedCandidate;
 };

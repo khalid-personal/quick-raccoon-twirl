@@ -1,5 +1,4 @@
-import { CandidateStage, CandidateSummary, TOTAL_STAGES, TimeFilter } from './types';
-import { subMonths, subYears, startOfMonth, startOfYear, startOfToday } from 'date-fns';
+import { CandidateStage, CandidateSummary, TOTAL_STAGES } from './types';
 
 // Helper function to check if DOB is 18+
 export const isAdult = (dob: string): boolean => {
@@ -8,23 +7,6 @@ export const isAdult = (dob: string): boolean => {
     const ageDate = new Date(ageDiffMs);
     return Math.abs(ageDate.getUTCFullYear() - 1970) >= 18;
 };
-
-// --- Time Filtering Utility ---
-
-export function getFilterStartDate(filter: TimeFilter): Date | null {
-    const today = startOfToday();
-    switch (filter) {
-        case 'Month':
-            return startOfMonth(today);
-        case 'Bi-Yearly':
-            return subMonths(today, 6);
-        case 'Yearly':
-            return startOfYear(today);
-        case 'All':
-        default:
-            return null; // No filter
-    }
-}
 
 // --- Progress Calculation Utility ---
 

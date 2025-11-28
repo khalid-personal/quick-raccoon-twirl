@@ -1,32 +1,17 @@
 export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
-export type UserRole = 'admin' | 'staff' | 'candidate' | 'agency'; // Added 'agency' role
-
-// NEW: Authorization Code Interface
-export interface AuthorizationCode {
-  code: string;
-  coc_agency_name?: string; // Optional, if the code is for a specific COC agency
-  foreign_agency_name?: string; // Optional, if the code is for a specific Foreign agency
-  created_by_admin_id: string;
-  created_at: string;
-  expires_at?: string; // Optional expiry date
-  is_active: boolean;
-  usage_count: number; // How many times it has been used
-  max_uses?: number; // Max times it can be used
-}
+export type UserRole = 'admin' | 'staff' | 'candidate'; // Removed 'viewer'
 
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
   email: string;
-  role: Exclude<UserRole, 'candidate' | 'agency'>; // admin, staff
+  role: Exclude<UserRole, 'candidate'>; // admin, staff
   is_approved: boolean;
   created_at: string;
-  auth_code_used?: string; // NEW: Store the authorization code used for signup
-  foreign_agency?: string; // NEW: Optional foreign agency this staff user is associated with
 }
 
-export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate' | 'agency'>> = ['admin', 'staff']; // Updated STAFF_ROLES
+export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff']; // Removed 'viewer'
 
 export interface Stage {
   id: number;
@@ -83,8 +68,6 @@ export interface Candidate {
   phone_number?: string; // NEW FIELD
   email: string; // NEW FIELD: Candidate login email
   coc_agency?: string; // NEW FIELD: COC Training Agency
-  foreign_agency?: string; // NEW FIELD: Matched Foreign Employment Agency
-  profile_image_url?: string; // NEW FIELD: Candidate profile image URL
   created_at: string;
   updated_at: string;
 }
@@ -101,30 +84,6 @@ export interface ChatMessage {
     timestamp: string; // ISO date string
     is_read_by_admin: boolean;
     is_read_by_candidate: boolean;
-    candidate?: Candidate; // NEW: Optional candidate object for hydrated views
-}
-
-// NEW: Attendance Types
-export interface AttendanceRecord {
-    id: string;
-    staff_id: string;
-    staff_email: string;
-    check_in_time: string; // ISO date string
-    check_out_time?: string; // ISO date string
-}
-
-// NEW: Approval Log Types
-export type ApprovalAction = 'Approved' | 'Rejected' | 'Updated' | 'Created';
-
-export interface ApprovalLog {
-  id: string;
-  timestamp: string;
-  actor_id: string; // ID of the admin/staff performing the action
-  actor_email: string;
-  target_type: 'StaffUser' | 'CandidateDetail' | 'Stage' | 'MedicalResult' | 'Config' | 'AuthorizationCode'; // Added AuthorizationCode
-  target_id: string; // ID of the entity being modified (e.g., user ID, candidate ID, 'global_config')
-  action: ApprovalAction;
-  description: string;
 }
 
 // Combined data structure for Admin view
@@ -195,9 +154,6 @@ export interface PaymentAnalytics {
         paidCandidates: number;
     }>;
 }
-
-// NEW: Time Filter Type
-export type TimeFilter = 'All' | 'Month' | 'Bi-Yearly' | 'Yearly';
 
 // --- Sorting Types ---
 export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status';
