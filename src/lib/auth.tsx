@@ -41,15 +41,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null, foreignAgency: string | null, cocAgency: string | null }> => {
-    if (!user || !user.email) return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null };
+    if (!user || !user.email) {
+        console.log("[AUTH] determineRole: No user or email, returning null role.");
+        return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null };
+    }
     
     const email = user.email.toLowerCase();
-    console.log(`[AUTH] Determining role for email: ${email}`);
+    console.log(`[AUTH] determineRole: Attempting to determine role for email: ${email}`);
     
     // 1. Check for Candidate role
     const candidate = await api.getCandidateByEmail(email);
     if (candidate) {
-        console.log(`[AUTH] Role determined: candidate (${candidate.tracking_code})`);
+        console.log(`[AUTH] determineRole: Role determined: candidate (${candidate.tracking_code})`);
         return { role: 'candidate', trackingCode: candidate.tracking_code, foreignAgency: null, cocAgency: null };
     }
     
@@ -58,11 +61,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (staffUser) {
         if (!staffUser.is_approved) {
-            console.log(`[AUTH] Staff user ${email} is registered but not approved.`);
+            console.log(`[AUTH] determineRole: Staff user ${email} is registered but not approved. Treating as unauthenticated.`);
             // Treat unapproved staff as unauthenticated for access purposes
             return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 
         }
-        console.log(`[AUTH] Role determined: ${staffUser.role}, Foreign Agency: ${staffUser.foreign_agency || 'N/A'}, COC Agency: ${staffUser.coc_agency_name || 'N/A'}`);
+        console.log(`[AUTH] determineRole: Role determined: ${staffUser.role}, Foreign Agency: ${staffUser.foreign_agency || 'N/A'}, COC Agency: ${staffUser.coc_agency_name || 'N/A'}`);
         return { 
             role: staffUser.role, 
             trackingCode: null, 
@@ -72,24 +75,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     // 3. If user exists in Supabase but not in our mock store (e.g., new signup not yet seeded)
-    console.log(`[AUTH] User ${email} found in Supabase but not in mock staff store. Defaulting to unauthenticated.`);
+    console.log(`[AUTH] determineRole: User ${email} found in Supabase but not in mock staff store. Defaulting to unauthenticated.`);
     return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 
   };
   
   const updateAuthStatus = async (newSession: Session | null) => {
+    console.log("[AUTH] updateAuthStatus: Session changed. New session:", newSession);
     setSession(newSession);
     const user = newSession?.user ?? null;
     setUser(user);
     
     if (user) {
         const { role, trackingCode, foreignAgency, cocAgency } = await determineRole(user);
-        console.log(`[AUTH] Setting state: Role=${role}, TrackingCode=${trackingCode}, ForeignAgency=${foreignAgency}, COCAgency=${cocAgency}`);
+        console.log(`[AUTH] updateAuthStatus: Setting state: Role=${role}, TrackingCode=${trackingCode}, ForeignAgency=${foreignAgency}, COCAgency=${cocAgency}`);
         setUserRole(role);
         setCandidateTrackingCode(trackingCode);
         setUserForeignAgency(foreignAgency);
         setUserCocAgency(cocAgency); // Set COC agency
     } else {
-        console.log(`[AUTH] Setting state: Logged out`);
+        console.log(`[AUTH] updateAuthStatus: No user in session. Setting state: Logged out`);
         setUserRole(null);
         setCandidateTrackingCode(null);
         setUserForeignAgency(null);
@@ -99,6 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    console.log("[AUTH] AuthProvider: Initializing auth listener.");
     // 1. Fetch initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       updateAuthStatus(session);
@@ -107,24 +112,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log(`[AUTH] onAuthStateChange: Event received. Session:`, session);
         updateAuthStatus(session);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+        console.log("[AUTH] AuthProvider: Cleaning up auth listener.");
+        subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (identifier: string, pin: string) => {
     setIsLoading(true);
+    console.log(`[AUTH] login: Attempting login for identifier: ${identifier}`);
     
     let loginEmail = identifier.trim();
     
     // If identifier does not look like an email, treat it as a tracking code
     if (!loginEmail.includes('@')) {
+        console.log(`[AUTH] login: Identifier '${identifier}' is not an email. Looking up candidate by tracking code.`);
         const candidate = await api.getCandidateByTrackingCode(loginEmail);
         if (candidate) {
             loginEmail = candidate.email;
+            console.log(`[AUTH] login: Found candidate. Using email: ${loginEmail}`);
         } else {
+            console.log(`[AUTH] login: Candidate not found for tracking code '${identifier}'.`);
             setIsLoading(false);
             return { error: new Error("Invalid tracking code or email.") };
         }
@@ -137,16 +150,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     
     if (error) {
-        console.warn("Supabase Login failed. Attempting mock bypass for development.");
+        console.warn(`[AUTH] login: Supabase Login failed for ${loginEmail}. Error: ${error.message}. Attempting mock bypass for development.`);
         
         if (error.message.includes('Invalid login credentials') || error.message.includes('Network request failed')) {
             const mockUser = createMockUser(loginEmail);
+            console.log(`[AUTH] login: Created mock user for ${loginEmail}.`);
             
             // Check if this mock user is a known candidate or staff/admin
             const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === loginEmail.toLowerCase());
             const candidate = await api.getCandidateByEmail(loginEmail);
             
             if (candidate || staffUser) {
+                console.log(`[AUTH] login: Mock user ${loginEmail} found in local data store (candidate or staff). Simulating successful login.`);
                 // Manually set state to simulate successful login
                 const mockSession: Session = { 
                     user: mockUser, 
@@ -159,19 +174,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 
                 await updateAuthStatus(mockSession);
                 return { error: null };
+            } else {
+                console.log(`[AUTH] login: Mock user ${loginEmail} NOT found in local data store. Mock bypass failed.`);
             }
         }
         
-        console.error("Supabase Login Error Details:", error.message);
+        console.error("[AUTH] login: Supabase Login Error Details:", error.message);
         setIsLoading(false);
         return { error };
     }
     
+    console.log(`[AUTH] login: Supabase login successful for ${loginEmail}. Data:`, data);
     // If Supabase login succeeded, updateAuthStatus was called by the listener
     return { error: null };
   };
   
   const signup = async (email: string, pin: string, authCode: string) => {
+    console.log(`[AUTH] signup: Attempting signup for email: ${email}`);
     // 1. Attempt Supabase signup (for real auth flow)
     const { data, error } = await supabase.auth.signUp({
         email: email,
@@ -184,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     
     if (error) {
-        console.error("Supabase Signup Error Details:", error.message);
+        console.error("[AUTH] signup: Supabase Signup Error Details:", error.message);
         return { error };
     }
     
@@ -201,12 +220,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             created_at: new Date().toISOString(),
         };
         saveStaffUsers([...users, newUser]);
+        console.log(`[AUTH] signup: Mock staff user ${email} added to local store as unapproved.`);
+    } else {
+        console.log(`[AUTH] signup: User ${email} already exists in local staff store.`);
     }
     
     return { error: null };
   };
   
   const logout = async () => {
+    console.log("[AUTH] logout: Attempting to sign out.");
     await supabase.auth.signOut();
     // Clear state
     setUser(null);
@@ -216,9 +239,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserForeignAgency(null);
     setUserCocAgency(null); // Clear COC agency on logout
     setIsLoading(false);
+    console.log("[AUTH] logout: State cleared.");
   };
   
   const isAuthenticated = !!session;
+  console.log(`[AUTH] AuthProvider render: isAuthenticated=${isAuthenticated}, userRole=${userRole}, isLoading=${isLoading}`);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, userRole, user, isLoading, candidateTrackingCode, userForeignAgency, userCocAgency, login, signup, logout }}>
