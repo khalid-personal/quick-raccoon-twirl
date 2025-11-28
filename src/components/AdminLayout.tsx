@@ -81,12 +81,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadChatCount },
-    { to: '/admin/attendance', label: 'My Attendance', icon: <CalendarCheck className="h-4 w-4" />, isSuperAdminRoute: false }, // NEW ATTENDANCE LINK
-    // Updated link to point to a specific candidate's tracking page for testing
+    // Conditional attendance link based on role
+    isSuperAdmin 
+        ? { to: '/admin/all-attendance', label: 'All Attendance', icon: <CalendarCheck className="h-4 w-4" />, isSuperAdminRoute: true }
+        : { to: '/admin/my-attendance', label: 'My Attendance', icon: <CalendarCheck className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true, unreadCount: unapprovedStaffCount },
-    { to: '/admin/logs', label: 'Approval Log', icon: <ScrollText className="h-4 w-4" />, isSuperAdminRoute: true }, // NEW LOG LINK
+    { to: '/admin/logs', label: 'Approval Log', icon: <ScrollText className="h-4 w-4" />, isSuperAdminRoute: true },
   ];
 
   return (

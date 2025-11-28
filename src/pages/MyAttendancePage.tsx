@@ -23,7 +23,7 @@ const calculateDuration = (checkIn: string, checkOut?: string): string => {
     return `${hours}h ${minutes}m`;
 };
 
-const StaffAttendancePage: React.FC = () => {
+const MyAttendancePage: React.FC = () => {
   const { user, userRole, isLoading: isAuthLoading } = useAuth();
   
   const staffId = user?.id;
@@ -119,4 +119,4 @@ const StaffAttendancePage: React.FC = () => {
   );
 };
 
-export default StaffAttendancePage;
+export default MyAttendancePage;

@@ -13,9 +13,10 @@ import Signup from "./pages/Signup";
 import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
 import AdminChatViewer from "./pages/AdminChatViewer";
+import MyAttendancePage from "./pages/MyAttendancePage"; // RENAMED IMPORT
+import AdminAllAttendancePage from "./pages/AdminAllAttendancePage"; // NEW IMPORT
 import AdminApprovalLog from "./pages/AdminApprovalLog";
-import StaffAttendancePage from "./pages/StaffAttendancePage";
-import AgencyDashboard from "./pages/AgencyDashboard"; // NEW IMPORT
+import AgencyDashboard from "./pages/AgencyDashboard";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import { Loader2 } from 'lucide-react';
@@ -122,11 +123,21 @@ const AppRoutes = () => (
         } 
       />
       <Route 
-        path="/admin/attendance" 
+        path="/admin/my-attendance" // UPDATED ROUTE
         element={
           <ProtectedRoute>
             <AdminLayout>
-              <StaffAttendancePage />
+              <MyAttendancePage /> {/* UPDATED COMPONENT */}
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/all-attendance" // NEW ROUTE FOR SUPERADMIN
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminAllAttendancePage />
             </AdminLayout>
           </ProtectedRoute>
         } 
