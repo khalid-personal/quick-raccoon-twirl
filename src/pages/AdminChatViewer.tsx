@@ -27,7 +27,7 @@ const AdminChatViewer: React.FC = () => {
     );
   }
   
-  if (userRole !== 'admin' && userRole !== 'staff') {
+  if (userRole !== 'admin' && userRole !== 'staff' && userRole !== 'local-agency') { // Allow local-agency to view chat
     return <Navigate to="/admin" replace />;
   }
   
@@ -76,7 +76,7 @@ const AdminChatViewer: React.FC = () => {
                       <div className="min-w-0 flex-grow">
                         <div className="flex items-center space-x-2">
                             <span className="font-semibold text-lg truncate">{candidateName}</span>
-                            <Badge variant="secondary" className="text-xs font-mono flex-shrink-0">{msg.trackingCode || 'N/A'}</Badge>
+                            {msg.trackingCode && <Badge variant="secondary" className="text-xs font-mono flex-shrink-0">{msg.trackingCode}</Badge>}
                             {isUnread && <Badge className="bg-red-500 hover:bg-red-600 text-white flex-shrink-0">New</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground truncate mt-1">

@@ -16,7 +16,7 @@ import TrackingDetailsSection from './TrackingDetailsSection';
 import AgencyBatchDetailsSection from './AgencyBatchDetailsSection';
 import LoginCredentialsSection from './LoginCredentialsSection';
 import { NewCandidateSchema, NewCandidateFormValues, NEW_BATCH_OPTION, NO_BATCH_OPTION, isAdult } from './schema';
-import { useAuth } from '@/lib/auth'; // NEW IMPORT
+import { useAuth } from '@/lib/auth';
 
 interface NewCandidateFormProps {
   onSuccess: (candidate: Candidate) => void;

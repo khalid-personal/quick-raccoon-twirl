@@ -5,11 +5,19 @@ import { PaymentAnalytics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const PaymentAnalyticsChart: React.FC = () => {
+  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const isLocalAgency = userRole === 'local-agency';
+  const isAgency = userRole === 'agency';
+
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
-    queryKey: ['paymentAnalytics'],
-    queryFn: api.getPaymentAnalytics,
+    queryKey: ['paymentAnalytics', userForeignAgency, userCocAgency],
+    queryFn: ({ queryKey }) => {
+      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
+      return api.getPaymentAnalytics('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+    },
     initialData: { totalFeesDue: 0, totalFeesPaid: 0, stages: [] },
   });
 

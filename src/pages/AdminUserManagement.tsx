@@ -39,6 +39,8 @@ const AdminUserManagement: React.FC = () => {
   }
   
   const currentUserId = user?.id;
+  const actorId = user?.id || 'unknown-admin';
+  const actorEmail = user?.email || 'unknown-admin@agency.com';
 
   const { data: users = [], isLoading, refetch } = useQuery<StaffUser[]>({
     queryKey: ['staffUsers'],
@@ -48,7 +50,7 @@ const AdminUserManagement: React.FC = () => {
   // Mutation for quick approval/disapproval toggle
   const approvalMutation = useMutation({
     mutationFn: ({ userId, role, isApproved }: { userId: string, role: Exclude<UserRole, 'candidate'>, isApproved: boolean }) => {
-      return api.updateUserRole(userId, role, isApproved);
+      return api.updateUserRole(userId, role, isApproved, actorId, actorEmail);
     },
     onSuccess: (updatedUser) => {
       toast.success(`User ${updatedUser.email} approval status updated.`);

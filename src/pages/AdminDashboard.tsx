@@ -287,14 +287,12 @@ const AdminDashboard: React.FC = () => {
                               "h-4 w-4", 
                               candidate.is_initial_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
-                            title={candidate.is_initial_medical_paid ? "Initial Medical Paid" : "Initial Medical Fee Due"}
                           />
                           <CheckCircle 
                             className={cn(
                               "h-4 w-4", 
                               candidate.is_final_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
-                            title={candidate.is_final_medical_paid ? "Final Medical Paid" : "Final Medical Fee Due"}
                           />
                         </Link>
                       </TableCell>

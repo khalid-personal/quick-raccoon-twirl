@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, MessageSquare, CalendarDays, Landmark } from 'lucide-react';
+import { LogOut, Users, Home, MessageSquare, CalendarDays, Landmark, Menu } from 'lucide-react'; // NEW: Menu import
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';

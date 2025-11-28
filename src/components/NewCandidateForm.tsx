@@ -161,7 +161,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         phone_number: data.phone_number || undefined,
         email: data.email,
         coc_agency: data.coc_agency, // Include COC agency
-      });
+      }, 'mock-actor-id', 'mock-actor-email@example.com'); // Added actorId and actorEmail
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
       refetchBatches(); // Refresh batch list after creation
@@ -263,6 +263,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
                     <SelectValue placeholder="Select COC Agency" />
                 </SelectTrigger>
                 <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {cocAgencies.map(agency => (
                         <SelectItem key={agency} value={agency}>
                             {agency}

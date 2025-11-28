@@ -85,7 +85,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
                 return;
             }
         }
-        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved, actorId, actorEmail);
+        await api.updateUserRole(staffUser.id, data.role as Exclude<UserRole, 'candidate'>, staffUser.is_approved, actorId, actorEmail);
       }
       
       // Update Credentials (Email/PIN) and Agency Associations if changed

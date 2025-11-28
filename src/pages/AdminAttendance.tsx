@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { AttendanceRecord } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // NEW IMPORT
 import { Loader2, Clock, LogIn, LogOut, CalendarDays, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';

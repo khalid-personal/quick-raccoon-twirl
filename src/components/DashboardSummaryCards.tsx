@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { DashboardSummary, CandidateSummary } from '@/lib/types';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 interface SummaryCardProps {
   title: string;
@@ -31,9 +32,16 @@ interface DashboardSummaryCardsProps {
 }
 
 const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus }) => {
+  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const isLocalAgency = userRole === 'local-agency';
+  const isAgency = userRole === 'agency';
+
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
-    queryKey: ['dashboardSummary'],
-    queryFn: api.getDashboardSummary,
+    queryKey: ['dashboardSummary', userForeignAgency, userCocAgency],
+    queryFn: ({ queryKey }) => {
+      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
+      return api.getDashboardSummary('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+    },
     initialData: { total: 0, pending: 0, in_progress: 0, completed: 0, blocked: 0 },
   });
 

@@ -14,14 +14,18 @@ import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
 import NotificationSender from '@/components/NotificationSender';
 import AdminChatViewer from '@/components/AdminChatViewer';
-import { useAuth } from '@/lib/auth'; // NEW IMPORT
+import { useAuth } from '@/lib/auth';
+import { toast } from 'sonner'; // NEW IMPORT
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const { userRole, userCocAgency } = useAuth(); // Get user role and COC agency
+  const { userRole, userCocAgency, user } = useAuth(); // Get user role, COC agency, and user for logging
   
+  const actorId = user?.id || 'unknown-admin';
+  const actorEmail = user?.email || 'unknown-admin@agency.com';
+
   const initialTab = searchParams.get('tab') || 'timeline';
   const [activeTab, setActiveTab] = useState(initialTab);
   
@@ -41,7 +45,7 @@ const AdminCandidateDetail: React.FC = () => {
   const handleSendProfile = async () => {
     if (!candidate) return;
     try {
-      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency || 'N/A');
+      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency || 'N/A', actorId, actorEmail);
       toast.success(`Candidate profile for ${candidate.tracking_code} sent to foreign agency.`);
     } catch (error) {
       toast.error(`Failed to send profile: ${(error as Error).message}`);

@@ -5,11 +5,19 @@ import { PipelineDistribution } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const PipelineProgressChart: React.FC = () => {
-  const { data: distribution, isLoading } = useQuery<PipelineDistribution[]>({
-    queryKey: ['pipelineDistribution'],
-    queryFn: api.getPipelineDistribution,
+  const { userRole, userForeignAgency, userCocAgency } = useAuth();
+  const isLocalAgency = userRole === 'local-agency';
+  const isAgency = userRole === 'agency';
+
+  const { data: distribution = [], isLoading } = useQuery<PipelineDistribution[]>({
+    queryKey: ['pipelineDistribution', userForeignAgency, userCocAgency],
+    queryFn: ({ queryKey }) => {
+      const [, foreignAgencyFilter, cocAgencyFilter] = queryKey;
+      return api.getPipelineDistribution('All', foreignAgencyFilter as string | undefined, cocAgencyFilter as string | undefined);
+    },
     initialData: [],
   });
 

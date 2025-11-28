@@ -4,7 +4,7 @@ import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, sav
 import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
-import { recordApprovalLog } from './log-management'; // NEW IMPORT
+import { recordApprovalLog } from './log-management';
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
@@ -23,8 +23,8 @@ export const getCandidateDetail = async (candidateId: string): Promise<Candidate
     return {
         ...candidate,
         stages: stages.sort((a, b) => {
-            const stageA = getStageId(a.stage_id.toString())?.ordinal || 0;
-            const stageB = getStageId(b.stage_id.toString())?.ordinal || 0;
+            const stageA = getStageId(ALL_STAGES.find(s => s.id === a.stage_id)?.slug || '')?.ordinal || 0;
+            const stageB = getStageId(ALL_STAGES.find(s => s.id === b.stage_id)?.slug || '')?.ordinal || 0;
             return stageA - stageB;
         }),
         medical_results,

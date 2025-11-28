@@ -13,6 +13,7 @@ import { Navigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // NEW IMPORT
 
 interface AppConfig {
     countryOptions: string[];
@@ -46,7 +47,7 @@ const AdminAuthorizationCodes: React.FC = () => {
 
   const { data: authCodes = [], isLoading, refetch } = useQuery<AuthorizationCode[]>({
     queryKey: ['authorizationCodes'],
-    queryFn: api.getAuthorizationCodes,
+    queryFn: api.getAuthorizationCodes, // Corrected API call
   });
   
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({

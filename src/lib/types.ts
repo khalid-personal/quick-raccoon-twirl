@@ -89,6 +89,7 @@ export interface ChatMessage {
     timestamp: string; // ISO date string
     is_read_by_admin: boolean;
     is_read_by_candidate: boolean;
+    trackingCode?: string; // NEW: Added for AdminChatViewer summary
 }
 
 // NEW: Approval Log Type
@@ -97,7 +98,7 @@ export interface ApprovalLog {
     timestamp: string;
     actor_id: string;
     actor_email: string;
-    target_type: 'StaffUser' | 'AuthorizationCode' | 'Config';
+    target_type: 'StaffUser' | 'AuthorizationCode' | 'Config' | 'Candidate' | 'AttendanceRecord'; // Added 'Candidate' and 'AttendanceRecord'
     target_id: string; // ID of the user/code/config item affected
     action: 'Created' | 'Approved' | 'Rejected' | 'Updated' | 'Deleted';
     description: string;
