@@ -11,7 +11,7 @@ export interface StaffUser {
   created_at: string;
   auth_code_used?: string; // NEW: Store the authorization code used for signup
   foreign_agency?: string; // NEW: Link staff/agency users to a specific foreign agency
-  coc_agency_name?: string; // NEW: Link local-agency users to a specific COC agency
+  coc_agency_name?: string; // NEW: For 'local-agency' role, this links to the Local Agency (e.g., 'NuraLink') that employs the staff.
 }
 
 export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'agency', 'local-agency'];
@@ -116,7 +116,7 @@ export interface AttendanceRecord {
 // NEW: Authorization Code Type
 export interface AuthorizationCode {
     code: string;
-    coc_agency_name?: string; // Optional: Link to a specific COC agency
+    coc_agency_name?: string; // Optional: For 'local-agency' staff, this links to the Local Agency (e.g., 'NuraLink') that employs them.
     foreign_agency_name?: string; // Optional: Link to a specific foreign agency
     created_by_admin_id: string;
     created_at: string;
