@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage, ApprovalLog } from './types';
+import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord } from './types';
 
 // --- Configuration Types ---
 export interface AppConfig {
@@ -53,7 +53,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     phone_number: '+251911000001',
     email: 'aster.bekele@candidate.com', // Added email
     coc_agency: 'COC Training Center A',
-    created_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 90 * 86400000).toISOString(), // 3 months ago
     updated_at: new Date().toISOString(),
   },
   {
@@ -69,7 +69,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     phone_number: '+251911000002',
     email: 'mariam.tesfaye@candidate.com', // Added email
     coc_agency: 'COC Training Center B',
-    created_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString(), // 1.5 months ago
     updated_at: new Date().toISOString(),
   },
   {
@@ -85,7 +85,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     phone_number: '+25377000003',
     email: 'fatima.ali@candidate.com', // Added email
     coc_agency: 'COC Training Center C',
-    created_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 15 * 86400000).toISOString(), // 15 days ago
     updated_at: new Date().toISOString(),
   },
 ];
@@ -113,6 +113,10 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         
         const mockPhoneNumber = `+${Math.floor(100 + Math.random() * 900)}${String(Math.floor(10000000 + Math.random() * 90000000))}`;
         const mockEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${trackingCodeCounter}@candidate.com`;
+        
+        // Distribute creation dates over the last 6 months
+        const daysAgo = Math.floor(Math.random() * 180);
+        const createdAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
 
 
         newCandidates.push({
@@ -128,7 +132,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             phone_number: mockPhoneNumber,
             email: mockEmail, // Added email
             coc_agency: cocAgency,
-            created_at: new Date().toISOString(),
+            created_at: createdAt,
             updated_at: new Date().toISOString(),
         });
     }
@@ -249,6 +253,7 @@ export const SEED_MEDICAL_RESULTS: MedicalResult[] = [
 // Staff User Seed Data
 const MOCK_ADMIN_EMAIL = 'admin@agency.com';
 const MOCK_STAFF_EMAIL = 'staff@agency.com';
+const MOCK_STAFF_ID = uuidv4();
 
 export const SEED_STAFF_USERS: StaffUser[] = [
     {
@@ -259,7 +264,7 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         created_at: new Date().toISOString(),
     },
     {
-        id: uuidv4(),
+        id: MOCK_STAFF_ID,
         email: MOCK_STAFF_EMAIL,
         role: 'staff',
         is_approved: true,
@@ -330,5 +335,23 @@ export const SEED_APPROVAL_LOGS: ApprovalLog[] = [
         target_id: SEED_STAFF_USERS.find(u => u.email === 'pending@agency.com')!.id,
         action: 'Approved',
         description: "Approved pending@agency.com after verification.",
+    },
+];
+
+// NEW: Attendance Seed Data (Mocking a few past records for the staff user)
+export const SEED_ATTENDANCE: AttendanceRecord[] = [
+    {
+        id: uuidv4(),
+        staff_id: MOCK_STAFF_ID,
+        staff_email: MOCK_STAFF_EMAIL,
+        check_in_time: new Date(Date.now() - 2 * 86400000 - 8 * 3600000).toISOString(), // 2 days ago, 8am
+        check_out_time: new Date(Date.now() - 2 * 86400000 - 17 * 3600000).toISOString(), // 2 days ago, 5pm
+    },
+    {
+        id: uuidv4(),
+        staff_id: MOCK_STAFF_ID,
+        staff_email: MOCK_STAFF_EMAIL,
+        check_in_time: new Date(Date.now() - 1 * 86400000 - 9 * 3600000).toISOString(), // 1 day ago, 9am
+        check_out_time: new Date(Date.now() - 1 * 86400000 - 18 * 3600000).toISOString(), // 1 day ago, 6pm
     },
 ];

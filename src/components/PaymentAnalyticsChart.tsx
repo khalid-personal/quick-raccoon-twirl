@@ -1,15 +1,19 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { PaymentAnalytics } from '@/lib/types';
+import { PaymentAnalytics, TimeFilter } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
-const PaymentAnalyticsChart: React.FC = () => {
+interface PaymentAnalyticsChartProps {
+    timeFilter: TimeFilter; // NEW PROP
+}
+
+const PaymentAnalyticsChart: React.FC<PaymentAnalyticsChartProps> = ({ timeFilter }) => {
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
-    queryKey: ['paymentAnalytics'],
-    queryFn: api.getPaymentAnalytics,
+    queryKey: ['paymentAnalytics', timeFilter], // ADD timeFilter to query key
+    queryFn: () => api.getPaymentAnalytics(timeFilter), // PASS timeFilter
     initialData: { totalFeesDue: 0, totalFeesPaid: 0, stages: [] },
   });
 

@@ -1,6 +1,6 @@
-import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS } from './data-keys';
-import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS } from './data-seed';
+import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord } from './types';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS, LS_ATTENDANCE } from './data-keys';
+import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, AppConfig, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE } from './data-seed';
 
 // Define PaymentStatus interface locally for data store usage
 interface PaymentStatus {
@@ -19,7 +19,8 @@ export const getConfig = (): AppConfig => JSON.parse(localStorage.getItem(LS_CON
 export const getStaffUsers = (): StaffUser[] => JSON.parse(localStorage.getItem(LS_STAFF_USERS) || '[]');
 export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]');
 export const getChatMessages = (): ChatMessage[] => JSON.parse(localStorage.getItem(LS_CHAT_MESSAGES) || '[]');
-export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(localStorage.getItem(LS_APPROVAL_LOGS) || '[]'); // NEW
+export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(localStorage.getItem(LS_APPROVAL_LOGS) || '[]');
+export const getAttendanceRecords = (): AttendanceRecord[] => JSON.parse(localStorage.getItem(LS_ATTENDANCE) || '[]'); // NEW
 
 // --- Setter Functions ---
 
@@ -31,7 +32,8 @@ export const saveConfig = (data: AppConfig) => localStorage.setItem(LS_CONFIG, J
 export const saveStaffUsers = (data: StaffUser[]) => localStorage.setItem(LS_STAFF_USERS, JSON.stringify(data));
 export const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
 export const saveChatMessages = (data: ChatMessage[]) => localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(data));
-export const saveApprovalLogs = (data: ApprovalLog[]) => localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(data)); // NEW
+export const saveApprovalLogs = (data: ApprovalLog[]) => localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(data));
+export const saveAttendanceRecords = (data: AttendanceRecord[]) => localStorage.setItem(LS_ATTENDANCE, JSON.stringify(data)); // NEW
 
 // --- Initialization ---
 
@@ -44,7 +46,8 @@ export function initializeDataStore() {
     localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
     localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
     localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES));
-    localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(SEED_APPROVAL_LOGS)); // NEW CHAT SEED
+    localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(SEED_APPROVAL_LOGS));
+    localStorage.setItem(LS_ATTENDANCE, JSON.stringify(SEED_ATTENDANCE)); // NEW ATTENDANCE SEED
     localStorage.removeItem(LS_PAYMENT_STATUS); // Clear payment status to re-initialize mock payments
   }
   // Initialize config if not present

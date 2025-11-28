@@ -86,6 +86,15 @@ export interface ChatMessage {
     is_read_by_candidate: boolean;
 }
 
+// NEW: Attendance Types
+export interface AttendanceRecord {
+    id: string;
+    staff_id: string;
+    staff_email: string;
+    check_in_time: string; // ISO date string
+    check_out_time?: string; // ISO date string
+}
+
 // NEW: Approval Log Types
 export type ApprovalAction = 'Approved' | 'Rejected' | 'Updated' | 'Created';
 
@@ -168,6 +177,9 @@ export interface PaymentAnalytics {
         paidCandidates: number;
     }>;
 }
+
+// NEW: Time Filter Type
+export type TimeFilter = 'All' | 'Month' | 'Bi-Yearly' | 'Yearly';
 
 // --- Sorting Types ---
 export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status';

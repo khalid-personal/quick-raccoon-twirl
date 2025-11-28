@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { DashboardSummary, CandidateSummary } from '@/lib/types';
+import { DashboardSummary, CandidateSummary, TimeFilter } from '@/lib/types';
 
 interface SummaryCardProps {
   title: string;
@@ -26,14 +26,15 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, icon, colorClas
 );
 
 interface DashboardSummaryCardsProps {
-  onStatusSelect: (status: DashboardSummary['total'] | 'Pending' | 'In Progress' | 'Completed' | 'Blocked' | '') => void;
+  onStatusSelect: (status: CandidateSummary['overall_status'] | '') => void;
   selectedStatus: string;
+  timeFilter: TimeFilter; // NEW PROP
 }
 
-const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus }) => {
+const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus, timeFilter }) => {
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
-    queryKey: ['dashboardSummary'],
-    queryFn: api.getDashboardSummary,
+    queryKey: ['dashboardSummary', timeFilter], // ADD timeFilter to query key
+    queryFn: () => api.getDashboardSummary(timeFilter), // PASS timeFilter
     initialData: { total: 0, pending: 0, in_progress: 0, completed: 0, blocked: 0 },
   });
 

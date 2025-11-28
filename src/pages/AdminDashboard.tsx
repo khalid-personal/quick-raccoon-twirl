@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
+import { CandidateSummary, CandidateSortField, SortDirection, TimeFilter } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
+import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import PipelineProgressChart from '@/components/PipelineProgressChart';
-import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart'; // NEW IMPORT
+import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart';
 import { cn } from '@/lib/utils';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
@@ -27,6 +27,7 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
 };
 
 const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
+const TIME_FILTER_OPTIONS: TimeFilter[] = ['All', 'Month', 'Bi-Yearly', 'Yearly'];
 
 interface SortableHeaderProps {
   field: CandidateSortField;
@@ -62,6 +63,7 @@ const AdminDashboard: React.FC = () => {
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
   const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('All'); // NEW TIME FILTER STATE
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   // Sorting state
@@ -71,13 +73,14 @@ const AdminDashboard: React.FC = () => {
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection],
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter], // ADD timeFilter
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
       effectiveFilterBatch,
       sortBy,
-      sortDirection
+      sortDirection,
+      timeFilter // PASS timeFilter
     ),
     initialData: [],
   });
@@ -104,6 +107,12 @@ const AdminDashboard: React.FC = () => {
   
   const handleBatchSelect = (batch: string) => {
     setFilterBatch(batch);
+    setCurrentQuery(''); 
+    setSearchQuery('');
+  };
+  
+  const handleTimeFilterSelect = (filter: TimeFilter) => {
+    setTimeFilter(filter);
     setCurrentQuery(''); 
     setSearchQuery('');
   };
@@ -142,15 +151,35 @@ const AdminDashboard: React.FC = () => {
         </Dialog>
       </div>
       
+      {/* Time Filter Selector */}
+      <div className="flex justify-end">
+        <Select
+          value={timeFilter}
+          onValueChange={handleTimeFilterSelect}
+        >
+          <SelectTrigger className="w-[180px]">
+            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="Filter by Time" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIME_FILTER_OPTIONS.map(filter => (
+              <SelectItem key={filter} value={filter}>
+                {filter}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
       {/* Superadmin Pipeline Chart */}
       {isSuperAdmin && (
-        <PipelineProgressChart />
+        <PipelineProgressChart timeFilter={timeFilter} /> {/* PASS timeFilter */}
       )}
       
       {/* Payment Analytics Chart (Visible to all staff/admin) */}
-      <PaymentAnalyticsChart />
+      <PaymentAnalyticsChart timeFilter={timeFilter} /> {/* PASS timeFilter */}
 
-      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />
+      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} timeFilter={timeFilter} /> {/* PASS timeFilter */}
 
       <Card>
         <CardHeader>
@@ -217,7 +246,7 @@ const AdminDashboard: React.FC = () => {
                       label="Name" 
                       onSort={handleSort} 
                     />
-                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead> {/* NEW HEADER */}
+                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead>
                     <SortableHeader 
                       field="tracking_code" 
                       currentSort={sortBy} 
@@ -227,7 +256,6 @@ const AdminDashboard: React.FC = () => {
                     />
                     <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
-                    {/* Removed Phone column */}
                     <SortableHeader 
                       field="country_of_origin" 
                       currentSort={sortBy} 
@@ -272,7 +300,6 @@ const AdminDashboard: React.FC = () => {
                         </Link>
                       </TableCell>
                       
-                      {/* Fees Paid Cell (Now clickable via the icons) */}
                       <TableCell className="text-center">
                         <Link 
                           to={`/admin/candidate/${candidate.id}?tab=medical`} 
@@ -303,7 +330,6 @@ const AdminDashboard: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
-                      {/* Removed Phone cell */}
                       <TableCell>{candidate.country_of_origin}</TableCell>
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />

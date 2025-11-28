@@ -6,10 +6,24 @@ import {
     SortDirection,
     ALL_STAGES,
     PaymentAnalytics,
+    TimeFilter, // NEW IMPORT
 } from '../types';
 import { getCandidates, getCandidateStages, getPaymentStatuses } from '../data-store';
-import { calculateProgress, calculateOverallStatus } from '../utils-data';
+import { calculateProgress, calculateOverallStatus, getFilterStartDate } from '../utils-data'; // NEW IMPORT
 import { getStageId } from './utils';
+
+// Helper function to filter candidates by creation date
+const filterCandidatesByTime = (candidates: CandidateSummary[], filter: TimeFilter): CandidateSummary[] => {
+    const startDate = getFilterStartDate(filter);
+    if (!startDate) return candidates;
+
+    const startTime = startDate.getTime();
+
+    return candidates.filter(c => {
+        const createdTime = new Date(c.created_at).getTime();
+        return createdTime >= startTime;
+    });
+};
 
 // GET /api/admin/batches
 export const getBatches = async (): Promise<string[]> => {
@@ -42,19 +56,28 @@ export const getBatches = async (): Promise<string[]> => {
 };
 
 // GET /api/admin/summary
-export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+export const getDashboardSummary = async (filter: TimeFilter = 'All'): Promise<DashboardSummary> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
+
+    // 1. Augment candidates with status
+    const candidatesWithStatus = candidates.map(candidate => {
+        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
+        const overall_status = calculateOverallStatus(candidateStages);
+        return { ...candidate, overall_status };
+    }) as CandidateSummary[];
+
+    // 2. Apply time filter
+    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
 
     let pending = 0;
     let in_progress = 0;
     let completed = 0;
     let blocked = 0;
 
-    candidates.forEach(candidate => {
-        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
-        const status = calculateOverallStatus(candidateStages);
+    filteredCandidates.forEach(candidate => {
+        const status = candidate.overall_status;
 
         if (status === 'Pending') pending++;
         else if (status === 'In Progress') in_progress++;
@@ -63,7 +86,7 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
     });
 
     return {
-        total: candidates.length,
+        total: filteredCandidates.length,
         pending,
         in_progress,
         completed,
@@ -77,7 +100,8 @@ export const searchCandidates = async (
     filterStatus?: CandidateSummary['overall_status'],
     filterBatch?: string,
     sortBy: CandidateSortField = 'tracking_code', // Default sort
-    sortDirection: SortDirection = 'asc' // Default direction
+    sortDirection: SortDirection = 'asc', // Default direction
+    timeFilter: TimeFilter = 'All' // NEW PARAMETER
 ): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
@@ -110,8 +134,11 @@ export const searchCandidates = async (
         };
     });
 
-    // 2. Filter candidates
-    const filteredCandidates = candidatesWithStatus.filter(c => {
+    // 2. Apply time filter first
+    let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, timeFilter);
+
+    // 3. Apply search/status/batch filters
+    filteredCandidates = filteredCandidates.filter(c => {
         const matchesQuery =
             c.first_name.toLowerCase().includes(q) ||
             c.last_name.toLowerCase().includes(q) ||
@@ -125,7 +152,7 @@ export const searchCandidates = async (
         return matchesQuery && matchesStatus && matchesBatch;
     });
 
-    // 3. Sort candidates
+    // 4. Sort candidates
     const sortedCandidates = filteredCandidates.sort((a, b) => {
         let comparison = 0;
 
@@ -178,10 +205,20 @@ export const searchCandidates = async (
 };
 
 // GET /api/admin/pipeline-distribution
-export const getPipelineDistribution = async (): Promise<PipelineDistribution[]> => {
+export const getPipelineDistribution = async (filter: TimeFilter = 'All'): Promise<PipelineDistribution[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
+    
+    // 1. Augment candidates with status
+    const candidatesWithStatus = candidates.map(candidate => {
+        const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
+        const overall_status = calculateOverallStatus(candidateStages);
+        return { ...candidate, overall_status };
+    }) as CandidateSummary[];
+
+    // 2. Apply time filter
+    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
 
     // Initialize distribution map for all stages
     const distributionMap = new Map<number, { pending: number, inProgress: number, blocked: number }>();
@@ -190,7 +227,7 @@ export const getPipelineDistribution = async (): Promise<PipelineDistribution[]>
     });
 
     // Determine the current blocking stage for each candidate
-    candidates.forEach(candidate => {
+    filteredCandidates.forEach(candidate => {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id).sort((a, b) => {
             const stageA = ALL_STAGES.find(s => s.id === a.stage_id)?.ordinal || 0;
             const stageB = ALL_STAGES.find(s => s.id === b.stage_id)?.ordinal || 0;
@@ -240,10 +277,16 @@ export const getPipelineDistribution = async (): Promise<PipelineDistribution[]>
 };
 
 // GET /api/admin/payment-analytics
-export const getPaymentAnalytics = async (): Promise<PaymentAnalytics> => {
+export const getPaymentAnalytics = async (filter: TimeFilter = 'All'): Promise<PaymentAnalytics> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const paymentStatuses = getPaymentStatuses();
+    
+    // 1. Augment candidates with status (needed for filtering utility)
+    const candidatesWithStatus = candidates.map(candidate => ({ ...candidate, overall_status: 'Pending' })) as CandidateSummary[];
+    
+    // 2. Apply time filter
+    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
     
     const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
     
@@ -259,13 +302,13 @@ export const getPaymentAnalytics = async (): Promise<PaymentAnalytics> => {
             stageId: stage.id,
             feesDue: 0,
             feesPaid: 0,
-            totalCandidates: candidates.length,
+            totalCandidates: filteredCandidates.length,
             paidCandidates: 0,
         });
     });
     
-    // Calculate fees based on all candidates and stages with fees
-    candidates.forEach(candidate => {
+    // Calculate fees based on filtered candidates and stages with fees
+    filteredCandidates.forEach(candidate => {
         stagesWithFees.forEach(stage => {
             const feeAmount = stage.fee_amount!;
             
@@ -275,7 +318,7 @@ export const getPaymentAnalytics = async (): Promise<PaymentAnalytics> => {
             
             const analytics = stageAnalyticsMap.get(stage.id)!;
             
-            // Every candidate is assumed to owe the fee for this stage
+            // Every candidate in the filtered set is assumed to owe the fee for this stage
             totalFeesDue += feeAmount;
             analytics.feesDue += feeAmount;
             
