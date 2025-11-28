@@ -11,8 +11,8 @@ interface PaymentGateProps {
   isPaid: boolean;
   trackingCode: string;
   onPaymentSuccess: () => void;
-  candidateId: string; // Added candidateId
-  stageId: number; // Added stageId
+  candidateId: string;
+  stageId: number;
 }
 
 const PaymentGate: React.FC<PaymentGateProps> = ({
@@ -25,6 +25,13 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
   stageId,
 }) => {
   const [isProcessing, setIsProcessing] = React.useState(false);
+  // Use local state to show immediate success feedback, defaulting to the prop value
+  const [localIsPaid, setLocalIsPaid] = React.useState(isPaid);
+
+  // Sync local state if the prop changes (e.g., after a successful refetch)
+  React.useEffect(() => {
+    setLocalIsPaid(isPaid);
+  }, [isPaid]);
 
   const handleMockPayment = async () => {
     setIsProcessing(true);
@@ -41,9 +48,12 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
         // 1. Persist the payment status change via API
         await api.updatePaymentStatus(candidateId, stageId, true);
         
+        // 2. Update local state immediately for instant visual feedback
+        setLocalIsPaid(true);
+        
         toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast' });
         
-        // 2. Trigger refetch in parent component (TrackingPage)
+        // 3. Trigger refetch in parent component (TrackingPage) to update global state
         onPaymentSuccess();
       } catch (error) {
         toast.error(`Payment successful but failed to record status: ${(error as Error).message}`, { id: 'payment-toast' });
@@ -55,7 +65,7 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
     setIsProcessing(false);
   };
 
-  if (isPaid) {
+  if (localIsPaid) {
     return (
       <Card className="border-green-500 bg-green-50 dark:bg-green-950/50">
         <CardContent className="p-3 flex items-center space-x-2 text-sm font-medium text-green-700 dark:text-green-300">
