@@ -178,7 +178,7 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <AdminAuthorizationCodes />
-            </Layout>
+            </AdminLayout>
           </ProtectedRoute>
         } 
       />
