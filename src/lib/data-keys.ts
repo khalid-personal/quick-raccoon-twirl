@@ -7,4 +7,5 @@ export const LS_STAFF_USERS = 'mock_staff_users';
 export const LS_PAYMENT_STATUS = 'mock_payment_status';
 export const LS_CHAT_MESSAGES = 'mock_chat_messages';
 export const LS_APPROVAL_LOGS = 'mock_approval_logs';
-export const LS_ATTENDANCE = 'mock_attendance'; // NEW KEY
+export const LS_ATTENDANCE = 'mock_attendance';
+export const LS_AUTH_CODES = 'mock_auth_codes'; // NEW KEY

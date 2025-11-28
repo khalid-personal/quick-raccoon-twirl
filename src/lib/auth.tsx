@@ -195,6 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role: 'staff', // Default role for new signups
             is_approved: false, // Requires admin approval
             created_at: new Date().toISOString(),
+            auth_code_used: authCode, // NEW: Store the used auth code
         };
         saveStaffUsers([...users, newUser]);
     }

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord } from './types';
+import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord, AuthorizationCode } from './types';
 
 // --- Configuration Types ---
 export interface AppConfig {
@@ -366,3 +366,6 @@ export const SEED_ATTENDANCE: AttendanceRecord[] = [
         check_out_time: new Date(Date.now() - 1 * 86400000 - 18 * 3600000).toISOString(), // 1 day ago, 6pm
     },
 ];
+
+// NEW: Authorization Code Seed Data (empty initially)
+export const SEED_AUTH_CODES: AuthorizationCode[] = [];

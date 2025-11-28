@@ -2,6 +2,19 @@ export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Iss
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
 export type UserRole = 'admin' | 'staff' | 'candidate' | 'agency'; // Added 'agency' role
 
+// NEW: Authorization Code Interface
+export interface AuthorizationCode {
+  code: string;
+  coc_agency_name?: string; // Optional, if the code is for a specific COC agency
+  foreign_agency_name?: string; // Optional, if the code is for a specific Foreign agency
+  created_by_admin_id: string;
+  created_at: string;
+  expires_at?: string; // Optional expiry date
+  is_active: boolean;
+  usage_count: number; // How many times it has been used
+  max_uses?: number; // Max times it can be used
+}
+
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
@@ -9,6 +22,7 @@ export interface StaffUser {
   role: Exclude<UserRole, 'candidate' | 'agency'>; // admin, staff
   is_approved: boolean;
   created_at: string;
+  auth_code_used?: string; // NEW: Store the authorization code used for signup
 }
 
 export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate' | 'agency'>> = ['admin', 'staff']; // Updated STAFF_ROLES
@@ -105,7 +119,7 @@ export interface ApprovalLog {
   timestamp: string;
   actor_id: string; // ID of the admin/staff performing the action
   actor_email: string;
-  target_type: 'StaffUser' | 'CandidateDetail' | 'Stage' | 'MedicalResult' | 'Config';
+  target_type: 'StaffUser' | 'CandidateDetail' | 'Stage' | 'MedicalResult' | 'Config' | 'AuthorizationCode'; // Added AuthorizationCode
   target_id: string; // ID of the entity being modified (e.g., user ID, candidate ID, 'global_config')
   action: ApprovalAction;
   description: string;
