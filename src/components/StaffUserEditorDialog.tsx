@@ -61,7 +61,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
             }
         }
         // Pass actor details for logging
-        await api.updateUserRole(staffUser.id, data.role as Exclude<UserRole, 'candidate'>, staffUser.is_approved, actorId, actorEmail);
+        await api.updateUserRole(staffUser.id, data.role as Exclude<UserRole, 'candidate' | 'agency'>, staffUser.is_approved, actorId, actorEmail);
       }
       
       // 2. Update Credentials (Email/PIN)
@@ -99,7 +99,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
           </Label>
           <Select
             value={watch('role')}
-            onValueChange={(value: Exclude<UserRole, 'candidate'>) => setValue('role', value, { shouldValidate: true })}
+            onValueChange={(value: Exclude<UserRole, 'candidate' | 'agency'>) => setValue('role', value, { shouldValidate: true })}
             disabled={isSubmitting || isSelf}
           >
             <SelectTrigger id="role">

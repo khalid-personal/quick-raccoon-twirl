@@ -47,7 +47,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
   const onSubmit = async (data: NewStaffUserFormValues) => {
     try {
       // Pass actor details for logging
-      await api.createStaffUser(data.email, data.pin, data.role as Exclude<UserRole, 'candidate'>, actorId, actorEmail);
+      await api.createStaffUser(data.email, data.pin, data.role as Exclude<UserRole, 'candidate' | 'agency'>, actorId, actorEmail);
       
       toast.success(`Staff user ${data.email} created successfully with role: ${data.role}.`);
       onSuccess();
@@ -76,7 +76,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
         </Label>
         <Select
           value={watch('role')}
-          onValueChange={(value: Exclude<UserRole, 'candidate'>) => setValue('role', value, { shouldValidate: true })}
+          onValueChange={(value: Exclude<UserRole, 'candidate' | 'agency'>) => setValue('role', value, { shouldValidate: true })}
           disabled={isSubmitting}
         >
           <SelectTrigger id="role">
@@ -114,7 +114,7 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
       <DialogFooter className="pt-4">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
-          Create Staff Account
+          Register Account
         </Button>
       </DialogFooter>
     </form>
