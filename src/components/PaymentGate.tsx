@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, DollarSign, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api'; // Import API
 
 interface PaymentGateProps {
   stageTitle: string;
@@ -10,6 +11,8 @@ interface PaymentGateProps {
   isPaid: boolean;
   trackingCode: string;
   onPaymentSuccess: () => void;
+  candidateId: string; // Added candidateId
+  stageId: number; // Added stageId
 }
 
 const PaymentGate: React.FC<PaymentGateProps> = ({
@@ -18,6 +21,8 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
   isPaid,
   trackingCode,
   onPaymentSuccess,
+  candidateId,
+  stageId,
 }) => {
   const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -32,10 +37,17 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
     const success = Math.random() > 0.1;
 
     if (success) {
-      toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast' });
-      // In a real app, this would trigger an API call to update the backend status.
-      // We simulate this by calling the success handler.
-      onPaymentSuccess();
+      try {
+        // 1. Persist the payment status change via API
+        await api.updatePaymentStatus(candidateId, stageId, true);
+        
+        toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast' });
+        
+        // 2. Trigger refetch in parent component (TrackingPage)
+        onPaymentSuccess();
+      } catch (error) {
+        toast.error(`Payment successful but failed to record status: ${(error as Error).message}`, { id: 'payment-toast' });
+      }
     } else {
       toast.error("Payment failed. Please try again or contact support.", { id: 'payment-toast' });
     }

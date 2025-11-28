@@ -56,6 +56,7 @@ export const getPublicTrackingData = async (trackingCode: string): Promise<Publi
             }
 
             return {
+                stage_id: stage.id, // ADDED stage_id
                 title: stage.title,
                 status: cs.status,
                 date: cs.date,

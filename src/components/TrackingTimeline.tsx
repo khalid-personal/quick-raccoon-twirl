@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PublicTrackingData, StageStatus, MedicalStatus } from '@/lib/types';
 import { getStatusColor, cn } from '@/lib/utils';
 import { CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
@@ -10,6 +10,7 @@ interface TrackingTimelineProps {
   timeline: PublicTrackingData['timeline'];
   isPublicView: boolean;
   trackingCode: string; // Added trackingCode prop
+  candidateId?: string; // NEW: Added candidateId prop
   refetch: () => void; // Added refetch prop
 }
 
@@ -29,7 +30,7 @@ const getIconForStatus = (status: StageStatus | MedicalStatus) => {
   }
 };
 
-const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicView, trackingCode, refetch }) => {
+const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicView, trackingCode, candidateId, refetch }) => {
   return (
     <div className="relative pl-6 border-l border-gray-300 dark:border-gray-700">
       {timeline.map((item, index) => {
@@ -88,13 +89,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicV
               )}
               
               {/* Payment Gate Integration */}
-              {requiresPayment && (
+              {requiresPayment && candidateId && (
                 <div className="mt-3">
                   <PaymentGate 
                     stageTitle={item.title}
                     feeAmount={item.fee_amount!}
                     isPaid={item.is_fee_paid}
                     trackingCode={trackingCode}
+                    candidateId={candidateId} // Pass required prop
+                    stageId={item.stage_id} // Pass required prop
                     onPaymentSuccess={refetch}
                   />
                 </div>

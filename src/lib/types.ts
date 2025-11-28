@@ -116,6 +116,7 @@ export interface PublicTrackingData {
   tracking_code: string;
   progress_percent: number;
   timeline: Array<{
+    stage_id: number; // ADDED
     title: string;
     status: StageStatus;
     date?: string;

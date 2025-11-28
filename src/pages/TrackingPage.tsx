@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth'; // Import useAuth
 import CandidateChat from '@/components/CandidateChat'; // NEW IMPORT
 import CandidateDocumentUploader from '@/components/CandidateDocumentUploader'; // NEW IMPORT
 import { format } from 'date-fns';
+import { CandidateDetail } from '@/lib/types'; // Import CandidateDetail
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -36,7 +37,7 @@ const TrackingPage: React.FC = () => {
   });
   
   // We need the full candidate detail to get the ID and email for the chat/uploader component
-  const { data: candidateDetail } = useQuery({
+  const { data: candidateDetail, isLoading: isLoadingDetail } = useQuery<CandidateDetail | null>({
     queryKey: ['candidateDetailByTrackingCode', trackingCode],
     queryFn: () => api.getCandidateDetailByTrackingCode(trackingCode!),
     enabled: !!trackingCode && isCandidateAuthenticated, // Only fetch full detail if candidate is logged in
@@ -53,7 +54,7 @@ const TrackingPage: React.FC = () => {
     }
   };
 
-  if (isLoading || (isCandidateAuthenticated && !candidateDetail)) {
+  if (isLoading || (isCandidateAuthenticated && isLoadingDetail)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -121,6 +122,7 @@ const TrackingPage: React.FC = () => {
             timeline={data.timeline} 
             isPublicView={true} 
             trackingCode={data.tracking_code}
+            candidateId={displayCandidateDetail?.id} // Pass candidate ID if available
             refetch={refetch}
           />
           
