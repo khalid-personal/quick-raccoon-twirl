@@ -55,7 +55,6 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                         <span className="ml-1 flex items-center">
                             <CheckCheck 
                                 className={cn("h-3 w-3", message.is_read_by_candidate ? "text-green-300" : "text-blue-100/60")} 
-                                title={message.is_read_by_candidate ? "Read by Candidate" : "Delivered"}
                             />
                         </span>
                     )}

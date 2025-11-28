@@ -1,7 +1,7 @@
 import { StaffUser, UserRole, ApprovalAction } from '../types';
 import { getStaffUsers, saveStaffUsers } from '../data-store';
 import { v4 as uuidv4 } from 'uuid';
-import { recordApprovalLog } from './log-management'; // NEW IMPORT
+import { recordApprovalLog } from './log-management';
 
 // Get all staff users (admin, staff, viewer)
 export const getAllStaffUsers = async (): Promise<StaffUser[]> => {
@@ -21,8 +21,8 @@ export const createStaffUser = async (
     email: string, 
     pin: string, 
     role: Exclude<UserRole, 'candidate'>,
-    actorId: string, // NEW
-    actorEmail: string // NEW
+    actorId: string,
+    actorEmail: string
 ): Promise<StaffUser> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const users = getStaffUsers();
@@ -38,7 +38,7 @@ export const createStaffUser = async (
     const newUser: StaffUser = {
         id: uuidv4(),
         email: email,
-        role: role,
+        role: role as Exclude<UserRole, 'candidate'>,
         is_approved: true, // Directly approved by admin creation
         created_at: new Date().toISOString(),
     };
@@ -58,8 +58,8 @@ export const updateUserRole = async (
     userId: string, 
     role: Exclude<UserRole, 'candidate'>, 
     isApproved: boolean,
-    actorId: string, // NEW
-    actorEmail: string // NEW
+    actorId: string,
+    actorEmail: string
 ): Promise<StaffUser> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const users = getStaffUsers();
@@ -75,7 +75,7 @@ export const updateUserRole = async (
 
     const updatedUser = {
         ...existingUser,
-        role,
+        role: role as Exclude<UserRole, 'candidate'>,
         is_approved: isApproved,
     };
 
@@ -106,8 +106,8 @@ export const updateUserCredentials = async (
     userId: string, 
     newEmail: string, 
     newPin?: string,
-    actorId?: string, // NEW
-    actorEmail?: string // NEW
+    actorId?: string,
+    actorEmail?: string
 ): Promise<StaffUser> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const users = getStaffUsers();

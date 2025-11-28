@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle, Calendar } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom'; // Added Navigate
+import { Link, Navigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
 import ProgressIndicator from '@/components/ProgressIndicator';
@@ -26,7 +26,7 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
 };
 
-const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
+const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER';
 const TIME_FILTER_OPTIONS: TimeFilter[] = ['All', 'Month', 'Bi-Yearly', 'Yearly'];
 
 interface SortableHeaderProps {
@@ -63,7 +63,7 @@ const AdminDashboard: React.FC = () => {
   const [currentQuery, setCurrentQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<CandidateSummary['overall_status'] | ''>('');
   const [filterBatch, setFilterBatch] = useState<string>(ALL_BATCHES_FILTER);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('All'); // NEW TIME FILTER STATE
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('All');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   // Sorting state
@@ -73,14 +73,14 @@ const AdminDashboard: React.FC = () => {
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter], // ADD timeFilter
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter],
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
       effectiveFilterBatch,
       sortBy,
       sortDirection,
-      timeFilter // PASS timeFilter
+      timeFilter
     ),
     initialData: [],
   });
@@ -186,13 +186,13 @@ const AdminDashboard: React.FC = () => {
       
       {/* Superadmin Pipeline Chart */}
       {isSuperAdmin && (
-        <PipelineProgressChart timeFilter={timeFilter} /> {/* PASS timeFilter */}
+        <PipelineProgressChart timeFilter={timeFilter} />
       )}
       
       {/* Payment Analytics Chart (Visible to all staff/admin) */}
-      <PaymentAnalyticsChart timeFilter={timeFilter} /> {/* PASS timeFilter */}
+      <PaymentAnalyticsChart timeFilter={timeFilter} />
 
-      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} timeFilter={timeFilter} /> {/* PASS timeFilter */}
+      <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} timeFilter={timeFilter} />
 
       <Card>
         <CardHeader>
@@ -324,14 +324,12 @@ const AdminDashboard: React.FC = () => {
                               "h-4 w-4", 
                               candidate.is_initial_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
-                            title={candidate.is_initial_medical_paid ? "Initial Medical Paid" : "Initial Medical Fee Due"}
                           />
                           <CheckCircle 
                             className={cn(
                               "h-4 w-4", 
                               candidate.is_final_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
                             )}
-                            title={candidate.is_final_medical_paid ? "Final Medical Paid" : "Final Medical Fee Due"}
                           />
                         </Link>
                       </TableCell>

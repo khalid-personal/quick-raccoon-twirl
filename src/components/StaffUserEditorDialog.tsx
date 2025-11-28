@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/lib/auth'; // NEW IMPORT
+import { useAuth } from '@/lib/auth';
 
 const EditStaffSchema = z.object({
   email: z.string().email("Must be a valid email address."),
@@ -33,7 +33,7 @@ interface StaffUserEditorDialogProps {
 }
 
 const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser, onSuccess, onClose, currentUserId }) => {
-  const { user } = useAuth(); // Get current user for logging
+  const { user } = useAuth();
   const actorId = user?.id || 'unknown';
   const actorEmail = user?.email || 'unknown@agency.com';
   
@@ -61,7 +61,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
             }
         }
         // Pass actor details for logging
-        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved, actorId, actorEmail);
+        await api.updateUserRole(staffUser.id, data.role as Exclude<UserRole, 'candidate'>, staffUser.is_approved, actorId, actorEmail);
       }
       
       // 2. Update Credentials (Email/PIN)
@@ -100,7 +100,7 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
           <Select
             value={watch('role')}
             onValueChange={(value: Exclude<UserRole, 'candidate'>) => setValue('role', value, { shouldValidate: true })}
-            disabled={isSubmitting || isSelf} // Prevent self-demotion via select
+            disabled={isSubmitting || isSelf}
           >
             <SelectTrigger id="role">
               <SelectValue placeholder="Select Role" />

@@ -50,7 +50,11 @@ const SuperadminSettings: React.FC = () => {
   const mutation = useMutation({
     mutationFn: (updatedCountries: string[]) => {
       // Re-add 'Other' before saving to maintain the required structure
-      const finalConfig = { countryOptions: [...updatedCountries, 'Other'] };
+      const finalConfig = { 
+        countryOptions: [...updatedCountries, 'Other'],
+        cocAgencies: config?.cocAgencies || [],
+        foreignAgencies: config?.foreignAgencies || []
+      };
       // Pass actor details for logging
       return api.updateAppConfig(finalConfig, actorId, actorEmail);
     },
