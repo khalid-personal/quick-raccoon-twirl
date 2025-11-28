@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserForeignAgency(null);
         setUserCocAgency(null);
     }
-    setIsLoading(false);
+    setIsLoading(false); // Only set isLoading to false here
   };
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (identifier: string, pin: string) => {
-    setIsLoading(true);
+    setIsLoading(true); // Set loading true at the start
     console.log(`[AUTH] login: Attempting login for identifier: ${identifier}, PIN: ${pin}`);
     
     let loginEmail = identifier.trim();
@@ -134,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log(`[AUTH] login: Found candidate. Using email: ${loginEmail}`);
         } else {
             console.log(`[AUTH] login: Candidate not found for tracking code '${identifier}'.`);
-            setIsLoading(false);
+            // Do NOT set isLoading here, let onAuthStateChange handle it if no session is established
             return { error: new Error("Invalid tracking code or email.") };
         }
     }
@@ -165,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     refresh_token: 'mock-refresh-token'
                 };
                 
-                await updateAuthStatus(mockSession);
+                await updateAuthStatus(mockSession); // This will set isLoading to false
                 return { error: null };
             } else {
                 console.log(`[AUTH] login: Mock user ${loginEmail} NOT found in local data store. Mock bypass failed.`);
@@ -173,11 +173,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         console.error("[AUTH] login: Supabase Login Error Details:", error.message);
-        setIsLoading(false);
+        // Do NOT set isLoading here, let onAuthStateChange handle it (which will eventually set session to null and isLoading to false)
         return { error };
     }
     
     console.log(`[AUTH] login: Supabase login successful for ${loginEmail}. Data:`, data);
+    // updateAuthStatus will be called by onAuthStateChange, which will set isLoading to false
     return { error: null };
   };
   
