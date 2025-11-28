@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid for mock ID
 import { generateInitialStages } from '@/lib/data-seed'; // Import for mock stages
 import CandidateProfilePreview from './CandidateProfilePreview'; // NEW IMPORT
+import PassportPhotoInput from './PassportPhotoInput'; // NEW IMPORT
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
@@ -48,6 +49,7 @@ const NewCandidateSchema = z.object({
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
+  // profile_image_file: z.any().optional(), // No direct validation for file object here, handled by state
 }).superRefine((data, ctx) => {
   // Age validation
   if (data.dob && !isAdult(data.dob)) {
@@ -132,6 +134,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const isCustomCountry = selectedCountry === 'Other';
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
   
+  const [profileImageFile, setProfileImageFile] = React.useState<File | null>(null); // NEW state for profile image
   const [previewCandidate, setPreviewCandidate] = React.useState<CandidateDetail | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = React.useState(false);
 
@@ -157,6 +160,9 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           finalBatchName = data.batch_name;
       }
 
+      // Generate mock profile_image_url for preview if a file is selected
+      const mockProfileImageUrl = profileImageFile ? URL.createObjectURL(profileImageFile) : undefined;
+
       const mockCandidate: Candidate = {
         id: uuidv4(), // Mock ID
         first_name: data.first_name,
@@ -171,7 +177,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         email: data.email,
         coc_agency: data.coc_agency,
         foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
-        profile_image_url: undefined, // No image on creation
+        profile_image_url: mockProfileImageUrl, // Use mock image URL for preview
         created_at: new Date().toISOString(), // Mock creation date
         updated_at: new Date().toISOString(), // Mock update date
       };
@@ -210,6 +216,12 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           finalBatchName = data.batch_name;
       }
 
+      // Handle profile image upload (mock)
+      let profileImageUrl: string | undefined = undefined;
+      if (profileImageFile) {
+        profileImageUrl = URL.createObjectURL(profileImageFile); // Simulate upload
+      }
+
       const newCandidate = await api.createCandidate({
         first_name: data.first_name,
         last_name: data.last_name,
@@ -223,6 +235,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         email: data.email,
         coc_agency: data.coc_agency === NONE_SELECT_VALUE ? undefined : data.coc_agency, // Handle 'none'
         foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
+        profile_image_url: profileImageUrl, // Pass the generated URL
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -250,58 +263,71 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 flex-grow overflow-y-auto pr-2"> {/* Added flex-grow and overflow-y-auto */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">First Name *</Label>
-              <Input id="first_name" {...register('first_name')} />
-              {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name *</Label>
-              <Input id="last_name" {...register('last_name')} />
-              {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
-            </div>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Adjusted grid for photo */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input id="first_name" {...register('first_name')} />
+                  {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input id="last_name" {...register('last_name')} />
+                  {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="tracking_code">Tracking Code *</Label>
-              <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
-              {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tracking_code">Tracking Code *</Label>
+                  <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
+                  {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country_of_origin">Country of Origin *</Label>
+                  <Select
+                    value={selectedCountry}
+                    onValueChange={(value) => {
+                      setValue('country_of_origin', value, { shouldValidate: true });
+                      if (value !== 'Other') {
+                        setValue('custom_country', '');
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="country_of_origin">
+                      <SelectValue placeholder="Select Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countryOptions.map(country => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
+                </div>
+              </div>
+              
+              {isCustomCountry && (
+                <div className="space-y-2">
+                  <Label htmlFor="custom_country">Specify Country *</Label>
+                  <Input id="custom_country" {...register('custom_country')} />
+                  {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="country_of_origin">Country of Origin *</Label>
-              <Select
-                value={selectedCountry}
-                onValueChange={(value) => {
-                  setValue('country_of_origin', value, { shouldValidate: true });
-                  if (value !== 'Other') {
-                    setValue('custom_country', '');
-                  }
-                }}
-              >
-                <SelectTrigger id="country_of_origin">
-                  <SelectValue placeholder="Select Country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countryOptions.map(country => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
+            
+            {/* Passport Photo Input */}
+            <div className="md:col-span-1 flex justify-center items-start pt-4 md:pt-0">
+              <PassportPhotoInput 
+                value={profileImageFile} 
+                onChange={setProfileImageFile} 
+                disabled={isSubmitting}
+              />
             </div>
           </div>
-          
-          {isCustomCountry && (
-            <div className="space-y-2">
-              <Label htmlFor="custom_country">Specify Country *</Label>
-              <Input id="custom_country" {...register('custom_country')} />
-              {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -314,6 +340,27 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
               <Input id="dob" type="date" {...register('dob')} />
               {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
             </div>
+          </div>
+          
+          {/* Marital Status Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="marital_status">Marital Status *</Label>
+            <Select
+              value={watch('marital_status')}
+              onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
+            >
+              <SelectTrigger id="marital_status">
+                <SelectValue placeholder="Select Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {MARITAL_STATUS_OPTIONS.map(status => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
           </div>
           
           <Separator className="my-6" />
