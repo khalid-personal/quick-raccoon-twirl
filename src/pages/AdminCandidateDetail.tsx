@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Link, Navigate } from 'react-router-dom'; // Added Navigate
+import { Link, Navigate } from 'react-router-dom';
 import CandidateProfile from '@/components/CandidateProfile';
 import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
@@ -14,14 +14,14 @@ import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
 import NotificationSender from '@/components/NotificationSender';
 import AdminChatViewer from '@/components/AdminChatViewer';
-import CandidateImageManager from '@/components/CandidateImageManager'; // NEW IMPORT
-import { useAuth } from '@/lib/auth'; // NEW IMPORT
+import CandidateImageManager from '@/components/CandidateImageManager';
+import { useAuth } from '@/lib/auth';
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const { userRole, isLoading: isAuthLoading } = useAuth(); // Get user role
+  const { userRole, isLoading: isAuthLoading } = useAuth();
   
   const initialTab = searchParams.get('tab') || 'timeline';
   const [activeTab, setActiveTab] = useState(initialTab);

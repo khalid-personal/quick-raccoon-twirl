@@ -14,10 +14,11 @@ import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
 import AdminChatViewer from "./pages/AdminChatViewer";
 import AdminApprovalLog from "./pages/AdminApprovalLog";
-import StaffAttendancePage from "./pages/StaffAttendancePage"; // NEW IMPORT
+import StaffAttendancePage from "./pages/StaffAttendancePage";
+import AgencyDashboard from "./pages/AgencyDashboard"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
-import { Loader2 } from 'lucide-react'; // Added Loader2 import
+import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -29,7 +30,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  if (!isAuthenticated || userRole === 'candidate') {
+  if (!isAuthenticated || userRole === 'candidate' || userRole === 'agency') {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -51,6 +52,19 @@ const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+// Component to protect Agency routes
+const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, userRole, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
+  if (!isAuthenticated || userRole !== 'agency') {
+    return <Navigate to="/login?tab=agency" replace />;
+  }
+  return children;
+};
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -148,12 +162,21 @@ const AppRoutes = () => (
         } 
       />
       
+      {/* Agency Routes (Protected) */}
+      <Route 
+        path="/agency/dashboard" 
+        element={
+          <AgencyProtectedRoute>
+            <AgencyDashboard />
+          </AgencyProtectedRoute>
+        } 
+      />
+      
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   </BrowserRouter>
 );
-
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

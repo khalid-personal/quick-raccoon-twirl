@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { UserRole, StaffUser } from './types';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { api } from './api'; // Import API to check candidate emails
-import { getStaffUsers, saveStaffUsers } from './data-store'; // Added saveStaffUsers
+import { api } from './api';
+import { getStaffUsers, saveStaffUsers } from './data-store';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
@@ -11,8 +11,8 @@ interface AuthContextType {
   userRole: UserRole | null;
   user: User | null;
   isLoading: boolean;
-  candidateTrackingCode: string | null; // NEW: Store tracking code for candidate users
-  login: (identifier: string, pin: string) => Promise<{ error: Error | null }>; // Changed email to identifier
+  candidateTrackingCode: string | null;
+  login: (identifier: string, pin: string) => Promise<{ error: Error | null }>;
   signup: (email: string, pin: string, authCode: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
 }
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [candidateTrackingCode, setCandidateTrackingCode] = useState<string | null>(null); // NEW state
+  const [candidateTrackingCode, setCandidateTrackingCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const determineRole = async (user: User | null): Promise<{ role: UserRole | null, trackingCode: string | null }> => {
