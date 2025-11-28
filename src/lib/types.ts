@@ -68,6 +68,7 @@ export interface Candidate {
   phone_number?: string; // NEW FIELD
   email: string; // NEW FIELD: Candidate login email
   coc_agency?: string; // NEW FIELD: COC Training Agency
+  foreign_agency?: string; // NEW FIELD: Matched Foreign Employment Agency
   created_at: string;
   updated_at: string;
 }

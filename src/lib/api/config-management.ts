@@ -37,6 +37,12 @@ export const getCocAgencies = async (): Promise<string[]> => {
     return config.cocAgencies;
 };
 
+// NEW: Get Foreign Agencies
+export const getForeignAgencies = async (): Promise<string[]> => {
+    const config = await getAppConfig();
+    return config.foreignAgencies;
+};
+
 // NEW: Mock function to select the least used COC agency
 export const selectLeastUsedCocAgency = async (): Promise<string> => {
     await new Promise(resolve => setTimeout(resolve, 100));

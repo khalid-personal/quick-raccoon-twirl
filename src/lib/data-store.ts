@@ -56,8 +56,12 @@ export function initializeDataStore() {
   } else {
       // Ensure new fields are added if config exists but is old
       const currentConfig = getConfig();
-      if (!currentConfig.cocAgencies) {
-          saveConfig({ ...currentConfig, cocAgencies: SEED_CONFIG.cocAgencies });
+      if (!currentConfig.cocAgencies || !currentConfig.foreignAgencies) {
+          saveConfig({ 
+              ...currentConfig, 
+              cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
+              foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies, // NEW
+          });
       }
   }
   // Initialize staff users if not present

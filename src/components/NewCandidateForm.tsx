@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, PlusCircle, Shuffle, GraduationCap } from 'lucide-react';
+import { Loader2, PlusCircle, Shuffle, GraduationCap, PlaneTakeoff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
+import { Separator } from '@/components/ui/separator';
 
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
@@ -38,7 +39,8 @@ const NewCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_agency: z.string().min(1, "COC Agency is required."), // NEW FIELD
+  coc_agency: z.string().min(1, "COC Agency is required."),
+  foreign_agency: z.string().optional(), // NEW FIELD: Optional on creation
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
@@ -79,7 +81,8 @@ interface NewCandidateFormProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[]; // Added cocAgencies
+    cocAgencies: string[];
+    foreignAgencies: string[]; // Added foreignAgencies
 }
 
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
@@ -88,15 +91,16 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     queryFn: api.getBatches,
   });
   
-  // Fetch country and COC agency options from API
+  // Fetch country, COC agency, and Foreign agency options from API
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
   });
   
   const countryOptions = config.countryOptions;
   const cocAgencies = config.cocAgencies;
+  const foreignAgencies = config.foreignAgencies; // NEW
   
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
@@ -112,7 +116,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       marital_status: 'Single',
       phone_number: '',
       email: '',
-      coc_agency: '', // Initialize COC agency
+      coc_agency: '',
+      foreign_agency: '', // Initialize new field
       new_batch_name: '',
     },
   });
@@ -160,7 +165,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency, // Include COC agency
+        coc_agency: data.coc_agency,
+        foreign_agency: data.foreign_agency || undefined, // Include new field
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -248,8 +254,11 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         </div>
       </div>
       
+      <Separator className="my-6" />
+      <h3 className="text-lg font-semibold border-b pb-2">Agency & Batch Details</h3>
+      
       {/* COC Agency Selection */}
-      <div className="space-y-2 border-t pt-4">
+      <div className="space-y-2 pt-4">
         <Label htmlFor="coc_agency" className="flex items-center">
             <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
         </Label>
@@ -284,39 +293,29 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
       </div>
       
-      {/* Email Input for Candidate Login */}
+      {/* Foreign Agency Selection */}
       <div className="space-y-2">
-        <Label htmlFor="email">Candidate Email (Login) *</Label>
-        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
-        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-      </div>
-      
-      {/* Phone Number Input */}
-      <div className="space-y-2">
-        <Label htmlFor="phone_number">Phone Number (Optional)</Label>
-        <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
-        {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
-      </div>
-      
-      {/* Marital Status Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="marital_status">Marital Status *</Label>
+        <Label htmlFor="foreign_agency" className="flex items-center">
+            <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
+        </Label>
         <Select
-          value={watch('marital_status')}
-          onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
+            value={watch('foreign_agency')}
+            onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
+            disabled={isSubmitting}
         >
-          <SelectTrigger id="marital_status">
-            <SelectValue placeholder="Select Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {MARITAL_STATUS_OPTIONS.map(status => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
+            <SelectTrigger id="foreign_agency">
+                <SelectValue placeholder="Select Foreign Agency" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="">N/A (Not Matched Yet)</SelectItem>
+                {foreignAgencies.map(agency => (
+                    <SelectItem key={agency} value={agency}>
+                        {agency}
+                    </SelectItem>
+                ))}
+            </SelectContent>
         </Select>
-        {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
+        {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
       </div>
       
       {/* Batch Selection */}
@@ -351,6 +350,23 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
         </div>
       )}
+      
+      <Separator className="my-6" />
+      <h3 className="text-lg font-semibold border-b pb-2">Candidate Login Credentials</h3>
+
+      {/* Email Input for Candidate Login */}
+      <div className="space-y-2">
+        <Label htmlFor="email">Candidate Email (Login) *</Label>
+        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+      </div>
+      
+      {/* Phone Number Input */}
+      <div className="space-y-2">
+        <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+        <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
+        {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
+      </div>
 
       <DialogFooter className="pt-4">
         <Button type="submit" disabled={isSubmitting}>
