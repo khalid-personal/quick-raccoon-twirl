@@ -56,7 +56,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole, user, isLoading: isAuthLoading } = useAuth();
+  const { userRole, user, isLoading: isAuthLoading, userForeignAgency } = useAuth(); // NEW: Get userForeignAgency
   const isSuperAdmin = userRole === 'admin' && user?.email === 'admin@agency.com'; // Define Superadmin explicitly
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,16 +71,20 @@ const AdminDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
+  
+  // Determine the foreign agency filter to apply
+  const foreignAgencyFilter = isSuperAdmin ? undefined : userForeignAgency; // Only apply if not Superadmin
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter],
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, timeFilter, foreignAgencyFilter], // Add foreignAgencyFilter to key
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
       effectiveFilterBatch,
       sortBy,
       sortDirection,
-      timeFilter
+      timeFilter,
+      foreignAgencyFilter // Pass foreignAgencyFilter
     ),
     initialData: [],
   });
@@ -186,11 +190,11 @@ const AdminDashboard: React.FC = () => {
       
       {/* Superadmin Pipeline Chart */}
       {isSuperAdmin && (
-        <PipelineProgressChart timeFilter={timeFilter} />
+        <PipelineProgressChart timeFilter={timeFilter} foreignAgencyFilter={foreignAgencyFilter} /> // Pass foreignAgencyFilter
       )}
       
       {/* Payment Analytics Chart (Visible to all staff/admin) */}
-      <PaymentAnalyticsChart timeFilter={timeFilter} />
+      <PaymentAnalyticsChart timeFilter={timeFilter} foreignAgencyFilter={foreignAgencyFilter} /> // Pass foreignAgencyFilter
 
       <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} timeFilter={timeFilter} />
 

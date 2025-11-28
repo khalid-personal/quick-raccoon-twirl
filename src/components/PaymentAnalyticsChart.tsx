@@ -8,12 +8,13 @@ import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface PaymentAnalyticsChartProps {
     timeFilter: TimeFilter; // NEW PROP
+    foreignAgencyFilter?: string; // NEW PROP
 }
 
-const PaymentAnalyticsChart: React.FC<PaymentAnalyticsChartProps> = ({ timeFilter }) => {
+const PaymentAnalyticsChart: React.FC<PaymentAnalyticsChartProps> = ({ timeFilter, foreignAgencyFilter }) => {
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
-    queryKey: ['paymentAnalytics', timeFilter], // ADD timeFilter to query key
-    queryFn: () => api.getPaymentAnalytics(timeFilter), // PASS timeFilter
+    queryKey: ['paymentAnalytics', timeFilter, foreignAgencyFilter], // ADD foreignAgencyFilter to query key
+    queryFn: () => api.getPaymentAnalytics(timeFilter, foreignAgencyFilter), // PASS foreignAgencyFilter
     initialData: { totalFeesDue: 0, totalFeesPaid: 0, stages: [] },
   });
 

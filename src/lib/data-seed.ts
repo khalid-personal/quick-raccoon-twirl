@@ -296,6 +296,7 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         role: 'admin',
         is_approved: true,
         created_at: new Date().toISOString(),
+        foreign_agency: 'NuraLink', // Explicitly link to NuraLink
     },
 ];
 

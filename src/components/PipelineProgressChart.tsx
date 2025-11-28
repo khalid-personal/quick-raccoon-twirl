@@ -8,12 +8,13 @@ import { Loader2 } from 'lucide-react';
 
 interface PipelineProgressChartProps {
     timeFilter: TimeFilter; // NEW PROP
+    foreignAgencyFilter?: string; // NEW PROP
 }
 
-const PipelineProgressChart: React.FC<PipelineProgressChartProps> = ({ timeFilter }) => {
+const PipelineProgressChart: React.FC<PipelineProgressChartProps> = ({ timeFilter, foreignAgencyFilter }) => {
   const { data: distribution, isLoading } = useQuery<PipelineDistribution[]>({
-    queryKey: ['pipelineDistribution', timeFilter], // ADD timeFilter to query key
-    queryFn: () => api.getPipelineDistribution(timeFilter), // PASS timeFilter
+    queryKey: ['pipelineDistribution', timeFilter, foreignAgencyFilter], // ADD foreignAgencyFilter to query key
+    queryFn: () => api.getPipelineDistribution(timeFilter, foreignAgencyFilter), // PASS foreignAgencyFilter
     initialData: [],
   });
 

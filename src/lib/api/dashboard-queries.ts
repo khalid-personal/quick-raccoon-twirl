@@ -25,6 +25,12 @@ const filterCandidatesByTime = (candidates: CandidateSummary[], filter: TimeFilt
     });
 };
 
+// Helper function to filter candidates by foreign agency
+const filterCandidatesByForeignAgency = (candidates: CandidateSummary[], foreignAgency?: string): CandidateSummary[] => {
+    if (!foreignAgency) return candidates; // No filter applied if foreignAgency is not provided
+    return candidates.filter(c => c.foreign_agency === foreignAgency);
+};
+
 // GET /api/admin/batches
 export const getBatches = async (): Promise<string[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -56,7 +62,7 @@ export const getBatches = async (): Promise<string[]> => {
 };
 
 // GET /api/admin/summary
-export const getDashboardSummary = async (filter: TimeFilter = 'All'): Promise<DashboardSummary> => {
+export const getDashboardSummary = async (filter: TimeFilter = 'All', foreignAgencyFilter?: string): Promise<DashboardSummary> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
@@ -69,7 +75,10 @@ export const getDashboardSummary = async (filter: TimeFilter = 'All'): Promise<D
     }) as CandidateSummary[];
 
     // 2. Apply time filter
-    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    
+    // 3. Apply foreign agency filter
+    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     let pending = 0;
     let in_progress = 0;
@@ -101,7 +110,8 @@ export const searchCandidates = async (
     filterBatch?: string,
     sortBy: CandidateSortField = 'tracking_code', // Default sort
     sortDirection: SortDirection = 'asc', // Default direction
-    timeFilter: TimeFilter = 'All' // NEW PARAMETER
+    timeFilter: TimeFilter = 'All', // NEW PARAMETER
+    foreignAgencyFilter?: string // NEW PARAMETER
 ): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
@@ -136,8 +146,11 @@ export const searchCandidates = async (
 
     // 2. Apply time filter first
     let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, timeFilter);
+    
+    // 3. Apply foreign agency filter
+    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
-    // 3. Apply search/status/batch filters
+    // 4. Apply search/status/batch filters
     filteredCandidates = filteredCandidates.filter(c => {
         const matchesQuery =
             c.first_name.toLowerCase().includes(q) ||
@@ -152,7 +165,7 @@ export const searchCandidates = async (
         return matchesQuery && matchesStatus && matchesBatch;
     });
 
-    // 4. Sort candidates
+    // 5. Sort candidates
     const sortedCandidates = filteredCandidates.sort((a, b) => {
         let comparison = 0;
 
@@ -205,7 +218,7 @@ export const searchCandidates = async (
 };
 
 // GET /api/admin/pipeline-distribution
-export const getPipelineDistribution = async (filter: TimeFilter = 'All'): Promise<PipelineDistribution[]> => {
+export const getPipelineDistribution = async (filter: TimeFilter = 'All', foreignAgencyFilter?: string): Promise<PipelineDistribution[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
@@ -218,7 +231,10 @@ export const getPipelineDistribution = async (filter: TimeFilter = 'All'): Promi
     }) as CandidateSummary[];
 
     // 2. Apply time filter
-    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    
+    // 3. Apply foreign agency filter
+    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // Initialize distribution map for all stages
     const distributionMap = new Map<number, { pending: number, inProgress: number, blocked: number }>();
@@ -277,7 +293,7 @@ export const getPipelineDistribution = async (filter: TimeFilter = 'All'): Promi
 };
 
 // GET /api/admin/payment-analytics
-export const getPaymentAnalytics = async (filter: TimeFilter = 'All'): Promise<PaymentAnalytics> => {
+export const getPaymentAnalytics = async (filter: TimeFilter = 'All', foreignAgencyFilter?: string): Promise<PaymentAnalytics> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const paymentStatuses = getPaymentStatuses();
@@ -286,7 +302,10 @@ export const getPaymentAnalytics = async (filter: TimeFilter = 'All'): Promise<P
     const candidatesWithStatus = candidates.map(candidate => ({ ...candidate, overall_status: 'Pending' })) as CandidateSummary[];
     
     // 2. Apply time filter
-    const filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    let filteredCandidates = filterCandidatesByTime(candidatesWithStatus, filter);
+    
+    // 3. Apply foreign agency filter
+    filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
     
     const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
     

@@ -23,6 +23,7 @@ export interface StaffUser {
   is_approved: boolean;
   created_at: string;
   auth_code_used?: string; // NEW: Store the authorization code used for signup
+  foreign_agency?: string; // NEW: Optional foreign agency this staff user is associated with
 }
 
 export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate' | 'agency'>> = ['admin', 'staff']; // Updated STAFF_ROLES
