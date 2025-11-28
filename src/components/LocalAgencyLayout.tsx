@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, MessageSquare, CalendarDays, Landmark, Menu, Key } from 'lucide-react'; // NEW: Key import
+import { LogOut, Users, Home, MessageSquare, CalendarDays, Landmark, Menu } from 'lucide-react'; // Removed Key import
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -65,7 +65,7 @@ const LocalAgencyLayout: React.FC<LocalAgencyLayoutProps> = ({ children }) => {
     { to: '/local-agency', label: 'Dashboard', icon: <Users className="h-4 w-4" /> },
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, unreadCount: unreadCount },
     { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays className="h-4 w-4" /> },
-    { to: '/local-agency/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" /> }, // NEW NAV ITEM
+    // Removed: { to: '/local-agency/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" /> },
   ];
 
   return (

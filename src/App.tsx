@@ -17,7 +17,7 @@ import AgencyDashboard from "./pages/AgencyDashboard";
 import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes";
 import AdminAttendance from "./pages/AdminAttendance";
 import LocalAgencyDashboard from "./pages/LocalAgencyDashboard";
-import LocalAgencyAuthorizationCodes from "./pages/LocalAgencyAuthorizationCodes"; // NEW IMPORT
+// Removed: import LocalAgencyAuthorizationCodes from "./pages/LocalAgencyAuthorizationCodes"; 
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import LocalAgencyLayout from "./components/LocalAgencyLayout"; // NEW IMPORT
@@ -212,7 +212,7 @@ const AppRoutes = () => (
           </LocalAgencyProtectedRoute>
         } 
       />
-      <Route 
+      {/* Removed: <Route 
         path="/local-agency/auth-codes" 
         element={
           <LocalAgencyProtectedRoute>
@@ -221,7 +221,7 @@ const AppRoutes = () => (
             </LocalAgencyLayout>
           </LocalAgencyProtectedRoute>
         } 
-      />
+      /> */}
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
