@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email);
     
     if (staffUser) {
+        console.log(`[AUTH] determineRole: Found staff user: ${staffUser.email}, Role: ${staffUser.role}, Approved: ${staffUser.is_approved}`);
         if (!staffUser.is_approved) {
             console.log(`[AUTH] determineRole: Staff user ${email} is registered but not approved. Treating as unauthenticated.`);
             return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 
@@ -121,7 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (identifier: string, pin: string) => {
     setIsLoading(true);
-    console.log(`[AUTH] login: Attempting login for identifier: ${identifier}`);
+    console.log(`[AUTH] login: Attempting login for identifier: ${identifier}, PIN: ${pin}`);
     
     let loginEmail = identifier.trim();
     
