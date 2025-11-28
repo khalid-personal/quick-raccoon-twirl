@@ -89,8 +89,10 @@ const LocalAgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!isAuthenticated || userRole !== 'local-agency' || !userCocAgency) {
+    console.log("[LocalAgencyProtectedRoute] Redirecting: isAuthenticated:", isAuthenticated, "userRole:", userRole, "userCocAgency:", userCocAgency);
     return <Navigate to="/login" replace />;
   }
+  console.log("[LocalAgencyProtectedRoute] Access granted. userCocAgency:", userCocAgency);
   return children;
 };
 
@@ -176,7 +178,7 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <AdminAuthorizationCodes />
-            </AdminLayout>
+            </Layout>
           </ProtectedRoute>
         } 
       />

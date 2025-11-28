@@ -31,10 +31,10 @@ const filterCandidatesByForeignAgency = (candidates: CandidateSummary[], foreign
     return candidates.filter(c => c.foreign_agency === foreignAgency);
 };
 
-// NEW: Helper function to filter candidates by COC agency
+// NEW: Helper function to filter candidates by COC agency (now correctly filters by managing_local_agency)
 const filterCandidatesByCocAgency = (candidates: CandidateSummary[], cocAgency?: string): CandidateSummary[] => {
     if (!cocAgency) return candidates; // No filter applied if cocAgency is not provided
-    return candidates.filter(c => c.coc_agency === cocAgency);
+    return candidates.filter(c => c.managing_local_agency === cocAgency);
 };
 
 // GET /api/admin/batches
