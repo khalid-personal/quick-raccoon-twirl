@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Link, Navigate, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import { CandidateDetail } from '@/lib/types';
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
   const { candidateTrackingCode, userRole, logout } = useAuth();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
   
   const isCandidateAuthenticated = userRole === 'candidate';
 
@@ -52,8 +52,22 @@ const TrackingPage: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    const previousRole = userRole; // Capture role before logging out
     await logout();
-    navigate('/login', { replace: true }); // Redirect to login page after logout
+    
+    // Redirect based on the role before logout
+    if (previousRole === 'admin') {
+      navigate('/admin', { replace: true });
+    } else if (previousRole === 'staff') {
+      navigate('/admin', { replace: true }); // Staff also go to admin dashboard
+    } else if (previousRole === 'agency') {
+      navigate('/agency', { replace: true });
+    } else if (previousRole === 'local-agency') {
+      navigate('/local-agency', { replace: true });
+    } else {
+      // Default for candidates or unauthenticated users
+      navigate('/login', { replace: true });
+    }
   };
 
   if (isLoading || (isCandidateAuthenticated && isLoadingDetail)) {
@@ -162,7 +176,7 @@ const TrackingPage: React.FC = () => {
               <Printer className="h-4 w-4 mr-2" /> Generate Printable Progress Sheet (Mock)
             </Button>
             
-            <Button variant="secondary" onClick={handleLogout}>Logout</Button> {/* Use handleLogout */}
+            <Button variant="secondary" onClick={handleLogout}>Logout</Button>
           </div>
         </CardContent>
       </Card>
