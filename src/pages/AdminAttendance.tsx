@@ -5,7 +5,7 @@ import { AttendanceRecord } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Clock, LogIn, LogOut, CalendarDays, User } from 'lucide-react';
+import { Loader2, Clock, LogIn, LogOut, CalendarDays, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
