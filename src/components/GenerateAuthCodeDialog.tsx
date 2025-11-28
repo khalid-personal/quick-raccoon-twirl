@@ -34,6 +34,8 @@ interface GenerateAuthCodeDialogProps {
   onClose: () => void;
 }
 
+const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
+
 const GenerateAuthCodeDialog: React.FC<GenerateAuthCodeDialogProps> = ({ onClose }) => {
   const { user } = useAuth();
   const actorId = user?.id || 'unknown';
@@ -51,8 +53,8 @@ const GenerateAuthCodeDialog: React.FC<GenerateAuthCodeDialogProps> = ({ onClose
   const form = useForm<GenerateAuthCodeFormValues>({
     resolver: zodResolver(GenerateAuthCodeSchema),
     defaultValues: {
-      coc_agency_name: '',
-      foreign_agency_name: '',
+      coc_agency_name: NONE_SELECT_VALUE, // Use "none" as default
+      foreign_agency_name: NONE_SELECT_VALUE, // Use "none" as default
       expires_in_days: '',
       max_uses: '',
     },
@@ -67,8 +69,8 @@ const GenerateAuthCodeDialog: React.FC<GenerateAuthCodeDialogProps> = ({ onClose
     setCopied(false);
     try {
       const newAuthCode = await api.generateAuthorizationCode(
-        data.coc_agency_name || undefined,
-        data.foreign_agency_name || undefined,
+        data.coc_agency_name === NONE_SELECT_VALUE ? undefined : data.coc_agency_name, // Handle 'none'
+        data.foreign_agency_name === NONE_SELECT_VALUE ? undefined : data.foreign_agency_name, // Handle 'none'
         actorId,
         actorEmail,
         data.expires_in_days ? Number(data.expires_in_days) : undefined,
@@ -125,7 +127,7 @@ const GenerateAuthCodeDialog: React.FC<GenerateAuthCodeDialogProps> = ({ onClose
               <SelectValue placeholder="Select COC Agency" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
+              <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
               {cocAgencies.map(agency => (
                 <SelectItem key={agency} value={agency}>
                   {agency}
@@ -148,7 +150,7 @@ const GenerateAuthCodeDialog: React.FC<GenerateAuthCodeDialogProps> = ({ onClose
               <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
+              <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
               {foreignAgencies.map(agency => (
                 <SelectItem key={agency} value={agency}>
                   {agency}

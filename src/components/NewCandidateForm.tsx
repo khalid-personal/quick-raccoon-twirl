@@ -20,6 +20,7 @@ import CandidateProfilePreview from './CandidateProfilePreview'; // NEW IMPORT
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___'; // Non-empty string constant for 'No Batch'
 const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
+const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
 
 // Helper function to check if DOB is 18+
 const isAdult = (dob: string): boolean => {
@@ -169,7 +170,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         phone_number: data.phone_number || undefined,
         email: data.email,
         coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency || undefined,
+        foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
         profile_image_url: undefined, // No image on creation
         created_at: new Date().toISOString(), // Mock creation date
         updated_at: new Date().toISOString(), // Mock update date
@@ -220,8 +221,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency || undefined, // Include new field
+        coc_agency: data.coc_agency === NONE_SELECT_VALUE ? undefined : data.coc_agency, // Handle 'none'
+        foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -328,6 +329,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
                       <SelectValue placeholder="Select COC Agency" />
                   </SelectTrigger>
                   <SelectContent>
+                      <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
                       {cocAgencies.map(agency => (
                           <SelectItem key={agency} value={agency}>
                               {agency}
@@ -363,7 +365,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
                   <SelectValue placeholder="Select Foreign Agency" />
               </SelectTrigger>
               <SelectContent>
-                  <SelectItem value="">N/A (Not Matched Yet)</SelectItem>
+                  <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem> {/* Changed value="" to "none" */}
                   {foreignAgencies.map(agency => (
                       <SelectItem key={agency} value={agency}>
                           {agency}

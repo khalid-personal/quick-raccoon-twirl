@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'; // Import Separator
 const NEW_BATCH_OPTION = '___NEW_BATCH___';
 const NO_BATCH_OPTION = '___NO_BATCH___';
 const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
+const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
 
 // Helper function to check if DOB is 18+
 const isAdult = (dob: string): boolean => {
@@ -127,8 +128,8 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       marital_status: candidate.marital_status, // Initialize marital status
       phone_number: candidate.phone_number || '', // Initialize phone number
       email: candidate.email, // Initialize email
-      coc_agency: candidate.coc_agency || '', // Initialize COC agency
-      foreign_agency: candidate.foreign_agency || '', // Initialize NEW field
+      coc_agency: candidate.coc_agency || NONE_SELECT_VALUE, // Initialize COC agency, use "none" for empty
+      foreign_agency: candidate.foreign_agency || NONE_SELECT_VALUE, // Initialize NEW field, use "none" for empty
       new_pin: '', // Initialize new PIN field
       new_batch_name: '',
     },
@@ -179,8 +180,8 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
-        coc_agency: data.coc_agency,
-        foreign_agency: data.foreign_agency || undefined, // Include new field
+        coc_agency: data.coc_agency === NONE_SELECT_VALUE ? undefined : data.coc_agency, // Handle 'none'
+        foreign_agency: data.foreign_agency === NONE_SELECT_VALUE ? undefined : data.foreign_agency, // Handle 'none'
       });
       
       // 2. Update Credentials (Email/PIN) if changed
@@ -320,6 +321,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                     <SelectValue placeholder="Select COC Agency" />
                 </SelectTrigger>
                 <SelectContent>
+                    <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
                     {cocAgencies.map(agency => (
                         <SelectItem key={agency} value={agency}>
                             {agency}
@@ -355,7 +357,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                 <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="">N/A (Not Matched Yet)</SelectItem>
+                <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem> {/* Changed value="" to "none" */}
                 {foreignAgencies.map(agency => (
                     <SelectItem key={agency} value={agency}>
                         {agency}
