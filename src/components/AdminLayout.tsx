@@ -3,14 +3,18 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key, CalendarDays } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key, CalendarDays, Eye } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
 import { UserRole, ChatMessage } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'; // NEW IMPORTS
+import { Input } from '@/components/ui/input'; // NEW IMPORT
+import { Label } from '@/components/ui/label'; // NEW IMPORT
+import { toast } from 'sonner'; // NEW IMPORT
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -24,15 +28,16 @@ interface NavLinkProps {
     isSuperAdminRoute?: boolean;
     userRole: UserRole | null;
     unreadCount?: number;
+    onClick?: () => void; // Added onClick for dialog trigger
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0 }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0, onClick }) => {
     if (isSuperAdminRoute && userRole !== 'admin') {
         return null;
     }
     
     return (
-        <Link to={to} className="w-full">
+        <Link to={to} className="w-full" onClick={onClick}>
             <Button 
                 variant={isActive ? "secondary" : "ghost"} 
                 className="w-full justify-start relative"
@@ -55,9 +60,14 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdm
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { logout, userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate(); // NEW
   const addisAbabaTime = useAddisAbabaTime();
   
   const isSuperAdmin = userRole === 'admin';
+  
+  // State for Public Tracking Test dialog
+  const [isTrackingTestDialogOpen, setIsTrackingTestDialogOpen] = React.useState(false); // NEW
+  const [trackingCodeInput, setTrackingCodeInput] = React.useState(''); // NEW
   
   // Fetch inbox summary for unread count
   const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
@@ -69,15 +79,29 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   
   const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
   
-  // Use a mock tracking code for easy testing of the public view
-  const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
+  // Handle navigation for public tracking test
+  const handleViewPublicTracking = () => {
+    if (trackingCodeInput.trim()) {
+      navigate(`/track/${trackingCodeInput.trim()}`);
+      setIsTrackingTestDialogOpen(false);
+      setTrackingCodeInput(''); // Clear input after navigation
+    } else {
+      toast.error("Please enter a tracking code.");
+    }
+  };
   
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
     { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays className="h-4 w-4" />, isSuperAdminRoute: false },
-    // Updated link to point to a specific candidate's tracking page for testing
-    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
+    // Updated link to open a dialog instead of direct navigation
+    { 
+      to: '#', // Use '#' or a dummy path as it will be intercepted by onClick
+      label: 'Public Tracking Test', 
+      icon: <Home className="h-4 w-4" />, 
+      isSuperAdminRoute: false,
+      onClick: () => setIsTrackingTestDialogOpen(true), // Open dialog on click
+    },
     { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
@@ -109,6 +133,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
                       unreadCount={item.unreadCount}
+                      onClick={item.onClick} // Pass onClick handler
                     />
                   ))}
                 </nav>
@@ -145,6 +170,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       isSuperAdminRoute={item.isSuperAdminRoute}
                       userRole={userRole}
                       unreadCount={item.unreadCount}
+                      onClick={item.onClick} // Pass onClick handler
                     />
                 ))}
             </nav>
@@ -167,6 +193,42 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <footer className="p-4 text-center text-sm text-gray-500 border-t dark:border-gray-800">
         © 2024 Domestic Agency Workforce Management
       </footer>
+
+      {/* Public Tracking Test Dialog */}
+      <Dialog open={isTrackingTestDialogOpen} onOpenChange={setIsTrackingTestDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Eye className="h-5 w-5 mr-2" /> View Public Tracking
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tracking-code-input">Enter Candidate Tracking Code</Label>
+              <Input
+                id="tracking-code-input"
+                placeholder="e.g., TRK-ET-0001"
+                value={trackingCodeInput}
+                onChange={(e) => setTrackingCodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleViewPublicTracking();
+                  }
+                }}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You can use `TRK-ET-0001` for a quick test.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={handleViewPublicTracking}>
+              View Tracking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
