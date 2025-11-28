@@ -148,6 +148,23 @@ export const getCandidateByTrackingCode = async (trackingCode: string): Promise<
     return candidates.find(c => c.tracking_code.toLowerCase() === trackingCode.toLowerCase()) || null;
 };
 
+// NEW: Get a random candidate for testing
+export const getRandomCandidate = async (): Promise<{ identifier: string, pin: string }> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    if (candidates.length === 0) {
+        throw new Error("No candidates available in the mock database.");
+    }
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    const candidate = candidates[randomIndex];
+    
+    // Return tracking code for identifier and mock PIN
+    return {
+        identifier: candidate.tracking_code,
+        pin: '123456' // Mock PIN
+    };
+};
+
 // NEW: Update candidate credentials (email and password/pin)
 export const updateCandidateCredentials = async (candidateId: string, newEmail: string, newPin?: string): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
