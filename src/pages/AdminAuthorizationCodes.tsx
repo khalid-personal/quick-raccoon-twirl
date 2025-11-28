@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Key, Plus, Trash2, Copy, CheckCheck, CalendarDays, Users, Building } from 'lucide-react';
+import { Loader2, Key, Plus, Trash2, Copy, CheckCheck, CalendarDays, Users, Building, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
