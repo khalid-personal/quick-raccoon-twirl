@@ -100,6 +100,7 @@ export interface ChatMessage {
     timestamp: string; // ISO date string
     is_read_by_admin: boolean;
     is_read_by_candidate: boolean;
+    candidate?: Candidate; // NEW: Optional candidate object for hydrated views
 }
 
 // NEW: Attendance Types

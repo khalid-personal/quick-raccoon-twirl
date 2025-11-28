@@ -20,7 +20,7 @@ export const getUnapprovedStaffCount = async (): Promise<number> => {
 export const createStaffUser = async (
     email: string, 
     pin: string, 
-    role: Exclude<UserRole, 'candidate'>,
+    role: Exclude<UserRole, 'candidate' | 'agency'>, // Corrected type
     actorId: string,
     actorEmail: string
 ): Promise<StaffUser> => {
@@ -38,7 +38,7 @@ export const createStaffUser = async (
     const newUser: StaffUser = {
         id: uuidv4(),
         email: email,
-        role: role as Exclude<UserRole, 'candidate'>,
+        role: role, // Type is now correctly inferred
         is_approved: true, // Directly approved by admin creation
         created_at: new Date().toISOString(),
     };
@@ -56,7 +56,7 @@ export const createStaffUser = async (
 // Update a staff user's role and approval status
 export const updateUserRole = async (
     userId: string, 
-    role: Exclude<UserRole, 'candidate'>, 
+    role: Exclude<UserRole, 'candidate' | 'agency'>, // Corrected type
     isApproved: boolean,
     actorId: string,
     actorEmail: string
@@ -73,9 +73,9 @@ export const updateUserRole = async (
     const oldRole = existingUser.role;
     const oldApproval = existingUser.is_approved;
 
-    const updatedUser = {
+    const updatedUser: StaffUser = { // Explicitly type to StaffUser
         ...existingUser,
-        role: role as Exclude<UserRole, 'candidate'>,
+        role: role, // Type is now correctly inferred
         is_approved: isApproved,
     };
 
@@ -124,7 +124,7 @@ export const updateUserCredentials = async (
         throw new Error(`Email '${newEmail}' is already registered.`);
     }
 
-    const updatedUser = {
+    const updatedUser: StaffUser = { // Explicitly type to StaffUser
         ...existingUser,
         email: newEmail,
         // NOTE: In a real Supabase app, we would call:

@@ -41,7 +41,12 @@ export const getAdminInboxSummary = async (): Promise<ChatMessage[]> => {
             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
             
         if (candidateMessages.length > 0) {
-            inboxSummary.push(candidateMessages[0]);
+            const latestMessage = candidateMessages[0];
+            const associatedCandidate = candidates.find(c => c.id === candidateId);
+            inboxSummary.push({
+                ...latestMessage,
+                candidate: associatedCandidate, // Attach the candidate object
+            });
         }
     });
     
