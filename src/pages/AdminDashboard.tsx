@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import PipelineProgressChart from '@/components/PipelineProgressChart';
+import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart'; // NEW IMPORT
 import { cn } from '@/lib/utils';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
@@ -146,6 +147,9 @@ const AdminDashboard: React.FC = () => {
         <PipelineProgressChart />
       )}
       
+      {/* Payment Analytics Chart (Visible to all staff/admin) */}
+      <PaymentAnalyticsChart />
+
       <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />
 
       <Card>

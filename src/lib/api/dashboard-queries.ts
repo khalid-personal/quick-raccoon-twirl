@@ -5,8 +5,9 @@ import {
     CandidateSortField,
     SortDirection,
     ALL_STAGES,
+    PaymentAnalytics,
 } from '../types';
-import { getCandidates, getCandidateStages } from '../data-store';
+import { getCandidates, getCandidateStages, getPaymentStatuses } from '../data-store';
 import { calculateProgress, calculateOverallStatus } from '../utils-data';
 import { getStageId } from './utils';
 
@@ -222,4 +223,65 @@ export const getPipelineDistribution = async (): Promise<PipelineDistribution[]>
             blockedCount: data.blocked,
         };
     });
+};
+
+// GET /api/admin/payment-analytics
+export const getPaymentAnalytics = async (): Promise<PaymentAnalytics> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const candidates = getCandidates();
+    const paymentStatuses = getPaymentStatuses();
+    
+    const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
+    
+    let totalFeesDue = 0;
+    let totalFeesPaid = 0;
+    
+    const stageAnalyticsMap = new Map<number, PaymentAnalytics['stages'][number]>();
+    
+    // Initialize map for stages with fees
+    stagesWithFees.forEach(stage => {
+        stageAnalyticsMap.set(stage.id, {
+            stageTitle: stage.title,
+            stageId: stage.id,
+            feesDue: 0,
+            feesPaid: 0,
+            totalCandidates: candidates.length,
+            paidCandidates: 0,
+        });
+    });
+    
+    // Calculate fees based on all candidates and stages with fees
+    candidates.forEach(candidate => {
+        stagesWithFees.forEach(stage => {
+            const feeAmount = stage.fee_amount!;
+            
+            const isPaid = paymentStatuses.some(ps => 
+                ps.candidateId === candidate.id && ps.stageId === stage.id && ps.isPaid
+            );
+            
+            const analytics = stageAnalyticsMap.get(stage.id)!;
+            
+            // Every candidate is assumed to owe the fee for this stage
+            totalFeesDue += feeAmount;
+            analytics.feesDue += feeAmount;
+            
+            if (isPaid) {
+                totalFeesPaid += feeAmount;
+                analytics.feesPaid += feeAmount;
+                analytics.paidCandidates += 1;
+            }
+            
+            stageAnalyticsMap.set(stage.id, analytics);
+        });
+    });
+    
+    return {
+        totalFeesDue,
+        totalFeesPaid,
+        stages: Array.from(stageAnalyticsMap.values()).sort((a, b) => {
+            const stageA = ALL_STAGES.find(s => s.id === a.stageId)?.ordinal || 0;
+            const stageB = ALL_STAGES.find(s => s.id === b.stageId)?.ordinal || 0;
+            return stageA - stageB;
+        }),
+    };
 };

@@ -43,10 +43,12 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
       await api.updatePaymentStatus(candidateId, stageId, true);
     },
     onMutate: () => {
+      // Use a unique ID for the loading toast
       toast.loading(`Initiating payment for ${stageTitle}...`, { id: 'payment-toast' });
     },
     onSuccess: () => {
-      toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast' });
+      // Replace loading toast with success toast, ensuring it stays visible for 5 seconds
+      toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast', duration: 5000 });
       
       // Optimistically update the current query data to show the change immediately
       // This prevents the flicker while the full refetch runs.
@@ -63,7 +65,8 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
       onPaymentSuccess();
     },
     onError: (error) => {
-      toast.error(`Payment failed: ${error.message}`, { id: 'payment-toast' });
+      // Replace loading toast with error toast, ensuring it stays visible for 5 seconds
+      toast.error(`Payment failed: ${error.message}`, { id: 'payment-toast', duration: 5000 });
     },
   });
 

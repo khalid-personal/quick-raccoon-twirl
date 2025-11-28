@@ -138,6 +138,20 @@ export interface PipelineDistribution {
     blockedCount: number;
 }
 
+// NEW: Data structure for Payment Analytics
+export interface PaymentAnalytics {
+    totalFeesDue: number;
+    totalFeesPaid: number;
+    stages: Array<{
+        stageTitle: string;
+        stageId: number;
+        feesDue: number;
+        feesPaid: number;
+        totalCandidates: number;
+        paidCandidates: number;
+    }>;
+}
+
 // --- Sorting Types ---
 export type CandidateSortField = 'first_name' | 'tracking_code' | 'progress_percent' | 'overall_status' | 'country_of_origin' | 'marital_status';
 export type SortDirection = 'asc' | 'desc';
