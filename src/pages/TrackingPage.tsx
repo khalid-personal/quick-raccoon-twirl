@@ -11,21 +11,22 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth'; // Import useAuth
 import CandidateChat from '@/components/CandidateChat'; // NEW IMPORT
+import CandidateDocumentUploader from '@/components/CandidateDocumentUploader'; // NEW IMPORT
+import { format } from 'date-fns';
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
   const { candidateTrackingCode, userRole, logout } = useAuth(); // Get logged-in candidate's code
+  
+  const isCandidateAuthenticated = userRole === 'candidate';
 
   // Security check: If the user is a candidate, ensure the URL matches their code
-  if (userRole === 'candidate' && trackingCode !== candidateTrackingCode) {
+  if (isCandidateAuthenticated && trackingCode !== candidateTrackingCode) {
     // Redirect to their correct tracking page if they try to access another one
     toast.error("Access denied to this tracking code.");
     return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
   }
   
-  // If user is staff/admin, they shouldn't be here, but ProtectedRoute handles that.
-  // If they somehow land here, we proceed with the query based on the URL.
-
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['publicTracking', trackingCode],
     queryFn: () => api.getPublicTrackingData(trackingCode!),
@@ -34,11 +35,11 @@ const TrackingPage: React.FC = () => {
     refetchInterval: 5000, 
   });
   
-  // We need the full candidate detail to get the ID and email for the chat component
+  // We need the full candidate detail to get the ID and email for the chat/uploader component
   const { data: candidateDetail } = useQuery({
     queryKey: ['candidateDetailByTrackingCode', trackingCode],
     queryFn: () => api.getCandidateDetailByTrackingCode(trackingCode!),
-    enabled: !!trackingCode && !!data,
+    enabled: !!trackingCode && isCandidateAuthenticated, // Only fetch full detail if candidate is logged in
   });
   
   const handlePrint = async () => {
@@ -52,7 +53,7 @@ const TrackingPage: React.FC = () => {
     }
   };
 
-  if (isLoading || (userRole === 'candidate' && !candidateDetail)) {
+  if (isLoading || (isCandidateAuthenticated && !candidateDetail)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -60,9 +61,7 @@ const TrackingPage: React.FC = () => {
     );
   }
 
-  if (error || !data || !candidateDetail) {
-    // If the user is logged in as a candidate but their tracking code yields an error, something is wrong.
-    
+  if (error || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-md">
@@ -71,21 +70,18 @@ const TrackingPage: React.FC = () => {
           <AlertDescription>
             {error ? (error as Error).message : `Tracking code "${trackingCode}" not found or invalid.`}
           </AlertDescription>
-          {userRole === 'candidate' ? (
-            <Button onClick={logout} className="mt-4">
-              Logout
+          <Link to="/login">
+            <Button className="mt-4">
+              Return to Login
             </Button>
-          ) : (
-            <Link to="/login">
-              <Button className="mt-4">
-                Return to Login
-              </Button>
-            </Link>
-          )}
+          </Link>
         </Alert>
       </div>
     );
   }
+  
+  // Use candidateDetail for sensitive info if available (i.e., if candidate is logged in)
+  const displayCandidateDetail = isCandidateAuthenticated ? candidateDetail : null;
 
   return (
     <div className="container mx-auto py-8 space-y-8">
@@ -93,6 +89,28 @@ const TrackingPage: React.FC = () => {
         <CardHeader>
           <CardTitle className="text-3xl">Application Status: {data.candidate_name}</CardTitle>
           <p className="text-lg text-muted-foreground">Tracking Code: <span className="font-mono font-semibold">{data.tracking_code}</span></p>
+          
+          {/* Display Sensitive Info if Authenticated as Candidate */}
+          {displayCandidateDetail && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-2 border-t mt-2">
+                <div>
+                    <p className="font-medium text-muted-foreground">Passport</p>
+                    <p className="font-semibold">{displayCandidateDetail.passport_number}</p>
+                </div>
+                <div>
+                    <p className="font-medium text-muted-foreground">Date of Birth</p>
+                    <p className="font-semibold">{format(new Date(displayCandidateDetail.dob), 'PPP')}</p>
+                </div>
+                <div>
+                    <p className="font-medium text-muted-foreground">Email</p>
+                    <p className="font-semibold">{displayCandidateDetail.email}</p>
+                </div>
+                <div>
+                    <p className="font-medium text-muted-foreground">Phone</p>
+                    <p className="font-semibold">{displayCandidateDetail.phone_number || 'N/A'}</p>
+                </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <ProgressIndicator percent={data.progress_percent} className="mb-8" />
@@ -107,22 +125,37 @@ const TrackingPage: React.FC = () => {
           />
           
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Chat Component */}
-            <CandidateChat 
-                candidateId={candidateDetail.id}
-                candidateName={data.candidate_name}
-                candidateEmail={candidateDetail.email}
-            />
             
-            {/* Important Notes */}
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 h-full">
-              <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>
-              <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 dark:text-gray-400">
-                <li>Medical results are summarized as Passed, Failed, or Pending for privacy compliance.</li>
-                <li>If the final stage is blocked, please contact your agency representative.</li>
-                <li>This page refreshes automatically every 5 seconds.</li>
-              </ul>
-            </div>
+            {/* Candidate Document Uploader (Only visible if authenticated) */}
+            {displayCandidateDetail && (
+                <CandidateDocumentUploader
+                    candidateId={displayCandidateDetail.id}
+                    timeline={data.timeline}
+                    existingDocuments={displayCandidateDetail.documents}
+                    refetch={refetch}
+                />
+            )}
+            
+            {/* Chat Component */}
+            {displayCandidateDetail && (
+                <CandidateChat 
+                    candidateId={displayCandidateDetail.id}
+                    candidateName={data.candidate_name}
+                    candidateEmail={displayCandidateDetail.email}
+                />
+            )}
+            
+            {/* Important Notes (Fallback if not authenticated) */}
+            {!displayCandidateDetail && (
+                <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 h-full">
+                    <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>
+                    <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                        <li>Medical results are summarized as Passed, Failed, or Pending for privacy compliance.</li>
+                        <li>If the final stage is blocked, please contact your agency representative.</li>
+                        <li>This page refreshes automatically every 5 seconds.</li>
+                    </ul>
+                </div>
+            )}
           </div>
           
           <div className="mt-6 text-center space-y-4">
