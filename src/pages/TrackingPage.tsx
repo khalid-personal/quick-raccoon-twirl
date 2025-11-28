@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api } => '@/lib/api';
+import { api } from '@/lib/api'; // Corrected '=>' to 'from'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import TrackingTimeline from '@/components/TrackingTimeline';
