@@ -17,8 +17,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 interface AppConfig {
     countryOptions: string[];
-    cocAgencies: string[];
+    cocAgencies: string[]; // COC Training Agencies
     foreignAgencies: string[];
+    localAgencies: string[]; // Actual Local Agencies (COC)
 }
 
 const AdminAuthorizationCodes: React.FC = () => {
@@ -28,7 +29,7 @@ const AdminAuthorizationCodes: React.FC = () => {
   const actorId = user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
 
-  const [cocAgencyFilter, setCocAgencyFilter] = useState<string>('All');
+  const [localAgencyFilter, setLocalAgencyFilter] = useState<string>('All'); // Changed from cocAgencyFilter
   const [foreignAgencyFilter, setForeignAgencyFilter] = useState<string>('All');
 
   // Role check and redirect
@@ -53,12 +54,13 @@ const AdminAuthorizationCodes: React.FC = () => {
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [], localAgencies: [] },
   });
-  const cocAgencies = config.cocAgencies;
+  // const cocAgencies = config.cocAgencies; // No longer needed for auth code linking
+  const localAgencies = config.localAgencies; // Use localAgencies for linking auth codes to local agencies
   const foreignAgencies = config.foreignAgencies;
 
-  const [newCodeCocAgency, setNewCodeCocAgency] = useState<string>('');
+  const [newCodeLocalAgency, setNewCodeLocalAgency] = useState<string>(''); // Changed from newCodeCocAgency
   const [newCodeForeignAgency, setNewCodeForeignAgency] = useState<string>('');
   const [newCodeExpiresInDays, setNewCodeExpiresInDays] = useState<string>('');
   const [newCodeMaxUses, setNewCodeMaxUses] = useState<string>('');
@@ -70,7 +72,7 @@ const AdminAuthorizationCodes: React.FC = () => {
       const maxUses = newCodeMaxUses ? parseInt(newCodeMaxUses) : undefined;
       
       return api.generateAuthorizationCode(
-        newCodeCocAgency === 'None' ? undefined : newCodeCocAgency,
+        newCodeLocalAgency === 'None' ? undefined : newCodeLocalAgency, // Use newCodeLocalAgency
         newCodeForeignAgency === 'None' ? undefined : newCodeForeignAgency,
         actorId,
         actorEmail,
@@ -80,7 +82,7 @@ const AdminAuthorizationCodes: React.FC = () => {
     },
     onSuccess: (newCode) => {
       toast.success(`New authorization code generated: ${newCode.code}`);
-      setNewCodeCocAgency('');
+      setNewCodeLocalAgency(''); // Clear local agency selection
       setNewCodeForeignAgency('');
       setNewCodeExpiresInDays('');
       setNewCodeMaxUses('');
@@ -99,9 +101,9 @@ const AdminAuthorizationCodes: React.FC = () => {
   };
 
   const filteredCodes = authCodes.filter(code => {
-    const matchesCoc = cocAgencyFilter === 'All' || code.coc_agency_name === cocAgencyFilter;
+    const matchesLocal = localAgencyFilter === 'All' || code.coc_agency_name === localAgencyFilter; // Filter by coc_agency_name (which now represents local agency)
     const matchesForeign = foreignAgencyFilter === 'All' || code.foreign_agency_name === foreignAgencyFilter;
-    return matchesCoc && matchesForeign;
+    return matchesLocal && matchesForeign;
   });
 
   if (isLoading || isLoadingConfig) {
@@ -127,18 +129,18 @@ const AdminAuthorizationCodes: React.FC = () => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="coc_agency">Link to COC Agency (Optional)</Label>
+              <Label htmlFor="local_agency">Link to Local Agency (COC) (Optional)</Label> {/* Updated Label */}
               <Select
-                value={newCodeCocAgency}
-                onValueChange={setNewCodeCocAgency}
+                value={newCodeLocalAgency}
+                onValueChange={setNewCodeLocalAgency}
                 disabled={generateMutation.isPending}
               >
-                <SelectTrigger id="coc_agency">
-                  <SelectValue placeholder="Select COC Agency (Optional)" />
+                <SelectTrigger id="local_agency"> {/* Updated ID */}
+                  <SelectValue placeholder="Select Local Agency (Optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="None">None</SelectItem>
-                  {cocAgencies.map(agency => (
+                  {localAgencies.map(agency => ( {/* Use localAgencies */}
                     <SelectItem key={agency} value={agency}>
                       {agency}
                     </SelectItem>
@@ -211,14 +213,14 @@ const AdminAuthorizationCodes: React.FC = () => {
         <CardContent>
           <div className="flex gap-4 mb-4">
             <div className="flex-1">
-              <Select value={cocAgencyFilter} onValueChange={setCocAgencyFilter}>
+              <Select value={localAgencyFilter} onValueChange={setLocalAgencyFilter}> {/* Changed from cocAgencyFilter */}
                 <SelectTrigger>
                   <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Filter by COC Agency" />
+                  <SelectValue placeholder="Filter by Local Agency" /> {/* Updated Label */}
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All COC Agencies</SelectItem>
-                  {cocAgencies.map(agency => (
+                  <SelectItem value="All">All Local Agencies</SelectItem> {/* Updated Label */}
+                  {localAgencies.map(agency => ( {/* Use localAgencies */}
                     <SelectItem key={agency} value={agency}>
                       {agency}
                     </SelectItem>
@@ -252,7 +254,7 @@ const AdminAuthorizationCodes: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Code</TableHead>
-                    <TableHead>COC Agency</TableHead>
+                    <TableHead>Local Agency (COC)</TableHead> {/* Updated Label */}
                     <TableHead>Foreign Agency</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Created At</TableHead>
@@ -272,7 +274,7 @@ const AdminAuthorizationCodes: React.FC = () => {
                     return (
                       <TableRow key={code.code}>
                         <TableCell className="font-mono text-sm">{code.code.substring(0, 8)}...</TableCell>
-                        <TableCell>{code.coc_agency_name || 'N/A'}</TableCell>
+                        <TableCell>{code.coc_agency_name || 'N/A'}</TableCell> {/* This field now correctly represents the Local Agency */}
                         <TableCell>{code.foreign_agency_name || 'N/A'}</TableCell>
                         <TableCell>{code.created_by_admin_id.substring(0, 4)}...</TableCell>
                         <TableCell>{format(new Date(code.created_at), 'PPP')}</TableCell>
