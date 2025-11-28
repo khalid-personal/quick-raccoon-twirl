@@ -78,10 +78,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
   
   const handleViewPublicTracking = () => {
-    console.log("handleViewPublicTracking called. Input:", trackingCodeInput); // Debug log
+    console.log("handleViewPublicTracking called. Input:", trackingCodeInput);
     if (trackingCodeInput.trim()) {
-      const targetPath = `/track/${trackingCodeInput.trim()}`;
-      console.log("Navigating to:", targetPath); // Debug log
+      // Navigate to the new public route
+      const targetPath = `/public-track/${trackingCodeInput.trim()}`;
+      console.log("Navigating to:", targetPath);
       navigate(targetPath);
       setIsTrackingTestDialogOpen(false);
       setTrackingCodeInput('');

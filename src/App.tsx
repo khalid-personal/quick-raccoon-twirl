@@ -17,10 +17,9 @@ import AgencyDashboard from "./pages/AgencyDashboard";
 import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes";
 import AdminAttendance from "./pages/AdminAttendance";
 import LocalAgencyDashboard from "./pages/LocalAgencyDashboard";
-// Removed: import LocalAgencyAuthorizationCodes from "./pages/LocalAgencyAuthorizationCodes"; 
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
-import LocalAgencyLayout from "./components/LocalAgencyLayout"; // NEW IMPORT
+import LocalAgencyLayout from "./components/LocalAgencyLayout";
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
@@ -107,7 +106,7 @@ const AppRoutes = () => (
       <Route path="/login" element={<AuthPage />} />
       <Route path="/signup" element={<Signup />} />
       
-      {/* Candidate Tracking Route (Protected) */}
+      {/* Candidate Tracking Route (Protected for actual candidates) */}
       <Route 
         path="/track" 
         element={<Navigate to="/login?tab=candidate" replace />} 
@@ -119,6 +118,12 @@ const AppRoutes = () => (
             <TrackingPage />
           </CandidateProtectedRoute>
         } 
+      />
+
+      {/* NEW: Public Tracking Test Route (Accessible to anyone, including admins for testing) */}
+      <Route 
+        path="/public-track/:trackingCode" 
+        element={<TrackingPage />} 
       />
       
       {/* Admin Routes (Protected for admin/staff) */}
@@ -214,16 +219,6 @@ const AppRoutes = () => (
           </LocalAgencyProtectedRoute>
         } 
       />
-      {/* Removed: <Route 
-        path="/local-agency/auth-codes" 
-        element={
-          <LocalAgencyProtectedRoute>
-            <LocalAgencyLayout>
-              <LocalAgencyAuthorizationCodes />
-            </LocalAgencyLayout>
-          </LocalAgencyProtectedRoute>
-        } 
-      /> */}
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
