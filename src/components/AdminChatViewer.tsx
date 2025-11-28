@@ -82,9 +82,15 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
   // Mark candidate messages as read by admin when history loads
   useEffect(() => {
       if (messages.length > 0) {
-          api.markCandidateMessagesRead(candidate.id, 'admin');
-          queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidate.id] });
-          queryClient.invalidateQueries({ queryKey: ['adminInboxSummary'] });
+          // Use a timeout to ensure the messages are rendered before marking as read,
+          // and to prevent an infinite loop of fetching/marking/refetching immediately.
+          const timeoutId = setTimeout(() => {
+              api.markCandidateMessagesRead(candidate.id, 'admin');
+              queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidate.id] });
+              queryClient.invalidateQueries({ queryKey: ['adminInboxSummary'] }); // Update inbox count
+          }, 500);
+          
+          return () => clearTimeout(timeoutId);
       }
   }, [messages.length, candidate.id, queryClient]);
 

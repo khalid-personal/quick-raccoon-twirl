@@ -7,17 +7,9 @@ export const getCandidateChatHistory = async (candidateId: string): Promise<Chat
     await new Promise(resolve => setTimeout(resolve, 100));
     const messages = getChatMessages().filter(m => m.candidate_id === candidateId);
     
-    // Mark messages sent by candidate as read by admin
-    const updatedMessages = messages.map(m => {
-        if (m.sender === 'candidate' && !m.is_read_by_admin) {
-            return { ...m, is_read_by_admin: true };
-        }
-        return m;
-    });
+    // NOTE: Read marking is now handled explicitly by the UI component (AdminChatViewer/CandidateChat)
     
-    saveChatMessages(updatedMessages);
-    
-    return updatedMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 };
 
 // GET /api/chat/admin/inbox
@@ -93,17 +85,23 @@ export const markCandidateMessagesRead = async (candidateId: string, senderType:
     await new Promise(resolve => setTimeout(resolve, 100));
     const allMessages = getChatMessages();
     
+    let changed = false;
+    
     const updatedMessages = allMessages.map(m => {
         if (m.candidate_id === candidateId) {
             if (senderType === 'admin' && m.sender === 'candidate' && !m.is_read_by_admin) {
+                changed = true;
                 return { ...m, is_read_by_admin: true };
             }
             if (senderType === 'candidate' && (m.sender === 'admin' || m.sender === 'staff') && !m.is_read_by_candidate) {
+                changed = true;
                 return { ...m, is_read_by_candidate: true };
             }
         }
         return m;
     });
     
-    saveChatMessages(updatedMessages);
+    if (changed) {
+        saveChatMessages(updatedMessages);
+    }
 };

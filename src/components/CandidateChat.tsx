@@ -80,9 +80,15 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
   // Mark admin messages as read by candidate when history loads
   useEffect(() => {
       if (messages.length > 0) {
-          // This marks messages sent by admin/staff as read by the candidate
-          api.markCandidateMessagesRead(candidateId, 'candidate');
-          queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidateId] });
+          // Use a timeout to ensure the messages are rendered before marking as read,
+          // and to prevent an infinite loop of fetching/marking/refetching immediately.
+          const timeoutId = setTimeout(() => {
+              api.markCandidateMessagesRead(candidateId, 'candidate');
+              // Invalidate to update the read receipts on the screen
+              queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidateId] });
+          }, 500); 
+          
+          return () => clearTimeout(timeoutId);
       }
   }, [messages.length, candidateId, queryClient]);
 
