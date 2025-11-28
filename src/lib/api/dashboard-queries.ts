@@ -71,7 +71,7 @@ export const getBatches = async (): Promise<string[]> => {
 export const getDashboardSummary = async (
     filter: TimeFilter = 'All', 
     foreignAgencyFilter?: string,
-    cocAgencyFilter?: string // NEW PARAMETER
+    cocAgencyFilter?: string
 ): Promise<DashboardSummary> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
@@ -91,7 +91,7 @@ export const getDashboardSummary = async (
     filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter); // NEW
+    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
 
     let pending = 0;
     let in_progress = 0;
@@ -123,9 +123,9 @@ export const searchCandidates = async (
     filterBatch?: string,
     sortBy: CandidateSortField = 'tracking_code', // Default sort
     sortDirection: SortDirection = 'asc', // Default direction
-    timeFilter: TimeFilter = 'All', // NEW PARAMETER
-    foreignAgencyFilter?: string, // NEW PARAMETER
-    cocAgencyFilter?: string // NEW PARAMETER
+    timeFilter: TimeFilter = 'All',
+    foreignAgencyFilter?: string,
+    cocAgencyFilter?: string
 ): Promise<CandidateSummary[]> => {
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
@@ -165,7 +165,7 @@ export const searchCandidates = async (
     filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter); // NEW
+    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
 
     // 5. Apply search/status/batch filters
     filteredCandidates = filteredCandidates.filter(c => {
@@ -219,7 +219,7 @@ export const searchCandidates = async (
             case 'country_of_origin':
                 compareStrings(a.country_of_origin, b.country_of_origin);
                 break;
-            case 'foreign_agency': // NEW SORT FIELD
+            case 'foreign_agency':
                 compareStrings(a.foreign_agency, b.foreign_agency);
                 break;
             case 'tracking_code':
@@ -241,7 +241,7 @@ export const searchCandidates = async (
 export const getPipelineDistribution = async (
     filter: TimeFilter = 'All', 
     foreignAgencyFilter?: string,
-    cocAgencyFilter?: string // NEW PARAMETER
+    cocAgencyFilter?: string
 ): Promise<PipelineDistribution[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
@@ -257,7 +257,7 @@ export const getPipelineDistribution = async (
     filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter); // NEW
+    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
 
     // Initialize distribution map for all stages
     const distributionMap = new Map<number, { pending: number, inProgress: number, blocked: number }>();
@@ -319,7 +319,7 @@ export const getPipelineDistribution = async (
 export const getPaymentAnalytics = async (
     filter: TimeFilter = 'All', 
     foreignAgencyFilter?: string,
-    cocAgencyFilter?: string // NEW PARAMETER
+    cocAgencyFilter?: string
 ): Promise<PaymentAnalytics> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
@@ -335,7 +335,7 @@ export const getPaymentAnalytics = async (
     filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // 4. Apply COC agency filter
-    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter); // NEW
+    filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
     
     const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
     

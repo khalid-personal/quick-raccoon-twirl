@@ -15,14 +15,16 @@ import AdminUserManagement from "./pages/AdminUserManagement";
 import AdminChatViewer from "./pages/AdminChatViewer";
 import AgencyDashboard from "./pages/AgencyDashboard";
 import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes";
-import AdminAttendance from "./pages/AdminAttendance"; // NEW IMPORT
+import AdminAttendance from "./pages/AdminAttendance";
+import LocalAgencyDashboard from "./pages/LocalAgencyDashboard"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
-import { Loader2 } from 'lucide-react'; // Added Loader2 import
+import LocalAgencyLayout from "./components/LocalAgencyLayout"; // NEW IMPORT
+import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
-// Component to protect Admin routes
+// Component to protect Admin/Staff routes
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated, userRole, isLoading } = useAuth();
   
@@ -30,10 +32,22 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'staff' && userRole !== 'local-agency')) { // Added local-agency
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  return children;
+
+  // Redirect local-agency users to their specific dashboard
+  if (userRole === 'local-agency') {
+    return <Navigate to="/local-agency" replace />;
+  }
+
+  // Allow admin and staff to access admin routes
+  if (userRole === 'admin' || userRole === 'staff') {
+    return children;
+  }
+
+  // For any other authenticated but unauthorized role, redirect to login
+  return <Navigate to="/login" replace />;
 };
 
 // Component to protect Candidate tracking route
@@ -45,7 +59,6 @@ const CandidateProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
   
   if (!isAuthenticated || userRole !== 'candidate' || !candidateTrackingCode) {
-    // Redirect non-candidates or unauthenticated users to login
     return <Navigate to="/login?tab=candidate" replace />;
   }
   
@@ -61,6 +74,20 @@ const AgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!isAuthenticated || userRole !== 'agency' || !userForeignAgency) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+// NEW: Component to protect Local Agency routes
+const LocalAgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, userRole, isLoading, userCocAgency } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!isAuthenticated || userRole !== 'local-agency' || !userCocAgency) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -91,7 +118,7 @@ const AppRoutes = () => (
         } 
       />
       
-      {/* Admin Routes (Protected) */}
+      {/* Admin Routes (Protected for admin/staff) */}
       <Route 
         path="/admin" 
         element={
@@ -170,6 +197,18 @@ const AppRoutes = () => (
           <AgencyProtectedRoute>
             <AgencyDashboard />
           </AgencyProtectedRoute>
+        } 
+      />
+
+      {/* NEW: Local Agency Portal Route (Protected) */}
+      <Route 
+        path="/local-agency" 
+        element={
+          <LocalAgencyProtectedRoute>
+            <LocalAgencyLayout>
+              <LocalAgencyDashboard />
+            </LocalAgencyLayout>
+          </LocalAgencyProtectedRoute>
         } 
       />
       

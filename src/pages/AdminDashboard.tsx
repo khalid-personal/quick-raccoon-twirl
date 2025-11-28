@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import PipelineProgressChart from '@/components/PipelineProgressChart';
-import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart'; // NEW IMPORT
+import PaymentAnalyticsChart from '@/components/PaymentAnalyticsChart';
 import { cn } from '@/lib/utils';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
@@ -26,7 +26,7 @@ const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
 };
 
-const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER'; // Non-empty string constant for 'All Batches'
+const ALL_BATCHES_FILTER = 'ALL_BATCHES_FILTER';
 
 interface SortableHeaderProps {
   field: CandidateSortField;
@@ -57,7 +57,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 const AdminDashboard: React.FC = () => {
   const { userRole, userCocAgency } = useAuth();
   const isSuperAdmin = userRole === 'admin';
-  const isLocalAgency = userRole === 'local-agency'; // NEW
+  const isLocalAgency = userRole === 'local-agency';
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -70,7 +70,7 @@ const AdminDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
-  const effectiveCocAgencyFilter = isLocalAgency ? userCocAgency : undefined; // NEW: Apply COC agency filter for local-agency users
+  const effectiveCocAgencyFilter = isLocalAgency ? userCocAgency : undefined;
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
     queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, effectiveCocAgencyFilter],
@@ -81,8 +81,8 @@ const AdminDashboard: React.FC = () => {
       sortBy,
       sortDirection,
       'All',
-      undefined, // No foreign agency filter here for admin dashboard
-      effectiveCocAgencyFilter // NEW: Pass COC agency filter
+      undefined,
+      effectiveCocAgencyFilter
     ),
     initialData: [],
   });
@@ -222,7 +222,7 @@ const AdminDashboard: React.FC = () => {
                       label="Name" 
                       onSort={handleSort} 
                     />
-                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead> {/* NEW HEADER */}
+                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead>
                     <SortableHeader 
                       field="tracking_code" 
                       currentSort={sortBy} 
@@ -232,7 +232,6 @@ const AdminDashboard: React.FC = () => {
                     />
                     <TableHead>Batch</TableHead>
                     <TableHead>Passport</TableHead>
-                    {/* Removed Phone column */}
                     <SortableHeader 
                       field="country_of_origin" 
                       currentSort={sortBy} 
@@ -277,7 +276,6 @@ const AdminDashboard: React.FC = () => {
                         </Link>
                       </TableCell>
                       
-                      {/* Fees Paid Cell (Now clickable via the icons) */}
                       <TableCell className="text-center">
                         <Link 
                           to={`/admin/candidate/${candidate.id}?tab=medical`} 
@@ -308,7 +306,6 @@ const AdminDashboard: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>{candidate.passport_number}</TableCell>
-                      {/* Removed Phone cell */}
                       <TableCell>{candidate.country_of_origin}</TableCell>
                       <TableCell>
                         <ProgressIndicator percent={candidate.progress_percent} className="w-full" />

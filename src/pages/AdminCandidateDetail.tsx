@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Send } from 'lucide-react'; // Added Send icon
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -13,12 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
 import NotificationSender from '@/components/NotificationSender';
-import AdminChatViewer from '@/components/AdminChatViewer'; // NEW IMPORT
+import AdminChatViewer from '@/components/AdminChatViewer';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const AdminCandidateDetail: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { userRole, userCocAgency } = useAuth(); // Get user role and COC agency
   
   const initialTab = searchParams.get('tab') || 'timeline';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -35,6 +37,16 @@ const AdminCandidateDetail: React.FC = () => {
     queryFn: () => api.getCandidateDetail(candidateId!),
     enabled: !!candidateId,
   });
+
+  const handleSendProfile = async () => {
+    if (!candidate) return;
+    try {
+      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency || 'N/A');
+      toast.success(`Candidate profile for ${candidate.tracking_code} sent to foreign agency.`);
+    } catch (error) {
+      toast.error(`Failed to send profile: ${(error as Error).message}`);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -58,6 +70,9 @@ const AdminCandidateDetail: React.FC = () => {
     );
   }
 
+  const isLocalAgencyUser = userRole === 'local-agency';
+  const canSendProfile = isLocalAgencyUser && candidate.coc_agency === userCocAgency && candidate.foreign_agency;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -65,11 +80,18 @@ const AdminCandidateDetail: React.FC = () => {
           {candidate.first_name} {candidate.last_name} 
           <span className="text-lg font-normal text-muted-foreground ml-3">({candidate.tracking_code})</span>
         </h1>
-        <Link to="/admin">
-          <Button variant="outline" className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-          </Button>
-        </Link>
+        <div className="flex space-x-2">
+            {canSendProfile && (
+                <Button onClick={handleSendProfile} variant="default">
+                    <Send className="h-4 w-4 mr-2" /> Send Profile to Foreign Agency
+                </Button>
+            )}
+            <Link to={isLocalAgencyUser ? "/local-agency" : "/admin"}>
+                <Button variant="outline">
+                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+                </Button>
+            </Link>
+        </div>
       </div>
 
       <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
@@ -80,7 +102,7 @@ const AdminCandidateDetail: React.FC = () => {
           <TabsTrigger value="documents">Document Manager</TabsTrigger>
           <TabsTrigger value="medical">Medical Results</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="chat">Chat History</TabsTrigger> {/* NEW CHAT TAB */}
+          <TabsTrigger value="chat">Chat History</TabsTrigger>
         </TabsList>
         
         <TabsContent value="timeline" className="mt-4">
@@ -99,7 +121,7 @@ const AdminCandidateDetail: React.FC = () => {
           <NotificationSender candidate={candidate} />
         </TabsContent>
         
-        <TabsContent value="chat" className="mt-4"> {/* NEW CHAT CONTENT */}
+        <TabsContent value="chat" className="mt-4">
           <AdminChatViewer candidate={candidate} />
         </TabsContent>
       </Tabs>

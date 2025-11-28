@@ -109,3 +109,10 @@ export const sendNotification = async (type: 'sms' | 'whatsapp', recipient: stri
     await new Promise(resolve => setTimeout(resolve, 50));
     return { success: true };
 };
+
+// NEW: Mock API for sending candidate profile to foreign agency
+export const sendProfileToForeignAgency = async (candidateId: string, trackingCode: string, foreignAgencyName: string) => {
+    console.log(`[MOCK ACTION] Candidate ${trackingCode} (ID: ${candidateId}) profile sent to Foreign Agency: ${foreignAgencyName}`);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    return { success: true, message: `Profile for ${trackingCode} successfully sent to ${foreignAgencyName}.` };
+};
