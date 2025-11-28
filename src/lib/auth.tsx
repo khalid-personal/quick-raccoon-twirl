@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const staffUser = getStaffUsers().find(u => u.email.toLowerCase() === email);
     
     if (staffUser) {
-        console.log(`[AUTH] determineRole: Found staff user: ${staffUser.email}, Role: ${staffUser.role}, Approved: ${staffUser.is_approved}`);
+        console.log(`[AUTH] determineRole: Found staff user:`, staffUser); // ADDED LOG
         if (!staffUser.is_approved) {
             console.log(`[AUTH] determineRole: Staff user ${email} is registered but not approved. Treating as unauthenticated.`);
             return { role: null, trackingCode: null, foreignAgency: null, cocAgency: null }; 

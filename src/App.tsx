@@ -87,6 +87,8 @@ const LocalAgencyProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
+  console.log("[LocalAgencyProtectedRoute] Checking access:", { isAuthenticated, userRole, userCocAgency }); // ADDED LOG
+
   if (!isAuthenticated || userRole !== 'local-agency' || !userCocAgency) {
     console.log("[LocalAgencyProtectedRoute] Redirecting: isAuthenticated:", isAuthenticated, "userRole:", userRole, "userCocAgency:", userCocAgency);
     return <Navigate to="/login" replace />;
