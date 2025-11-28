@@ -30,11 +30,15 @@ export const updateAppConfig = async (
 
     const oldForeignAgencies = oldConfig.foreignAgencies.join(', ');
     const newForeignAgencies = config.foreignAgencies.join(', ');
+
+    const oldLocalAgencies = oldConfig.localAgencies.join(', '); // NEW
+    const newLocalAgencies = config.localAgencies.join(', '); // NEW
     
     let description = `Updated application configuration.`;
     if (oldCountries !== newCountries) description += ` Country list changed from [${oldCountries}] to [${newCountries}].`;
     if (oldCocAgencies !== newCocAgencies) description += ` COC Agencies changed from [${oldCocAgencies}] to [${newCocAgencies}].`;
     if (oldForeignAgencies !== newForeignAgencies) description += ` Foreign Agencies changed from [${oldForeignAgencies}] to [${newForeignAgencies}].`;
+    if (oldLocalAgencies !== newLocalAgencies) description += ` Local Agencies changed from [${oldLocalAgencies}] to [${newLocalAgencies}].`; // NEW
 
     await recordApprovalLog(actorId, actorEmail, 'Config', 'global_config', 'Updated', description);
     // --- END LOGGING ---
@@ -52,6 +56,12 @@ export const getCocAgencies = async (): Promise<string[]> => {
 export const getForeignAgencies = async (): Promise<string[]> => {
     const config = await getAppConfig();
     return config.foreignAgencies;
+};
+
+// NEW: Get Local Agencies
+export const getLocalAgencies = async (): Promise<string[]> => {
+    const config = await getAppConfig();
+    return config.localAgencies;
 };
 
 // NEW: Mock function to select the least used COC agency

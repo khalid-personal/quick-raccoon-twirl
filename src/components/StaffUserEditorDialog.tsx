@@ -5,7 +5,7 @@ import * as z from 'zod';
 import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Mail, Lock, UserCog, Building } from 'lucide-react';
+import { Loader2, Save, Mail, Lock, UserCog, Building, Landmark } from 'lucide-react'; // Added Landmark icon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,8 @@ const EditStaffSchema = z.object({
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
   ),
-  foreign_agency: z.string().optional(), // NEW FIELD
+  foreign_agency: z.string().optional(),
+  coc_agency_name: z.string().optional(), // NEW FIELD
 });
 
 type EditStaffFormValues = z.infer<typeof EditStaffSchema>;
@@ -38,6 +39,7 @@ interface AppConfig {
     countryOptions: string[];
     cocAgencies: string[];
     foreignAgencies: string[];
+    localAgencies: string[]; // NEW
 }
 
 const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser, onSuccess, onClose, currentUserId }) => {
@@ -50,9 +52,10 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [], localAgencies: [] },
   });
   const foreignAgencies = config.foreignAgencies;
+  const localAgencies = config.localAgencies; // NEW
 
   const form = useForm<EditStaffFormValues>({
     resolver: zodResolver(EditStaffSchema),
@@ -60,7 +63,8 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
       email: staffUser.email,
       role: staffUser.role,
       new_pin: '',
-      foreign_agency: staffUser.foreign_agency || '', // Initialize
+      foreign_agency: staffUser.foreign_agency || '',
+      coc_agency_name: staffUser.coc_agency_name || '', // Initialize
     },
   });
 
@@ -70,9 +74,10 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
 
   const onSubmit = async (data: EditStaffFormValues) => {
     try {
-      // Check if role or foreign agency changed
+      // Check if role or agency associations changed
       const roleChanged = data.role !== staffUser.role;
       const foreignAgencyChanged = data.foreign_agency !== (staffUser.foreign_agency || '');
+      const cocAgencyNameChanged = data.coc_agency_name !== (staffUser.coc_agency_name || ''); // NEW
 
       if (roleChanged) {
         if (isSelf && data.role !== 'admin') {
@@ -83,13 +88,14 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
         await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved, actorId, actorEmail);
       }
       
-      // Update Credentials (Email/PIN) and Foreign Agency if changed
-      if (data.email !== staffUser.email || newPin || foreignAgencyChanged) {
+      // Update Credentials (Email/PIN) and Agency Associations if changed
+      if (data.email !== staffUser.email || newPin || foreignAgencyChanged || cocAgencyNameChanged) { // NEW condition
         await api.updateUserCredentials(
             staffUser.id, 
             data.email, 
             newPin, 
-            data.foreign_agency || undefined, // Pass foreign agency
+            data.foreign_agency || undefined,
+            data.coc_agency_name || undefined, // Pass COC agency name
             actorId,
             actorEmail
         );
@@ -173,6 +179,32 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
               </SelectContent>
             </Select>
             {errors.foreign_agency && <p className="text-red-500 text-xs mt-1">{errors.foreign_agency.message}</p>}
+          </div>
+        )}
+
+        {/* COC Agency Selection (Only for 'local-agency' role) */}
+        {selectedRole === 'local-agency' && (
+          <div className="space-y-2 pl-4 border-l-2 border-green-500"> {/* Different border color for local agency */}
+            <Label htmlFor="coc_agency_name" className="flex items-center">
+              <Landmark className="h-4 w-4 mr-2" /> Associated Local Agency (COC) *
+            </Label>
+            <Select
+              value={watch('coc_agency_name')}
+              onValueChange={(value) => setValue('coc_agency_name', value, { shouldValidate: true })}
+              disabled={isSubmitting || localAgencies.length === 0}
+            >
+              <SelectTrigger id="coc_agency_name">
+                <SelectValue placeholder="Select Local Agency" />
+              </SelectTrigger>
+              <SelectContent>
+                {localAgencies.map(agency => (
+                  <SelectItem key={agency} value={agency}>
+                    {agency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.coc_agency_name && <p className="text-red-500 text-xs mt-1">{errors.coc_agency_name.message}</p>}
           </div>
         )}
         

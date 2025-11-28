@@ -1,19 +1,20 @@
 export type StageStatus = 'Pending' | 'In Progress' | 'Passed' | 'Failed' | 'Issued' | 'Completed';
 export type MedicalStatus = 'Pending' | 'Passed' | 'Failed';
-export type UserRole = 'admin' | 'staff' | 'agency' | 'candidate'; // Added 'agency' role
+export type UserRole = 'admin' | 'staff' | 'agency' | 'local-agency' | 'candidate'; // Added 'local-agency' role
 
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
   email: string;
-  role: Exclude<UserRole, 'candidate'>; // admin, staff, agency
+  role: Exclude<UserRole, 'candidate'>; // admin, staff, agency, local-agency
   is_approved: boolean;
   created_at: string;
   auth_code_used?: string; // NEW: Store the authorization code used for signup
   foreign_agency?: string; // NEW: Link staff/agency users to a specific foreign agency
+  coc_agency_name?: string; // NEW: Link local-agency users to a specific COC agency
 }
 
-export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'agency'];
+export const STAFF_ROLES: Array<Exclude<UserRole, 'candidate'>> = ['admin', 'staff', 'agency', 'local-agency'];
 
 export interface Stage {
   id: number;

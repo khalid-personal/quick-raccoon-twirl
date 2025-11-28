@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key } from 'lucide-react'; // Added Key icon
+import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key, Landmark } from 'lucide-react'; // Added Key and Landmark icons
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -20,12 +20,16 @@ interface NavLinkProps {
     label: string;
     isActive: boolean;
     isSuperAdminRoute?: boolean;
+    isLocalAgencyRoute?: boolean; // NEW
     userRole: UserRole | null;
     unreadCount?: number;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, userRole, unreadCount = 0 }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdminRoute = false, isLocalAgencyRoute = false, userRole, unreadCount = 0 }) => {
     if (isSuperAdminRoute && userRole !== 'admin') {
+        return null;
+    }
+    if (isLocalAgencyRoute && userRole !== 'local-agency') { // NEW
         return null;
     }
     
@@ -51,17 +55,18 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, isActive, isSuperAdm
 };
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { logout, userRole } = useAuth();
+  const { logout, userRole, userCocAgency } = useAuth(); // Added userCocAgency
   const location = useLocation();
   const addisAbabaTime = useAddisAbabaTime();
   
   const isSuperAdmin = userRole === 'admin';
+  const isLocalAgency = userRole === 'local-agency'; // NEW
   
   // Fetch inbox summary for unread count
   const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
     queryKey: ['adminInboxSummary'],
     queryFn: api.getAdminInboxSummary,
-    enabled: userRole === 'admin' || userRole === 'staff',
+    enabled: userRole === 'admin' || userRole === 'staff' || userRole === 'local-agency', // Enabled for local-agency too
     refetchInterval: 10000, // Poll for new messages
   });
   
@@ -71,11 +76,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const MOCK_TRACKING_CODE = 'TRK-ET-0001'; 
   
   const navItems = [
-    { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false },
-    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, unreadCount: unreadCount },
+    { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false },
+    { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false, unreadCount: unreadCount },
     // Updated link to point to a specific candidate's tracking page for testing
-    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false },
-    { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true }, // NEW NAV ITEM
+    { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false },
+    { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-4 w-4" />, isSuperAdminRoute: true },
     { to: '/admin/users', label: 'User Management', icon: <UserCog className="h-4 w-4" />, isSuperAdminRoute: true },
   ];
@@ -104,6 +109,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       label={item.label}
                       isActive={location.pathname === item.to}
                       isSuperAdminRoute={item.isSuperAdminRoute}
+                      isLocalAgencyRoute={item.isLocalAgencyRoute} // NEW
                       userRole={userRole}
                       unreadCount={item.unreadCount}
                     />
@@ -129,6 +135,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <Home className="h-6 w-6" />
                 <span className="text-lg">Domestic Agency Workforce Management (DAWM) Portal</span>
                 <span className="text-sm font-medium text-muted-foreground ml-2">({userRole})</span>
+                {isLocalAgency && userCocAgency && ( // NEW: Display COC agency for local-agency users
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                        {userCocAgency}
+                    </Badge>
+                )}
             </Link>
             
             <nav className="flex items-center space-x-2 ml-6">
@@ -140,6 +151,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       label={item.label}
                       isActive={location.pathname === item.to}
                       isSuperAdminRoute={item.isSuperAdminRoute}
+                      isLocalAgencyRoute={item.isLocalAgencyRoute} // NEW
                       userRole={userRole}
                       unreadCount={item.unreadCount}
                     />

@@ -55,8 +55,9 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AdminDashboard: React.FC = () => {
-  const { userRole } = useAuth();
+  const { userRole, userCocAgency } = useAuth();
   const isSuperAdmin = userRole === 'admin';
+  const isLocalAgency = userRole === 'local-agency'; // NEW
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -69,15 +70,19 @@ const AdminDashboard: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const effectiveFilterBatch = filterBatch === ALL_BATCHES_FILTER ? undefined : filterBatch;
+  const effectiveCocAgencyFilter = isLocalAgency ? userCocAgency : undefined; // NEW: Apply COC agency filter for local-agency users
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
-    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection],
+    queryKey: ['adminCandidates', currentQuery, filterStatus, effectiveFilterBatch, sortBy, sortDirection, effectiveCocAgencyFilter],
     queryFn: () => api.searchCandidates(
       currentQuery, 
       filterStatus || undefined, 
       effectiveFilterBatch,
       sortBy,
-      sortDirection
+      sortDirection,
+      'All',
+      undefined, // No foreign agency filter here for admin dashboard
+      effectiveCocAgencyFilter // NEW: Pass COC agency filter
     ),
     initialData: [],
   });
@@ -147,7 +152,7 @@ const AdminDashboard: React.FC = () => {
         <PipelineProgressChart />
       )}
       
-      {/* Payment Analytics Chart (Visible to all staff/admin) */}
+      {/* Payment Analytics Chart (Visible to all staff/admin/local-agency) */}
       <PaymentAnalyticsChart />
 
       <DashboardSummaryCards onStatusSelect={handleStatusSelect} selectedStatus={filterStatus} />

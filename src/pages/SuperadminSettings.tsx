@@ -43,26 +43,31 @@ const SuperadminSettings: React.FC = () => {
   const [cocAgencies, setCocAgencies] = useState<string[]>([]);
   const [newCocAgency, setNewCocAgency] = useState('');
 
-  const [foreignAgencies, setForeignAgencies] = useState<string[]>([]); // NEW STATE
-  const [newForeignAgency, setNewForeignAgency] = useState(''); // NEW STATE
+  const [foreignAgencies, setForeignAgencies] = useState<string[]>([]);
+  const [newForeignAgency, setNewForeignAgency] = useState('');
+
+  const [localAgencies, setLocalAgencies] = useState<string[]>([]); // NEW STATE
+  const [newLocalAgency, setNewLocalAgency] = useState(''); // NEW STATE
 
   useEffect(() => {
     if (config) {
       // Filter out 'Other' as it's a special case not meant for direct editing here
       setCountryOptions(config.countryOptions.filter(c => c !== 'Other'));
       setCocAgencies(config.cocAgencies);
-      setForeignAgencies(config.foreignAgencies); // NEW
+      setForeignAgencies(config.foreignAgencies);
+      setLocalAgencies(config.localAgencies); // NEW
     }
   }, [config]);
 
   const mutation = useMutation({
-    mutationFn: (updatedConfig: { countryOptions: string[], cocAgencies: string[], foreignAgencies: string[] }) => {
+    mutationFn: (updatedConfig: { countryOptions: string[], cocAgencies: string[], foreignAgencies: string[], localAgencies: string[] }) => {
       // Re-add 'Other' to country options before saving
       const finalCountryOptions = [...updatedConfig.countryOptions, 'Other'];
       const finalConfig = { 
           countryOptions: finalCountryOptions, 
           cocAgencies: updatedConfig.cocAgencies,
-          foreignAgencies: updatedConfig.foreignAgencies, // NEW
+          foreignAgencies: updatedConfig.foreignAgencies,
+          localAgencies: updatedConfig.localAgencies, // NEW
       };
       return api.updateAppConfig(finalConfig, actorId, actorEmail);
     },
@@ -109,7 +114,7 @@ const SuperadminSettings: React.FC = () => {
     setCocAgencies(cocAgencies.filter(a => a !== agencyToRemove));
   };
   
-  const handleAddForeignAgency = () => { // NEW FUNCTION
+  const handleAddForeignAgency = () => {
     const trimmedAgency = newForeignAgency.trim();
     if (!trimmedAgency) return;
     
@@ -122,8 +127,25 @@ const SuperadminSettings: React.FC = () => {
     setNewForeignAgency('');
   };
 
-  const handleRemoveForeignAgency = (agencyToRemove: string) => { // NEW FUNCTION
+  const handleRemoveForeignAgency = (agencyToRemove: string) => {
     setForeignAgencies(foreignAgencies.filter(a => a !== agencyToRemove));
+  };
+
+  const handleAddLocalAgency = () => { // NEW FUNCTION
+    const trimmedAgency = newLocalAgency.trim();
+    if (!trimmedAgency) return;
+    
+    if (localAgencies.includes(trimmedAgency)) {
+        toast.warning("This Local Agency is already in the list.");
+        return;
+    }
+    
+    setLocalAgencies([...localAgencies, trimmedAgency]);
+    setNewLocalAgency('');
+  };
+
+  const handleRemoveLocalAgency = (agencyToRemove: string) => { // NEW FUNCTION
+    setLocalAgencies(localAgencies.filter(a => a !== agencyToRemove));
   };
 
   const handleSave = () => {
@@ -135,9 +157,9 @@ const SuperadminSettings: React.FC = () => {
         toast.error("The COC agency list cannot be empty.");
         return;
     }
-    // Foreign agencies can be empty, as it's optional for candidates
+    // Foreign agencies and Local agencies can be empty, as they are optional for candidates/users
     
-    mutation.mutate({ countryOptions, cocAgencies, foreignAgencies });
+    mutation.mutate({ countryOptions, cocAgencies, foreignAgencies, localAgencies });
   };
 
   if (isLoading) {
@@ -250,7 +272,7 @@ const SuperadminSettings: React.FC = () => {
         </CardContent>
       </Card>
       
-      <Card className="max-w-lg"> {/* NEW CARD FOR FOREIGN AGENCIES */}
+      <Card className="max-w-lg">
         <CardHeader>
           <CardTitle>Foreign Employment Agencies</CardTitle>
         </CardHeader>
@@ -288,6 +310,50 @@ const SuperadminSettings: React.FC = () => {
               disabled={mutation.isPending}
             />
             <Button onClick={handleAddForeignAgency} type="button" disabled={mutation.isPending || !newForeignAgency.trim()}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-lg"> {/* NEW CARD FOR LOCAL AGENCIES */}
+        <CardHeader>
+          <CardTitle>Local Agencies (COC)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Current Local Agencies</Label>
+            <div className="space-y-2">
+              {localAgencies.map((agency) => (
+                <div key={agency} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <span>{agency}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleRemoveLocalAgency(agency)}
+                    disabled={mutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex space-x-2 pt-2">
+            <Input 
+              placeholder="Add new local agency"
+              value={newLocalAgency}
+              onChange={(e) => setNewLocalAgency(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddLocalAgency();
+                }
+              }}
+              disabled={mutation.isPending}
+            />
+            <Button onClick={handleAddLocalAgency} type="button" disabled={mutation.isPending || !newLocalAgency.trim()}>
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>

@@ -6,6 +6,7 @@ export interface AppConfig {
     countryOptions: string[];
     cocAgencies: string[]; // NEW: List of COC training agencies
     foreignAgencies: string[]; // NEW: List of Foreign Employment Agencies
+    localAgencies: string[]; // NEW: List of Local Agencies (COC Agencies)
 }
 
 // --- Helper function to find stage ID by slug ---
@@ -16,6 +17,7 @@ export const SEED_CONFIG: AppConfig = {
     countryOptions: ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Eritrea', 'Sudan', 'Yemen', 'Uganda', 'Other'],
     cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NEW
     foreignAgencies: ['Al-Aman Recruitment', 'Gulf Manpower Solutions', 'Asia Star Agency', 'Middle East Connect', 'NuraLink'], // NEW: Added NuraLink
+    localAgencies: ['Local Agency X', 'Local Agency Y', 'Local Agency Z'], // NEW
 };
 
 // --- Helper function to generate initial stages for a new candidate ---
@@ -198,7 +200,7 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
         const progressLevel = Math.floor(Math.random() * ALL_STAGES.length);
         for (let i = 0; i < progressLevel; i++) {
             const stage = ALL_STAGES[i];
-            const candidateStage = stages.find(s => s.id === stage.id);
+            const candidateStage = stages.find(s => s.stage_id === stage.id);
             if (candidateStage) {
                 // 70% chance of passing, 30% chance of being In Progress/Pending at the current level
                 if (i < progressLevel - 1 || Math.random() < 0.7) {
@@ -290,7 +292,7 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         is_approved: false,
         created_at: new Date().toISOString(),
     },
-    { // NEW: Mock admin for NuraLink
+    { // Mock admin for NuraLink (Foreign Agency)
         id: uuidv4(),
         email: 'admin@nuralink.com',
         role: 'agency', // Role is 'agency'
@@ -298,13 +300,21 @@ export const SEED_STAFF_USERS: StaffUser[] = [
         created_at: new Date().toISOString(),
         foreign_agency: 'NuraLink', // Explicitly link to NuraLink
     },
-    { // NEW: Mock staff for Asia Star Agency
+    { // Mock staff for Asia Star Agency (Foreign Agency)
         id: uuidv4(),
         email: 'staff@asiastar.com',
         role: 'agency', // Role is 'agency'
         is_approved: true,
         created_at: new Date().toISOString(),
         foreign_agency: 'Asia Star Agency', // Explicitly link to Asia Star Agency
+    },
+    { // NEW: Mock user for Local Agency X (COC Agency)
+        id: uuidv4(),
+        email: 'admin@localagencyx.com',
+        role: 'local-agency', // New role 'local-agency'
+        is_approved: true,
+        created_at: new Date().toISOString(),
+        coc_agency_name: 'Local Agency X', // Linked to a COC agency
     },
 ];
 

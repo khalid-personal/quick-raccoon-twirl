@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, Mail, Lock, UserCog, Building } from 'lucide-react';
+import { Loader2, UserPlus, Mail, Lock, UserCog, Building, Landmark } from 'lucide-react'; // Added Landmark icon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,8 @@ const NewStaffUserSchema = z.object({
     required_error: "Role is required.",
   }),
   pin: z.string().min(6, "PIN must be at least 6 characters long."),
-  foreign_agency: z.string().optional(), // NEW FIELD
+  foreign_agency: z.string().optional(),
+  coc_agency_name: z.string().optional(), // NEW FIELD
 });
 
 type NewStaffUserFormValues = z.infer<typeof NewStaffUserSchema>;
@@ -34,6 +35,7 @@ interface AppConfig {
     countryOptions: string[];
     cocAgencies: string[];
     foreignAgencies: string[];
+    localAgencies: string[]; // NEW
 }
 
 const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose }) => {
@@ -44,9 +46,10 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [] },
+    initialData: { countryOptions: [], cocAgencies: [], foreignAgencies: [], localAgencies: [] },
   });
   const foreignAgencies = config.foreignAgencies;
+  const localAgencies = config.localAgencies; // NEW
 
   const form = useForm<NewStaffUserFormValues>({
     resolver: zodResolver(NewStaffUserSchema),
@@ -54,7 +57,8 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
       email: '',
       role: 'staff',
       pin: '123456',
-      foreign_agency: '', // Initialize
+      foreign_agency: '',
+      coc_agency_name: '', // Initialize
     },
   });
 
@@ -67,7 +71,8 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
         data.email, 
         data.pin, 
         data.role, 
-        data.foreign_agency || undefined, // Pass foreign agency
+        data.foreign_agency || undefined,
+        data.coc_agency_name || undefined, // Pass COC agency name
         actorId,
         actorEmail
       );
@@ -147,6 +152,32 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
             </SelectContent>
           </Select>
           {errors.foreign_agency && <p className="text-red-500 text-xs mt-1">{errors.foreign_agency.message}</p>}
+        </div>
+      )}
+
+      {/* COC Agency Selection (Only for 'local-agency' role) */}
+      {selectedRole === 'local-agency' && (
+        <div className="space-y-2 pl-4 border-l-2 border-green-500"> {/* Different border color for local agency */}
+          <Label htmlFor="coc_agency_name" className="flex items-center">
+            <Landmark className="h-4 w-4 mr-2" /> Associated Local Agency (COC) *
+          </Label>
+          <Select
+            value={watch('coc_agency_name')}
+            onValueChange={(value) => setValue('coc_agency_name', value, { shouldValidate: true })}
+            disabled={isSubmitting || localAgencies.length === 0}
+          >
+            <SelectTrigger id="coc_agency_name">
+              <SelectValue placeholder="Select Local Agency" />
+            </SelectTrigger>
+            <SelectContent>
+              {localAgencies.map(agency => (
+                <SelectItem key={agency} value={agency}>
+                  {agency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.coc_agency_name && <p className="text-red-500 text-xs mt-1">{errors.coc_agency_name.message}</p>}
         </div>
       )}
       

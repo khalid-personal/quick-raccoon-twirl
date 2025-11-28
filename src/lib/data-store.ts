@@ -70,6 +70,7 @@ export function initializeDataStore() {
       countryOptions: currentConfig.countryOptions || SEED_CONFIG.countryOptions,
       cocAgencies: currentConfig.cocAgencies || SEED_CONFIG.cocAgencies,
       foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies,
+      localAgencies: currentConfig.localAgencies || SEED_CONFIG.localAgencies, // NEW
   });
 }
 
