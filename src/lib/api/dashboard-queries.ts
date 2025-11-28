@@ -82,17 +82,31 @@ export const searchCandidates = async (
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
     const candidates = getCandidates();
     const allStages = getCandidateStages();
+    const paymentStatuses = getPaymentStatuses();
     const q = query.toLowerCase();
+    
+    const initialMedicalId = getStageId('initial_medical');
+    const finalMedicalId = getStageId('final_medical');
 
-    // 1. Augment candidates with calculated status/progress
+    // 1. Augment candidates with calculated status/progress and payment status
     const candidatesWithStatus = candidates.map(candidate => {
         const candidateStages = allStages.filter(cs => cs.candidate_id === candidate.id);
         const progress_percent = calculateProgress(candidateStages);
         const overall_status = calculateOverallStatus(candidateStages);
+        
+        const is_initial_medical_paid = paymentStatuses.some(ps => 
+            ps.candidateId === candidate.id && ps.stageId === initialMedicalId && ps.isPaid
+        );
+        const is_final_medical_paid = paymentStatuses.some(ps => 
+            ps.candidateId === candidate.id && ps.stageId === finalMedicalId && ps.isPaid
+        );
+        
         return {
             ...candidate,
             progress_percent,
             overall_status,
+            is_initial_medical_paid,
+            is_final_medical_paid,
         };
     });
 

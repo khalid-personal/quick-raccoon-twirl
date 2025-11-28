@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, PlusCircle, Loader2, Filter, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import NewCandidateForm from '@/components/NewCandidateForm';
@@ -217,6 +217,7 @@ const AdminDashboard: React.FC = () => {
                       label="Name" 
                       onSort={handleSort} 
                     />
+                    <TableHead className="w-[100px] text-center">Fees Paid</TableHead> {/* NEW HEADER */}
                     <SortableHeader 
                       field="tracking_code" 
                       currentSort={sortBy} 
@@ -263,6 +264,27 @@ const AdminDashboard: React.FC = () => {
                   {candidates.map((candidate) => (
                     <TableRow key={candidate.id}>
                       <TableCell className="font-medium">{candidate.first_name} {candidate.last_name}</TableCell>
+                      
+                      {/* NEW: Fees Paid Cell */}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <CheckCircle 
+                            className={cn(
+                              "h-4 w-4", 
+                              candidate.is_initial_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
+                            )}
+                            title={candidate.is_initial_medical_paid ? "Initial Medical Paid" : "Initial Medical Fee Due"}
+                          />
+                          <CheckCircle 
+                            className={cn(
+                              "h-4 w-4", 
+                              candidate.is_final_medical_paid ? "text-green-500" : "text-gray-300 dark:text-gray-600"
+                            )}
+                            title={candidate.is_final_medical_paid ? "Final Medical Paid" : "Final Medical Fee Due"}
+                          />
+                        </div>
+                      </TableCell>
+                      
                       <TableCell>{candidate.tracking_code}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs">

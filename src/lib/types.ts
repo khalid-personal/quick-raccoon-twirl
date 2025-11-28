@@ -99,6 +99,9 @@ export interface CandidateSummary extends Candidate {
   progress_percent: number;
   // Add a calculated status for filtering purposes
   overall_status: 'Pending' | 'In Progress' | 'Completed' | 'Blocked';
+  // NEW Payment Status fields
+  is_initial_medical_paid: boolean;
+  is_final_medical_paid: boolean;
   // Removed is_minor: boolean;
 }
 
