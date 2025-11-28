@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Link, Navigate } from 'react-router-dom';
+import { useParams, Link, Navigate, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,21 +9,21 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertTriangle, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/auth'; // Import useAuth
-import CandidateChat from '@/components/CandidateChat'; // NEW IMPORT
-import CandidateDocumentUploader from '@/components/CandidateDocumentUploader'; // NEW IMPORT
+import { useAuth } from '@/lib/auth';
+import CandidateChat from '@/components/CandidateChat';
+import CandidateDocumentUploader from '@/components/CandidateDocumentUploader';
 import { format } from 'date-fns';
-import { CandidateDetail } from '@/lib/types'; // Import CandidateDetail
+import { CandidateDetail } from '@/lib/types';
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
-  const { candidateTrackingCode, userRole, logout } = useAuth(); // Get logged-in candidate's code
+  const { candidateTrackingCode, userRole, logout } = useAuth();
+  const navigate = useNavigate(); // Initialize useNavigate
   
   const isCandidateAuthenticated = userRole === 'candidate';
 
   // Security check: If the user is a candidate, ensure the URL matches their code
   if (isCandidateAuthenticated && trackingCode !== candidateTrackingCode) {
-    // Redirect to their correct tracking page if they try to access another one
     toast.error("Access denied to this tracking code.");
     return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
   }
@@ -32,26 +32,28 @@ const TrackingPage: React.FC = () => {
     queryKey: ['publicTracking', trackingCode],
     queryFn: () => api.getPublicTrackingData(trackingCode!),
     enabled: !!trackingCode,
-    // Simulate real-time refresh (polling)
     refetchInterval: 5000, 
   });
   
-  // We need the full candidate detail to get the ID and email for the chat/uploader component
   const { data: candidateDetail, isLoading: isLoadingDetail } = useQuery<CandidateDetail | null>({
     queryKey: ['candidateDetailByTrackingCode', trackingCode],
     queryFn: () => api.getCandidateDetailByTrackingCode(trackingCode!),
-    enabled: !!trackingCode && isCandidateAuthenticated, // Only fetch full detail if candidate is logged in
+    enabled: !!trackingCode && isCandidateAuthenticated,
   });
   
   const handlePrint = async () => {
     if (!trackingCode) return;
     try {
-      // Mock API call
       await api.generatePrintableSheet(trackingCode);
       toast.success("Printable sheet generated successfully (Check console for mock data).");
     } catch (e) {
       toast.error("Failed to generate printable sheet.");
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true }); // Redirect to login page after logout
   };
 
   if (isLoading || (isCandidateAuthenticated && isLoadingDetail)) {
@@ -81,7 +83,6 @@ const TrackingPage: React.FC = () => {
     );
   }
   
-  // Use candidateDetail for sensitive info if available (i.e., if candidate is logged in)
   const displayCandidateDetail = isCandidateAuthenticated ? candidateDetail : null;
 
   return (
@@ -91,7 +92,6 @@ const TrackingPage: React.FC = () => {
           <CardTitle className="text-3xl">Application Status: {data.candidate_name}</CardTitle>
           <p className="text-lg text-muted-foreground">Tracking Code: <span className="font-mono font-semibold">{data.tracking_code}</span></p>
           
-          {/* Display Sensitive Info if Authenticated as Candidate */}
           {displayCandidateDetail && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-2 border-t mt-2">
                 <div>
@@ -122,13 +122,12 @@ const TrackingPage: React.FC = () => {
             timeline={data.timeline} 
             isPublicView={true} 
             trackingCode={data.tracking_code}
-            candidateId={displayCandidateDetail?.id} // Pass candidate ID if available
+            candidateId={displayCandidateDetail?.id}
             refetch={refetch}
           />
           
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            {/* Candidate Document Uploader (Only visible if authenticated) */}
             {displayCandidateDetail && (
                 <CandidateDocumentUploader
                     candidateId={displayCandidateDetail.id}
@@ -138,7 +137,6 @@ const TrackingPage: React.FC = () => {
                 />
             )}
             
-            {/* Chat Component */}
             {displayCandidateDetail && (
                 <CandidateChat 
                     candidateId={displayCandidateDetail.id}
@@ -147,7 +145,6 @@ const TrackingPage: React.FC = () => {
                 />
             )}
             
-            {/* Important Notes (Fallback if not authenticated) */}
             {!displayCandidateDetail && (
                 <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 h-full">
                     <h3 className="text-xl font-semibold mb-2">Important Notes for Family/Parents</h3>
@@ -161,13 +158,11 @@ const TrackingPage: React.FC = () => {
           </div>
           
           <div className="mt-6 text-center space-y-4">
-            {/* Printable Progress Sheet Button */}
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" /> Generate Printable Progress Sheet (Mock)
             </Button>
             
-            {/* Logout Button */}
-            <Button variant="secondary" onClick={logout}>Logout</Button>
+            <Button variant="secondary" onClick={handleLogout}>Logout</Button> {/* Use handleLogout */}
           </div>
         </CardContent>
       </Card>
