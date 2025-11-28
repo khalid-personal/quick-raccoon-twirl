@@ -38,7 +38,7 @@ const filterCandidatesByCocAgency = (candidates: CandidateSummary[], cocAgency?:
         console.log("[filterCandidatesByCocAgency] No COC agency provided, returning all candidates.");
         return candidates; // No filter applied if cocAgency is not provided
     }
-    const filtered = candidates.filter(c => c.managing_local_agency === cocAgency);
+    const filtered = candidates.filter(c => (c.managing_local_agency || '') === cocAgency); // Added || '' for robustness
     console.log(`[filterCandidatesByCocAgency] Candidates before filter: ${candidates.length}, after filter: ${filtered.length}`); // NEW DEBUG LOG
     return filtered;
 };
