@@ -8,7 +8,7 @@ import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DialogFooter } from '@/components/ui/dialog';
+import { DialogFooter, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CandidateDetail, Candidate } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
@@ -214,145 +214,150 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
 
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h3 className="text-lg font-semibold border-b pb-2 mb-4">Personal & Tracking Details</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="first_name">First Name *</Label>
-          <Input id="first_name" {...register('first_name')} />
-          {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
+    <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]"> {/* Added flex-col and max-h */}
+      <DialogHeader>
+        <DialogTitle>Edit Candidate Details</DialogTitle>
+      </DialogHeader>
+      
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 flex-grow overflow-y-auto pr-2"> {/* Added flex-grow and overflow-y-auto */}
+        <h3 className="text-lg font-semibold border-b pb-2 mb-4">Personal & Tracking Details</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="first_name">First Name *</Label>
+            <Input id="first_name" {...register('first_name')} />
+            {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="last_name">Last Name *</Label>
+            <Input id="last_name" {...register('last_name')} />
+            {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="last_name">Last Name *</Label>
-          <Input id="last_name" {...register('last_name')} />
-          {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="tracking_code">Tracking Code *</Label>
-          <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
-          {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="tracking_code">Tracking Code *</Label>
+            <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
+            {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="country_of_origin">Country of Origin *</Label>
+            <Select
+              value={selectedCountry}
+              onValueChange={(value) => {
+                setValue('country_of_origin', value, { shouldValidate: true });
+                if (value !== 'Other') {
+                  setValue('custom_country', '');
+                }
+              }}
+            >
+              <SelectTrigger id="country_of_origin">
+                <SelectValue placeholder="Select Country" />
+              </SelectTrigger>
+              <SelectContent>
+                {effectiveCountryOptions.map(country => (
+                  <SelectItem key={country} value={country}>
+                    {country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
+          </div>
         </div>
+        
+        {isCustomCountry && (
+          <div className="space-y-2">
+            <Label htmlFor="custom_country">Specify Country *</Label>
+            <Input id="custom_country" {...register('custom_country')} />
+            {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="passport_number">Passport Number *</Label>
+            <Input id="passport_number" {...register('passport_number')} />
+            {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
+            <Input id="dob" type="date" {...register('dob')} />
+            {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
+          </div>
+        </div>
+        
+        {/* Marital Status Selection */}
         <div className="space-y-2">
-          <Label htmlFor="country_of_origin">Country of Origin *</Label>
+          <Label htmlFor="marital_status">Marital Status *</Label>
           <Select
-            value={selectedCountry}
-            onValueChange={(value) => {
-              setValue('country_of_origin', value, { shouldValidate: true });
-              if (value !== 'Other') {
-                setValue('custom_country', '');
-              }
-            }}
+            value={watch('marital_status')}
+            onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
           >
-            <SelectTrigger id="country_of_origin">
-              <SelectValue placeholder="Select Country" />
+            <SelectTrigger id="marital_status">
+              <SelectValue placeholder="Select Status" />
             </SelectTrigger>
             <SelectContent>
-              {effectiveCountryOptions.map(country => (
-                <SelectItem key={country} value={country}>
-                  {country}
+              {MARITAL_STATUS_OPTIONS.map(status => (
+                <SelectItem key={status} value={status}>
+                  {status}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
+          {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
         </div>
-      </div>
-      
-      {isCustomCountry && (
+        
+        <Separator className="my-6" />
+        <h3 className="text-lg font-semibold border-b pb-2">Agency & Batch Details</h3>
+        
+        {/* COC Agency Selection */}
+        <div className="space-y-2 pt-4">
+          <Label htmlFor="coc_agency" className="flex items-center">
+              <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+          </Label>
+          <div className="flex gap-2">
+              <Select
+                  value={watch('coc_agency')}
+                  onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
+                  disabled={isSubmitting}
+              >
+                  <SelectTrigger id="coc_agency">
+                      <SelectValue placeholder="Select COC Agency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
+                      {cocAgencies.map(agency => (
+                          <SelectItem key={agency} value={agency}>
+                              {agency}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleSelectLeastUsed}
+                  disabled={isSubmitting || cocAgencies.length === 0}
+                  title="Select Least Used Agency (Mock Load Balancer)"
+              >
+                  <Shuffle className="h-4 w-4" />
+              </Button>
+          </div>
+          {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
+        </div>
+        
+        {/* Foreign Agency Selection */}
         <div className="space-y-2">
-          <Label htmlFor="custom_country">Specify Country *</Label>
-          <Input id="custom_country" {...register('custom_country')} />
-          {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="passport_number">Passport Number *</Label>
-          <Input id="passport_number" {...register('passport_number')} />
-          {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
-          <Input id="dob" type="date" {...register('dob')} />
-          {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
-        </div>
-      </div>
-      
-      {/* Marital Status Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="marital_status">Marital Status *</Label>
-        <Select
-          value={watch('marital_status')}
-          onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
-        >
-          <SelectTrigger id="marital_status">
-            <SelectValue placeholder="Select Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {MARITAL_STATUS_OPTIONS.map(status => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
-      </div>
-      
-      <Separator className="my-6" />
-      <h3 className="text-lg font-semibold border-b pb-2">Agency & Batch Details</h3>
-      
-      {/* COC Agency Selection */}
-      <div className="space-y-2 pt-4">
-        <Label htmlFor="coc_agency" className="flex items-center">
-            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
-        </Label>
-        <div className="flex gap-2">
-            <Select
-                value={watch('coc_agency')}
-                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
-                disabled={isSubmitting}
-            >
-                <SelectTrigger id="coc_agency">
-                    <SelectValue placeholder="Select COC Agency" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem> {/* Changed value="" to "none" */}
-                    {cocAgencies.map(agency => (
-                        <SelectItem key={agency} value={agency}>
-                            {agency}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Button 
-                type="button" 
-                variant="outline" 
-                size="icon" 
-                onClick={handleSelectLeastUsed}
-                disabled={isSubmitting || cocAgencies.length === 0}
-                title="Select Least Used Agency (Mock Load Balancer)"
-            >
-                <Shuffle className="h-4 w-4" />
-            </Button>
-        </div>
-        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
-      </div>
-      
-      {/* Foreign Agency Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="foreign_agency" className="flex items-center">
-            <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency
-        </Label>
-        <Select
+          <Label htmlFor="foreign_agency" className="flex items-center">
+              <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency
+          </Label>
+          <Select
             value={watch('foreign_agency')}
             onValueChange={(value) => setValue('foreign_agency', value, { shouldValidate: true })}
             disabled={isSubmitting}
-        >
+          >
             <SelectTrigger id="foreign_agency">
                 <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
@@ -364,87 +369,88 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                     </SelectItem>
                 ))}
             </SelectContent>
-        </Select>
-        {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
-      </div>
-      
-      {/* Batch Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="batch_name">Batch Group (Optional)</Label>
-        <Select
-          value={selectedBatch}
-          onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
-        >
-          <SelectTrigger id="batch_name">
-            <SelectValue placeholder="Select or Create Batch" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
-            {activeBatches.map(batch => (
-              <SelectItem key={batch} value={batch}>
-                {batch}
-              </SelectItem>
-            ))}
-            <SelectItem value={NEW_BATCH_OPTION}>
-              + Create New Batch
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
-      </div>
-      
-      {isCreatingNewBatch && (
-        <div className="space-y-2 pl-4 border-l-2 border-primary">
-          <Label htmlFor="new_batch_name">New Batch Name *</Label>
-          <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
-          {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
+          </Select>
+          {errors.foreign_agency && <p className="text-red-500 text-xs">{errors.foreign_agency.message}</p>}
         </div>
-      )}
-      
-      <Separator className="my-6" />
-      
-      <h3 className="text-lg font-semibold border-b pb-2 mb-4">Candidate Login Credentials</h3>
-      
-      {/* Email Input for Candidate Login */}
-      <div className="space-y-2">
-        <Label htmlFor="email" className="flex items-center">
-            <Mail className="h-4 w-4 mr-2" /> Candidate Email (Login) *
-        </Label>
-        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
-        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-      </div>
-      
-      {/* Phone Number Input */}
-      <div className="space-y-2">
-        <Label htmlFor="phone_number">Phone Number (Optional)</Label>
-        <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
-        {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
-      </div>
-      
-      {/* PIN Reset Input */}
-      <div className="space-y-2">
-        <Label htmlFor="new_pin" className="flex items-center">
-            <Lock className="h-4 w-4 mr-2" /> Reset PIN (Leave blank to keep current)
-        </Label>
-        <Input 
-            id="new_pin" 
-            type="password" 
-            placeholder="••••••"
-            {...register('new_pin')} 
-        />
-        {errors.new_pin && <p className="text-red-500 text-xs">{errors.new_pin.message}</p>}
-        <p className="text-xs text-muted-foreground">
-            If changed, the candidate must use this new PIN/Password for tracking login.
-        </p>
-      </div>
+        
+        {/* Batch Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="batch_name">Batch Group (Optional)</Label>
+          <Select
+            value={selectedBatch}
+            onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
+          >
+            <SelectTrigger id="batch_name">
+              <SelectValue placeholder="Select or Create Batch" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
+              {activeBatches.map(batch => (
+                <SelectItem key={batch} value={batch}>
+                  {batch}
+                </SelectItem>
+              ))}
+              <SelectItem value={NEW_BATCH_OPTION}>
+                + Create New Batch
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
+        </div>
+        
+        {isCreatingNewBatch && (
+          <div className="space-y-2 pl-4 border-l-2 border-primary">
+            <Label htmlFor="new_batch_name">New Batch Name *</Label>
+            <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
+            {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
+          </div>
+        )}
+        
+        <Separator className="my-6" />
+        
+        <h3 className="text-lg font-semibold border-b pb-2 mb-4">Candidate Login Credentials</h3>
+        
+        {/* Email Input for Candidate Login */}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="flex items-center">
+              <Mail className="h-4 w-4 mr-2" /> Candidate Email (Login) *
+          </Label>
+          <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+          {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+        </div>
+        
+        {/* Phone Number Input */}
+        <div className="space-y-2">
+          <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+          <Input id="phone_number" {...register('phone_number')} placeholder="+2519XXXXXXXX" />
+          {errors.phone_number && <p className="text-red-500 text-xs">{errors.phone_number.message}</p>}
+        </div>
+        
+        {/* PIN Reset Input */}
+        <div className="space-y-2">
+          <Label htmlFor="new_pin" className="flex items-center">
+              <Lock className="h-4 w-4 mr-2" /> Reset PIN (Leave blank to keep current)
+          </Label>
+          <Input 
+              id="new_pin" 
+              type="password" 
+              placeholder="••••••"
+              {...register('new_pin')} 
+          />
+          {errors.new_pin && <p className="text-red-500 text-xs">{errors.new_pin.message}</p>}
+          <p className="text-xs text-muted-foreground">
+              If changed, the candidate must use this new PIN/Password for tracking login.
+          </p>
+        </div>
 
-      <DialogFooter className="pt-4">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Save All Changes
-        </Button>
-      </DialogFooter>
-    </form>
+        <DialogFooter className="pt-4">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save All Changes
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 };
 
