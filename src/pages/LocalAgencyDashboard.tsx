@@ -61,6 +61,8 @@ const LocalAgencyDashboard: React.FC = () => {
   const [sortBy, setSortBy] = useState<CandidateSortField>('tracking_code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  console.log("LocalAgencyDashboard: userCocAgency from useAuth:", userCocAgency); // NEW DEBUG LOG
+
   const { data: candidates = [], isLoading, refetch } = useQuery<CandidateSummary[]>({
     queryKey: ['localAgencyCandidates', currentQuery, filterStatus, userCocAgency, sortBy, sortDirection],
     queryFn: () => api.searchCandidates(

@@ -33,8 +33,14 @@ const filterCandidatesByForeignAgency = (candidates: CandidateSummary[], foreign
 
 // NEW: Helper function to filter candidates by COC agency (now correctly filters by managing_local_agency)
 const filterCandidatesByCocAgency = (candidates: CandidateSummary[], cocAgency?: string): CandidateSummary[] => {
-    if (!cocAgency) return candidates; // No filter applied if cocAgency is not provided
-    return candidates.filter(c => c.managing_local_agency === cocAgency);
+    console.log(`[filterCandidatesByCocAgency] Filtering by COC Agency: ${cocAgency}`); // NEW DEBUG LOG
+    if (!cocAgency) {
+        console.log("[filterCandidatesByCocAgency] No COC agency provided, returning all candidates.");
+        return candidates; // No filter applied if cocAgency is not provided
+    }
+    const filtered = candidates.filter(c => c.managing_local_agency === cocAgency);
+    console.log(`[filterCandidatesByCocAgency] Candidates before filter: ${candidates.length}, after filter: ${filtered.length}`); // NEW DEBUG LOG
+    return filtered;
 };
 
 // GET /api/admin/batches
@@ -165,6 +171,7 @@ export const searchCandidates = async (
     filteredCandidates = filterCandidatesByForeignAgency(filteredCandidates, foreignAgencyFilter);
 
     // 4. Apply COC agency filter
+    console.log(`[searchCandidates] Applying COC agency filter: ${cocAgencyFilter}`); // NEW DEBUG LOG
     filteredCandidates = filterCandidatesByCocAgency(filteredCandidates, cocAgencyFilter);
 
     // 5. Apply search/status/batch filters
