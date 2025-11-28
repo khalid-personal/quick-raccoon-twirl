@@ -10,8 +10,8 @@ const AuthPage: React.FC = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Agency Portal</CardTitle>
-          <CardDescription>Select your access type below.</CardDescription>
+          <CardTitle className="text-3xl font-bold">Domestic Agency Workforce Management</CardTitle>
+          <CardDescription className="text-lg font-semibold text-primary">(DAWM) Portal Access</CardDescription>
         </CardHeader>
         
         <Tabs defaultValue="staff" className="w-full px-6 pb-6">
