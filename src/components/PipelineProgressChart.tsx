@@ -46,17 +46,43 @@ const PipelineProgressChart: React.FC = () => {
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               layout="vertical"
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-              <XAxis type="number" stroke="hsl(var(--foreground))" />
-              <YAxis dataKey="name" type="category" stroke="hsl(var(--foreground))" width={100} />
+              {/* Cleaned up grid: only vertical lines, solid stroke */}
+              <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+              <XAxis type="number" stroke="hsl(var(--foreground))" axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" stroke="hsl(var(--foreground))" width={120} axisLine={false} tickLine={false} />
               <Tooltip 
-                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '0.5rem',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
               />
-              <Legend />
-              <Bar dataKey="Pending" stackId="a" fill="hsl(var(--muted-foreground))" name="Pending" />
-              <Bar dataKey="In Progress" stackId="a" fill="hsl(var(--primary))" name="In Progress" />
-              <Bar dataKey="Blocked" stackId="a" fill="hsl(var(--destructive))" name="Blocked/Failed" />
+              <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px' }} />
+              
+              {/* Updated Colors and added radius for a softer look */}
+              <Bar 
+                dataKey="Pending" 
+                stackId="a" 
+                fill="hsl(48 96% 89%)" // Light Yellow/Orange
+                name="Pending" 
+                radius={[0, 4, 4, 0]}
+              />
+              <Bar 
+                dataKey="In Progress" 
+                stackId="a" 
+                fill="hsl(217.2 91.2% 59.8%)" // Vibrant Blue
+                name="In Progress" 
+                radius={[0, 4, 4, 0]}
+              />
+              <Bar 
+                dataKey="Blocked" 
+                stackId="a" 
+                fill="hsl(0 84.2% 60.2%)" // Destructive Red
+                name="Blocked/Failed" 
+                radius={[0, 4, 4, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
