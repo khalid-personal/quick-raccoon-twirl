@@ -10,6 +10,12 @@ export interface AppConfig {
 // --- Helper function to find stage ID by slug ---
 const getStageId = (slug: string) => ALL_STAGES.find(s => s.slug === slug)?.id;
 
+// --- Configuration Seed Data (Moved to top) ---
+export const SEED_CONFIG: AppConfig = {
+    countryOptions: ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Eritrea', 'Sudan', 'Yemen', 'Uganda', 'Other'],
+    cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NEW
+};
+
 // --- Helper function to generate initial stages for a new candidate ---
 export function generateInitialStages(candidate: Candidate): CandidateStage[] {
     return ALL_STAGES.map(stage => ({
@@ -239,11 +245,6 @@ export const SEED_MEDICAL_RESULTS: MedicalResult[] = [
     document_id: SEED_DOCUMENTS[1].id,
   },
 ];
-
-export const SEED_CONFIG: AppConfig = {
-    countryOptions: ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Eritrea', 'Sudan', 'Yemen', 'Uganda', 'Other'],
-    cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NEW
-};
 
 // Staff User Seed Data
 const MOCK_ADMIN_EMAIL = 'admin@agency.com';
