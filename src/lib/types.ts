@@ -161,17 +161,17 @@ export type SortDirection = 'asc' | 'desc';
 
 // Constants for Stages (based on SQL seed)
 export const ALL_STAGES: Stage[] = [
-  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10, icon: 'HeartPulse', fee_amount: 1500 }, // Added fee
-  { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20, icon: 'GraduationCap' },
-  { id: 3, slug: 'security_clearance', title: 'Security / Interpol Clearance', ordinal: 30, icon: 'ShieldCheck' },
-  { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 40, icon: 'Fingerprint' },
-  { id: 5, slug: 'contract_signing', title: 'Agency Contract Signing', ordinal: 50, icon: 'FileSignature' },
-  { id: 6, slug: 'biometrics_passport', title: 'Biometrics + Passport Processing', ordinal: 60, icon: 'Scan' },
-  { id: 7, slug: 'job_matching', title: 'Job Matching', ordinal: 70, icon: 'Users' },
-  { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80, icon: 'Plane' },
-  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90, icon: 'Stethoscope', fee_amount: 1000 }, // Added fee
-  { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100, icon: 'Briefcase' },
-  { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110, icon: 'PlaneTakeoff' },
+  { id: 1, slug: 'initial_medical', title: 'Initial Medical Exam', ordinal: 10, icon: 'HeartPulse', fee_amount: 1500 }, // 1
+  { id: 2, slug: 'coc_training', title: 'CoC Training', ordinal: 20, icon: 'GraduationCap' }, // 2
+  { id: 4, slug: 'labor_id', title: 'Labor ID Registration', ordinal: 30, icon: 'Fingerprint' }, // 3
+  { id: 3, slug: 'security_clearance', title: 'Security Clearance from Federal Government of Ethiopia Forensics Department (via Fingerprint)', ordinal: 40, icon: 'ShieldCheck' }, // 4 - Updated Title
+  { id: 7, slug: 'job_matching', title: 'Job Matching with Foreign Employment Agency', ordinal: 50, icon: 'Users' }, // 5 - Updated Title
+  { id: 5, slug: 'contract_signing', title: 'Agency Contract Signing', ordinal: 60, icon: 'FileSignature' }, // 6
+  { id: 6, slug: 'final_elmis_clearance', title: 'Final ELMIS Clearance (QR Code released)', ordinal: 70, icon: 'QrCode' }, // 7 - NEW STAGE (Replaced Biometrics)
+  { id: 8, slug: 'visa_processing', title: 'Visa Processing', ordinal: 80, icon: 'Plane' }, // 8
+  { id: 9, slug: 'final_medical', title: 'Final Medical Clearance', ordinal: 90, icon: 'Stethoscope', fee_amount: 1000 }, // 9
+  { id: 10, slug: 'pdo', title: 'Pre-Departure Orientation', ordinal: 100, icon: 'Briefcase' }, // 10
+  { id: 11, slug: 'flight_departure', title: 'Flight Booking + Departure', ordinal: 110, icon: 'PlaneTakeoff' }, // 11
 ];
 
 export const TOTAL_STAGES = ALL_STAGES.length;

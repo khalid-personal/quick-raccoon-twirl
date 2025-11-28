@@ -143,7 +143,7 @@ const cocTrainingId = getStageId('coc_training');
 const securityClearanceId = getStageId('security_clearance');
 const laborId = getStageId('labor_id');
 const contractSigningId = getStageId('contract_signing');
-const biometricsId = getStageId('biometrics_passport');
+const finalElmisClearanceId = getStageId('final_elmis_clearance'); // NEW ID 6
 const jobMatchingId = getStageId('job_matching');
 const visaProcessingId = getStageId('visa_processing');
 const finalMedicalId = getStageId('final_medical');
@@ -157,11 +157,11 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
     if (candidate.tracking_code === 'TRK-ET-0001') {
         stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
         stages.find(s => s.stage_id === cocTrainingId)!.status = 'Passed';
-        stages.find(s => s.stage_id === securityClearanceId)!.status = 'Passed';
-        stages.find(s => s.stage_id === laborId)!.status = 'Issued';
-        stages.find(s => s.stage_id === contractSigningId)!.status = 'Passed';
-        stages.find(s => s.stage_id === biometricsId)!.status = 'Passed';
-        stages.find(s => s.stage_id === jobMatchingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === laborId)!.status = 'Issued'; // Labor ID is now stage 3
+        stages.find(s => s.stage_id === securityClearanceId)!.status = 'Passed'; // Security Clearance is now stage 4
+        stages.find(s => s.stage_id === jobMatchingId)!.status = 'Passed'; // Job Matching is now stage 5
+        stages.find(s => s.stage_id === contractSigningId)!.status = 'Passed'; // Contract Signing is now stage 6
+        stages.find(s => s.stage_id === finalElmisClearanceId)!.status = 'Passed'; // NEW STAGE (Replaced Biometrics)
         stages.find(s => s.stage_id === visaProcessingId)!.status = 'Issued';
         stages.find(s => s.stage_id === finalMedicalId)!.status = 'Pending'; // Stuck here
     } 
@@ -174,6 +174,7 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
     else if (candidate.tracking_code === 'TRK-DJ-0003') {
         stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
         stages.find(s => s.stage_id === cocTrainingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === laborId)!.status = 'Passed'; // Passed Labor ID
         stages.find(s => s.stage_id === securityClearanceId)!.status = 'Failed'; // Blocked here
     }
     // Other candidates: Randomly progress them to various stages
@@ -195,7 +196,6 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
     
     return stages;
 });
-// --- End Custom Stage Progression ---
 
 export const SEED_DOCUMENTS: Document[] = [
   {
