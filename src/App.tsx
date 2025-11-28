@@ -12,9 +12,10 @@ import AuthPage from "./pages/AuthPage";
 import Signup from "./pages/Signup"; 
 import SuperadminSettings from "./pages/SuperadminSettings";
 import AdminUserManagement from "./pages/AdminUserManagement";
-import AdminChatViewer from "./pages/AdminChatViewer"; // NEW IMPORT
-import AgencyDashboard from "./pages/AgencyDashboard"; // NEW IMPORT
-import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes"; // NEW IMPORT
+import AdminChatViewer from "./pages/AdminChatViewer";
+import AgencyDashboard from "./pages/AgencyDashboard";
+import AdminAuthorizationCodes from "./pages/AdminAuthorizationCodes";
+import AdminAttendance from "./pages/AdminAttendance"; // NEW IMPORT
 import { AuthProvider, useAuth } from "./lib/auth";
 import AdminLayout from "./components/AdminLayout";
 import { Loader2 } from 'lucide-react'; // Added Loader2 import
@@ -29,7 +30,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'staff')) {
+  if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'staff' && userRole !== 'local-agency')) { // Added local-agency
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -147,6 +148,16 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AdminLayout>
               <AdminAuthorizationCodes />
+            </AdminLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/attendance" 
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <AdminAttendance />
             </AdminLayout>
           </ProtectedRoute>
         } 

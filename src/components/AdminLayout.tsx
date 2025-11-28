@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key, Landmark } from 'lucide-react'; // Added Key and Landmark icons
+import { LogOut, Users, Home, Settings, Menu, UserCog, MessageSquare, Key, Landmark, CalendarDays } from 'lucide-react'; // Added CalendarDays icon
 import { Link, useLocation } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAddisAbabaTime } from '@/hooks/use-addis-ababa-time';
@@ -78,6 +78,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: <Users className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false },
     { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false, unreadCount: unreadCount },
+    { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false }, // NEW NAV ITEM
     // Updated link to point to a specific candidate's tracking page for testing
     { to: `/track/${MOCK_TRACKING_CODE}`, label: 'Public Tracking Test', icon: <Home className="h-4 w-4" />, isSuperAdminRoute: false, isLocalAgencyRoute: false },
     { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key className="h-4 w-4" />, isSuperAdminRoute: true },
