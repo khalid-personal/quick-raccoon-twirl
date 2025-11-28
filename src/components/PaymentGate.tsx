@@ -45,13 +45,8 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
     onMutate: () => {
       // Use a unique ID for the loading toast
       toast.loading(`Initiating payment for ${stageTitle}...`, { id: 'payment-toast' });
-    },
-    onSuccess: () => {
-      // Replace loading toast with success toast, ensuring it stays visible for 5 seconds
-      toast.success(`Payment of ${feeAmount.toLocaleString()} ETB successful for ${stageTitle}!`, { id: 'payment-toast', duration: 5000 });
       
       // Optimistically update the current query data to show the change immediately
-      // This prevents the flicker while the full refetch runs.
       queryClient.setQueryData(['publicTracking', trackingCode], (oldData: any) => {
         if (!oldData) return oldData;
         
@@ -61,10 +56,28 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
         return { ...oldData, timeline: newTimeline };
       });
       
+      // Optimistically update the candidate detail query data as well, if it exists
+      queryClient.setQueryData(['candidateDetailByTrackingCode', trackingCode], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        // Note: We don't have direct access to the payment status array here, 
+        // but updating the public tracking data is usually sufficient for the UI.
+        // We rely on the full refetch for complete consistency.
+        return oldData;
+      });
+    },
+    onSuccess: () => {
+      // Replace loading toast with success toast, ensuring it stays visible for 5 seconds
+      toast.success(`Payment of ${feeAmount.toLocaleString()} ETB successful for ${stageTitle}!`, { id: 'payment-toast', duration: 5000 });
+      
       // Trigger the full refetch in the parent component (TrackingPage)
+      // This ensures the data is fully consistent after the mock API call completes.
       onPaymentSuccess();
     },
     onError: (error) => {
+      // Revert optimistic update on error
+      queryClient.invalidateQueries({ queryKey: ['publicTracking', trackingCode] });
+      
       // Replace loading toast with error toast, ensuring it stays visible for 5 seconds
       toast.error(`Payment failed: ${error.message}`, { id: 'payment-toast', duration: 5000 });
     },
