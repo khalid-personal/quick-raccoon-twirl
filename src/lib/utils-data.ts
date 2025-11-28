@@ -1,4 +1,4 @@
-import { CandidateStage, CandidateSummary, TOTAL_STAGES } from './types';
+import { CandidateStage, CandidateSummary, TOTAL_STAGES, TimeFilter } from './types';
 
 // Helper function to check if DOB is 18+
 export const isAdult = (dob: string): boolean => {
@@ -45,4 +45,21 @@ export function calculateOverallStatus(candidateStages: CandidateStage[]): Candi
 
     // Otherwise, Pending (no stages completed yet)
     return 'Pending';
+}
+
+// --- Time Filter Utility ---
+
+export function getFilterStartDate(filter: TimeFilter): Date | null {
+    const now = new Date();
+    switch (filter) {
+        case 'Month':
+            return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        case 'Bi-Yearly':
+            return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        case 'Yearly':
+            return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        case 'All':
+        default:
+            return null;
+    }
 }
