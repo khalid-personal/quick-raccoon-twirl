@@ -140,7 +140,7 @@ const AdminAuthorizationCodes: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="None">None</SelectItem>
-                  {localAgencies.map(agency => ( {/* Use localAgencies */}
+                  {localAgencies.map(agency => (
                     <SelectItem key={agency} value={agency}>
                       {agency}
                     </SelectItem>
@@ -220,7 +220,7 @@ const AdminAuthorizationCodes: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Local Agencies</SelectItem> {/* Updated Label */}
-                  {localAgencies.map(agency => ( {/* Use localAgencies */}
+                  {localAgencies.map(agency => (
                     <SelectItem key={agency} value={agency}>
                       {agency}
                     </SelectItem>
