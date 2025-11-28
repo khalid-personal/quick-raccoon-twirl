@@ -39,11 +39,10 @@ const MOCK_FIRST_NAMES = ['Aisha', 'Bruk', 'Chala', 'Desta', 'Elias', 'Fana', 'G
 const MOCK_LAST_NAMES = ['Ahmed', 'Kebede', 'Mekonnen', 'Tadesse', 'Wondimu', 'Zewde', 'Ali', 'Hassan', 'Mohamed'];
 const MOCK_COUNTRIES = ['Ethiopia', 'Djibouti', 'Kenya', 'Somalia', 'Eritrea', 'Sudan', 'Yemen', 'Uganda'];
 const MOCK_MARITAL_STATUSES: Candidate['marital_status'][] = ['Single', 'Married', 'Divorced', 'Widowed'];
-const TOTAL_NEW_CANDIDATES = 50;
-const TOTAL_BATCHES = 13;
+const TOTAL_NEW_RANDOM_CANDIDATES = 5; // Changed from 50 to 5
 
-// Existing seed candidates (3)
-const EXISTING_SEED_CANDIDATES: Candidate[] = [
+// Existing seed candidates (3) + 2 new specific ones = 5 specific candidates
+const SPECIFIC_SEED_CANDIDATES: Candidate[] = [
   {
     id: uuidv4(),
     first_name: 'Aster',
@@ -101,6 +100,46 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(), // 15 days ago
     updated_at: new Date().toISOString(),
   },
+  // NEW SPECIFIC CANDIDATE 4: NuraLink, In Progress
+  {
+    id: uuidv4(),
+    first_name: 'Nura',
+    last_name: 'Mohammed',
+    dob: '1999-03-10',
+    passport_number: 'ETN000004',
+    tracking_code: 'TRK-ET-0004',
+    country_of_origin: 'Ethiopia',
+    batch_name: 'Batch 3',
+    marital_status: 'Single',
+    phone_number: '+251911000004',
+    email: 'nura.mohammed@candidate.com',
+    coc_agency: 'COC Training Center D',
+    foreign_agency: 'Gulf Manpower Solutions',
+    managing_local_agency: 'NuraLink',
+    profile_image_url: '/placeholder.svg',
+    created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  // NEW SPECIFIC CANDIDATE 5: Al-Aman, Completed
+  {
+    id: uuidv4(),
+    first_name: 'Khalid',
+    last_name: 'Hassan',
+    dob: '1995-11-20',
+    passport_number: 'ETK000005',
+    tracking_code: 'TRK-ET-0005',
+    country_of_origin: 'Ethiopia',
+    batch_name: 'Batch 4',
+    marital_status: 'Married',
+    phone_number: '+251911000005',
+    email: 'khalid.hassan@candidate.com',
+    coc_agency: 'COC Training Center A',
+    foreign_agency: 'Al-Aman Recruitment',
+    managing_local_agency: 'Local Agency Z',
+    profile_image_url: undefined,
+    created_at: new Date(Date.now() - 120 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 // Function to generate new mock candidates
@@ -108,7 +147,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
     const newCandidates: Candidate[] = [];
     let trackingCodeCounter = startId;
 
-    for (let i = 0; i < TOTAL_NEW_CANDIDATES; i++) {
+    for (let i = 0; i < TOTAL_NEW_RANDOM_CANDIDATES; i++) { // Use TOTAL_NEW_RANDOM_CANDIDATES
         const firstName = MOCK_FIRST_NAMES[i % MOCK_FIRST_NAMES.length];
         const lastName = MOCK_LAST_NAMES[i % MOCK_LAST_NAMES.length];
         const country = MOCK_COUNTRIES[i % MOCK_COUNTRIES.length];
@@ -160,7 +199,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
     return newCandidates;
 };
 
-export const SEED_CANDIDATES: Candidate[] = [...EXISTING_SEED_CANDIDATES, ...generateNewMockCandidates(4)];
+export const SEED_CANDIDATES: Candidate[] = [...SPECIFIC_SEED_CANDIDATES, ...generateNewMockCandidates(SPECIFIC_SEED_CANDIDATES.length + 1)]; // Start ID for random candidates
 
 // --- Custom Stage Progression for Seed Data ---
 const initialMedicalId = getStageId('initial_medical');
@@ -202,6 +241,24 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
         stages.find(s => s.stage_id === laborId)!.status = 'Passed'; // Passed Labor ID
         stages.find(s => s.stage_id === securityClearanceId)!.status = 'Failed'; // Blocked here
     }
+    // Candidate 4 (Nura Mohammed - TRK-ET-0004): NuraLink, In Progress at Job Matching
+    else if (candidate.tracking_code === 'TRK-ET-0004') {
+        stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
+        stages.find(s => s.stage_id === cocTrainingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === laborId)!.status = 'Issued';
+        stages.find(s => s.stage_id === securityClearanceId)!.status = 'Passed';
+        stages.find(s => s.stage_id === jobMatchingId)!.status = 'In Progress'; // Stuck here
+    }
+    // Candidate 5 (Khalid Hassan - TRK-ET-0005): Al-Aman, Completed
+    else if (candidate.tracking_code === 'TRK-ET-0005') {
+        ALL_STAGES.forEach(stage => {
+            const candidateStage = stages.find(s => s.stage_id === stage.id);
+            if (candidateStage) {
+                candidateStage.status = 'Completed';
+                candidateStage.date = new Date().toISOString();
+            }
+        });
+    }
     // Other candidates: Randomly progress them to various stages
     else {
         const progressLevel = Math.floor(Math.random() * ALL_STAGES.length);
@@ -225,7 +282,7 @@ export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(c
 export const SEED_DOCUMENTS: Document[] = [
   {
     id: uuidv4(),
-    candidate_id: EXISTING_SEED_CANDIDATES[0].id,
+    candidate_id: SPECIFIC_SEED_CANDIDATES[0].id,
     stage_id: getStageId('initial_medical'),
     file_name: 'aster_initial_medical.pdf',
     file_type: 'application/pdf',
@@ -235,7 +292,7 @@ export const SEED_DOCUMENTS: Document[] = [
   },
   {
     id: uuidv4(),
-    candidate_id: EXISTING_SEED_CANDIDATES[1].id,
+    candidate_id: SPECIFIC_SEED_CANDIDATES[1].id,
     stage_id: getStageId('initial_medical'),
     file_name: 'mariam_initial_medical.pdf',
     file_type: 'application/pdf',
@@ -248,7 +305,7 @@ export const SEED_DOCUMENTS: Document[] = [
 export const SEED_MEDICAL_RESULTS: MedicalResult[] = [
   {
     id: uuidv4(),
-    candidate_id: EXISTING_SEED_CANDIDATES[0].id,
+    candidate_id: SPECIFIC_SEED_CANDIDATES[0].id,
     exam_type: 'HIV',
     status: 'Passed',
     exam_date: '2025-11-10',
@@ -256,14 +313,14 @@ export const SEED_MEDICAL_RESULTS: MedicalResult[] = [
   },
   {
     id: uuidv4(),
-    candidate_id: EXISTING_SEED_CANDIDATES[0].id,
+    candidate_id: SPECIFIC_SEED_CANDIDATES[0].id,
     exam_type: 'Final Agency Medical',
     status: 'Passed',
     exam_date: '2025-11-22',
   },
   {
     id: uuidv4(),
-    candidate_id: EXISTING_SEED_CANDIDATES[1].id,
+    candidate_id: SPECIFIC_SEED_CANDIDATES[1].id,
     exam_type: 'Pregnancy',
     status: 'Pending',
     exam_date: '2025-11-12',
@@ -337,7 +394,7 @@ export const SEED_STAFF_USERS: StaffUser[] = [
 export const SEED_CHAT_MESSAGES: ChatMessage[] = [
     {
         id: uuidv4(),
-        candidate_id: EXISTING_SEED_CANDIDATES[0].id,
+        candidate_id: SPECIFIC_SEED_CANDIDATES[0].id,
         sender: 'candidate',
         sender_name: 'Aster Bekele',
         message: "I paid the initial medical fee yesterday, but the status hasn't updated yet. Can you check?",
@@ -347,7 +404,7 @@ export const SEED_CHAT_MESSAGES: ChatMessage[] = [
     },
     {
         id: uuidv4(),
-        candidate_id: EXISTING_SEED_CANDIDATES[0].id,
+        candidate_id: SPECIFIC_SEED_CANDIDATES[0].id,
         sender: 'admin',
         sender_name: 'admin@agency.com',
         message: "Hello Aster, we have confirmed your payment. The status will update shortly. Thank you!",
@@ -357,7 +414,7 @@ export const SEED_CHAT_MESSAGES: ChatMessage[] = [
     },
     {
         id: uuidv4(),
-        candidate_id: EXISTING_SEED_CANDIDATES[2].id,
+        candidate_id: SPECIFIC_SEED_CANDIDATES[2].id,
         sender: 'candidate',
         sender_name: 'Fatima Ali',
         message: "When is the next CoC training session scheduled? I need to book my travel.",
