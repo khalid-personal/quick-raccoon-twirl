@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { STAFF_ROLES, UserRole } from '@/lib/types';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const NewStaffUserSchema = z.object({
   email: z.string().email("Must be a valid email address."),
@@ -28,6 +29,10 @@ interface NewStaffUserFormProps {
 }
 
 const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose }) => {
+  const { user } = useAuth(); // Get current user for logging
+  const actorId = user?.id || 'unknown';
+  const actorEmail = user?.email || 'unknown@agency.com';
+  
   const form = useForm<NewStaffUserFormValues>({
     resolver: zodResolver(NewStaffUserSchema),
     defaultValues: {
@@ -41,7 +46,8 @@ const NewStaffUserForm: React.FC<NewStaffUserFormProps> = ({ onSuccess, onClose 
 
   const onSubmit = async (data: NewStaffUserFormValues) => {
     try {
-      await api.createStaffUser(data.email, data.pin, data.role);
+      // Pass actor details for logging
+      await api.createStaffUser(data.email, data.pin, data.role, actorId, actorEmail);
       
       toast.success(`Staff user ${data.email} created successfully with role: ${data.role}.`);
       onSuccess();

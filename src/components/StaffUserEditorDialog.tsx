@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
 const EditStaffSchema = z.object({
   email: z.string().email("Must be a valid email address."),
@@ -32,6 +33,10 @@ interface StaffUserEditorDialogProps {
 }
 
 const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser, onSuccess, onClose, currentUserId }) => {
+  const { user } = useAuth(); // Get current user for logging
+  const actorId = user?.id || 'unknown';
+  const actorEmail = user?.email || 'unknown@agency.com';
+  
   const isSelf = staffUser.id === currentUserId;
   
   const form = useForm<EditStaffFormValues>({
@@ -55,12 +60,14 @@ const StaffUserEditorDialog: React.FC<StaffUserEditorDialogProps> = ({ staffUser
                 return;
             }
         }
-        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved);
+        // Pass actor details for logging
+        await api.updateUserRole(staffUser.id, data.role, staffUser.is_approved, actorId, actorEmail);
       }
       
       // 2. Update Credentials (Email/PIN)
       if (data.email !== staffUser.email || data.new_pin) {
-        await api.updateUserCredentials(staffUser.id, data.email, data.new_pin);
+        // Pass actor details for logging
+        await api.updateUserCredentials(staffUser.id, data.email, data.new_pin, actorId, actorEmail);
         toast.success(`Credentials for ${data.email} updated successfully.`);
       } else if (data.role !== staffUser.role) {
         toast.success(`Role for ${staffUser.email} updated successfully.`);

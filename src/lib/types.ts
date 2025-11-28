@@ -86,6 +86,20 @@ export interface ChatMessage {
     is_read_by_candidate: boolean;
 }
 
+// NEW: Approval Log Types
+export type ApprovalAction = 'Approved' | 'Rejected' | 'Updated' | 'Created';
+
+export interface ApprovalLog {
+  id: string;
+  timestamp: string;
+  actor_id: string; // ID of the admin/staff performing the action
+  actor_email: string;
+  target_type: 'StaffUser' | 'CandidateDetail' | 'Stage' | 'MedicalResult' | 'Config';
+  target_id: string; // ID of the entity being modified (e.g., user ID, candidate ID, 'global_config')
+  action: ApprovalAction;
+  description: string;
+}
+
 // Combined data structure for Admin view
 export interface CandidateDetail extends Candidate {
   stages: CandidateStage[];

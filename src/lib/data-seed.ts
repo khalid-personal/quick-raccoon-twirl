@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage } from './types';
+import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus, StaffUser, ChatMessage, ApprovalLog } from './types';
 
 // --- Configuration Types ---
 export interface AppConfig {
@@ -306,5 +306,29 @@ export const SEED_CHAT_MESSAGES: ChatMessage[] = [
         timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
         is_read_by_admin: true,
         is_read_by_candidate: true,
+    },
+];
+
+// NEW: Approval Log Seed Data
+export const SEED_APPROVAL_LOGS: ApprovalLog[] = [
+    {
+        id: uuidv4(),
+        timestamp: new Date(Date.now() - 7 * 86400000).toISOString(), // 7 days ago
+        actor_id: SEED_STAFF_USERS.find(u => u.role === 'admin')!.id,
+        actor_email: MOCK_ADMIN_EMAIL,
+        target_type: 'StaffUser',
+        target_id: SEED_STAFF_USERS.find(u => u.email === 'pending@agency.com')!.id,
+        action: 'Rejected',
+        description: "Initial rejection of pending@agency.com due to missing authorization code.",
+    },
+    {
+        id: uuidv4(),
+        timestamp: new Date(Date.now() - 5 * 86400000).toISOString(), // 5 days ago
+        actor_id: SEED_STAFF_USERS.find(u => u.role === 'admin')!.id,
+        actor_email: MOCK_ADMIN_EMAIL,
+        target_type: 'StaffUser',
+        target_id: SEED_STAFF_USERS.find(u => u.email === 'pending@agency.com')!.id,
+        action: 'Approved',
+        description: "Approved pending@agency.com after verification.",
     },
 ];

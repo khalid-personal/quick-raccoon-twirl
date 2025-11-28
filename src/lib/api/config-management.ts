@@ -1,5 +1,6 @@
 import { getConfig, saveConfig } from '../data-store';
 import { AppConfig } from '../data-seed';
+import { recordApprovalLog } from './log-management'; // NEW IMPORT
 
 // Get configuration
 export const getAppConfig = async (): Promise<AppConfig> => {
@@ -8,9 +9,25 @@ export const getAppConfig = async (): Promise<AppConfig> => {
 };
 
 // Update configuration
-export const updateAppConfig = async (config: AppConfig): Promise<AppConfig> => {
+export const updateAppConfig = async (
+    config: AppConfig,
+    actorId: string, // NEW
+    actorEmail: string // NEW
+): Promise<AppConfig> => {
     await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const oldConfig = getConfig();
     saveConfig(config);
+    
+    // --- LOGGING ---
+    const oldCountries = oldConfig.countryOptions.filter(c => c !== 'Other').join(', ');
+    const newCountries = config.countryOptions.filter(c => c !== 'Other').join(', ');
+    
+    const description = `Updated application configuration. Country list changed from [${oldCountries}] to [${newCountries}].`;
+    
+    await recordApprovalLog(actorId, actorEmail, 'Config', 'global_config', 'Updated', description);
+    // --- END LOGGING ---
+    
     return config;
 };
 
