@@ -45,6 +45,12 @@ export function initializeDataStore() {
   // Initialize config if not present
   if (!localStorage.getItem(LS_CONFIG)) {
       localStorage.setItem(LS_CONFIG, JSON.stringify(SEED_CONFIG));
+  } else {
+      // Ensure new fields are added if config exists but is old
+      const currentConfig = getConfig();
+      if (!currentConfig.cocAgencies) {
+          saveConfig({ ...currentConfig, cocAgencies: SEED_CONFIG.cocAgencies });
+      }
   }
   // Initialize staff users if not present
   if (getStaffUsers().length === 0) {

@@ -4,6 +4,7 @@ import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageSt
 // --- Configuration Types ---
 export interface AppConfig {
     countryOptions: string[];
+    cocAgencies: string[]; // NEW: List of COC training agencies
 }
 
 // --- Helper function to find stage ID by slug ---
@@ -178,6 +179,7 @@ export const SEED_MEDICAL_RESULTS: MedicalResult[] = [
 
 export const SEED_CONFIG: AppConfig = {
     countryOptions: ['Ethiopia', 'Djibouti', 'Somalia', 'Kenya', 'Eritrea', 'Sudan', 'Yemen', 'Uganda', 'Other'],
+    cocAgencies: ['COC Training Center A', 'COC Training Center B', 'COC Training Center C', 'COC Training Center D'], // NEW
 };
 
 // Staff User Seed Data

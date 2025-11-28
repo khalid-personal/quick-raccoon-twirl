@@ -67,6 +67,7 @@ export interface Candidate {
   marital_status: 'Single' | 'Married' | 'Divorced' | 'Widowed'; // New field
   phone_number?: string; // NEW FIELD
   email: string; // NEW FIELD: Candidate login email
+  coc_agency?: string; // NEW FIELD: COC Training Agency
   created_at: string;
   updated_at: string;
 }

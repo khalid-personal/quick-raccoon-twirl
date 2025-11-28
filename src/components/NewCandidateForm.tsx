@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Shuffle, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,7 +37,8 @@ const NewCandidateSchema = z.object({
     required_error: "Marital status is required.",
   }),
   phone_number: z.string().optional(),
-  email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."), // NEW FIELD
+  email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
+  coc_agency: z.string().min(1, "COC Agency is required."), // NEW FIELD
   custom_country: z.string().optional(),
   batch_name: z.string().optional(),
   new_batch_name: z.string().optional(),
@@ -78,6 +79,7 @@ interface NewCandidateFormProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
+    cocAgencies: string[]; // Added cocAgencies
 }
 
 const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
@@ -86,14 +88,15 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     queryFn: api.getBatches,
   });
   
-  // NEW: Fetch country options from API
-  // Use explicit generics to handle the select function returning string[]
-  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery<AppConfig, Error, string[], string[]>({
+  // Fetch country and COC agency options from API
+  const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    select: (data) => data.countryOptions,
-    initialData: { countryOptions: [] }, // FIX: Initial data must match AppConfig structure
+    initialData: { countryOptions: [], cocAgencies: [] },
   });
+  
+  const countryOptions = config.countryOptions;
+  const cocAgencies = config.cocAgencies;
   
   const form = useForm<NewCandidateFormValues>({
     resolver: zodResolver(NewCandidateSchema),
@@ -105,10 +108,11 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       tracking_code: '',
       country_of_origin: '',
       custom_country: '',
-      batch_name: NO_BATCH_OPTION, // Initialize with the constant
-      marital_status: 'Single', // Initialize marital status
-      phone_number: '', // Initialize phone number
-      email: '', // Initialize email
+      batch_name: NO_BATCH_OPTION,
+      marital_status: 'Single',
+      phone_number: '',
+      email: '',
+      coc_agency: '', // Initialize COC agency
       new_batch_name: '',
     },
   });
@@ -118,6 +122,16 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const selectedBatch = watch('batch_name');
   const isCustomCountry = selectedCountry === 'Other';
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
+  
+  const handleSelectLeastUsed = async () => {
+      try {
+          const agency = await api.selectLeastUsedCocAgency();
+          setValue('coc_agency', agency, { shouldValidate: true });
+          toast.info(`Automatically selected: ${agency}`);
+      } catch (error) {
+          toast.error((error as Error).message);
+      }
+  };
 
   const onSubmit = async (data: NewCandidateFormValues) => {
     try {
@@ -145,7 +159,8 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
-        email: data.email, // Include email
+        email: data.email,
+        coc_agency: data.coc_agency, // Include COC agency
       });
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -231,6 +246,42 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* COC Agency Selection */}
+      <div className="space-y-2 border-t pt-4">
+        <Label htmlFor="coc_agency" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+        </Label>
+        <div className="flex gap-2">
+            <Select
+                value={watch('coc_agency')}
+                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
+                disabled={isSubmitting}
+            >
+                <SelectTrigger id="coc_agency">
+                    <SelectValue placeholder="Select COC Agency" />
+                </SelectTrigger>
+                <SelectContent>
+                    {cocAgencies.map(agency => (
+                        <SelectItem key={agency} value={agency}>
+                            {agency}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Button 
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                onClick={handleSelectLeastUsed}
+                disabled={isSubmitting || cocAgencies.length === 0}
+                title="Select Least Used Agency (Mock Load Balancer)"
+            >
+                <Shuffle className="h-4 w-4" />
+            </Button>
+        </div>
+        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
       </div>
       
       {/* Email Input for Candidate Login */}

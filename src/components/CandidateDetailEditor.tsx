@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Lock, Mail } from 'lucide-react';
+import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,7 @@ const EditCandidateSchema = z.object({
   }),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
+  coc_agency: z.string().min(1, "COC Agency is required."), // NEW FIELD
   new_pin: z.string().optional().refine( // NEW PIN FIELD
     (val) => !val || val.length >= 6,
     "PIN must be at least 6 characters long."
@@ -84,6 +85,7 @@ interface CandidateDetailEditorProps {
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
     countryOptions: string[];
+    cocAgencies: string[]; // Added cocAgencies
 }
 
 const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
@@ -92,13 +94,15 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
     queryFn: api.getBatches,
   });
   
-  // Fix: Use explicit generics to handle the select function returning string[]
-  const { data: countryOptions = [], isLoading: isLoadingConfig } = useQuery<AppConfig, Error, string[], string[]>({
+  // Fetch country and COC agency options from API
+  const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
-    select: (data) => data.countryOptions,
-    initialData: { countryOptions: [] }, // FIX: Initial data must match AppConfig structure
+    initialData: { countryOptions: [], cocAgencies: [] },
   });
+  
+  const countryOptions = config.countryOptions;
+  const cocAgencies = config.cocAgencies;
   
   // Determine if the candidate's country is a custom entry (not in the standard list)
   const isCustomCountryInitial = !countryOptions.includes(candidate.country_of_origin);
@@ -120,6 +124,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       marital_status: candidate.marital_status, // Initialize marital status
       phone_number: candidate.phone_number || '', // Initialize phone number
       email: candidate.email, // Initialize email
+      coc_agency: candidate.coc_agency || '', // Initialize COC agency
       new_pin: '', // Initialize new PIN field
       new_batch_name: '',
     },
@@ -131,6 +136,16 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
   const isCustomCountry = selectedCountry === 'Other';
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
   const newPin = watch('new_pin');
+  
+  const handleSelectLeastUsed = async () => {
+      try {
+          const agency = await api.selectLeastUsedCocAgency();
+          setValue('coc_agency', agency, { shouldValidate: true });
+          toast.info(`Automatically selected: ${agency}`);
+      } catch (error) {
+          toast.error((error as Error).message);
+      }
+  };
 
   const onSubmit = async (data: EditCandidateFormValues) => {
     try {
@@ -160,6 +175,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         marital_status: data.marital_status as Candidate['marital_status'],
         phone_number: data.phone_number || undefined,
         email: data.email,
+        coc_agency: data.coc_agency, // Include COC agency
       });
       
       // 2. Update Credentials (Email/PIN) if changed
@@ -258,6 +274,42 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
           <Input id="dob" type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
+      </div>
+      
+      {/* COC Agency Selection */}
+      <div className="space-y-2 border-t pt-4">
+        <Label htmlFor="coc_agency" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Agency *
+        </Label>
+        <div className="flex gap-2">
+            <Select
+                value={watch('coc_agency')}
+                onValueChange={(value) => setValue('coc_agency', value, { shouldValidate: true })}
+                disabled={isSubmitting}
+            >
+                <SelectTrigger id="coc_agency">
+                    <SelectValue placeholder="Select COC Agency" />
+                </SelectTrigger>
+                <SelectContent>
+                    {cocAgencies.map(agency => (
+                        <SelectItem key={agency} value={agency}>
+                            {agency}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Button 
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                onClick={handleSelectLeastUsed}
+                disabled={isSubmitting || cocAgencies.length === 0}
+                title="Select Least Used Agency (Mock Load Balancer)"
+            >
+                <Shuffle className="h-4 w-4" />
+            </Button>
+        </div>
+        {errors.coc_agency && <p className="text-red-500 text-xs">{errors.coc_agency.message}</p>}
       </div>
       
       {/* Marital Status Selection */}
