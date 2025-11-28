@@ -35,12 +35,14 @@ export const saveChatMessages = (data: ChatMessage[]) => localStorage.setItem(LS
 
 export function initializeDataStore() {
   // Only re-seed if candidates are missing, otherwise use existing local storage data
-  if (getCandidates().length < 53) {
+  // We use a fixed number (53) based on the seed data generation (3 existing + 50 new)
+  if (getCandidates().length !== 53) { 
     localStorage.setItem(LS_CANDIDATES, JSON.stringify(SEED_CANDIDATES));
     localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
     localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
     localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
     localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES)); // NEW CHAT SEED
+    localStorage.removeItem(LS_PAYMENT_STATUS); // Clear payment status to re-initialize mock payments
   }
   // Initialize config if not present
   if (!localStorage.getItem(LS_CONFIG)) {

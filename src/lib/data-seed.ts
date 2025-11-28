@@ -46,6 +46,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Married',
     phone_number: '+251911000001',
     email: 'aster.bekele@candidate.com', // Added email
+    coc_agency: 'COC Training Center A',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -61,6 +62,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Single',
     phone_number: '+251911000002',
     email: 'mariam.tesfaye@candidate.com', // Added email
+    coc_agency: 'COC Training Center B',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -76,6 +78,7 @@ const EXISTING_SEED_CANDIDATES: Candidate[] = [
     marital_status: 'Divorced',
     phone_number: '+25377000003',
     email: 'fatima.ali@candidate.com', // Added email
+    coc_agency: 'COC Training Center C',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -94,6 +97,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
         const batchNumber = (i % TOTAL_BATCHES) + 1;
         const batchName = `Batch ${batchNumber}`;
         const maritalStatus = MOCK_MARITAL_STATUSES[i % MOCK_MARITAL_STATUSES.length];
+        const cocAgency = SEED_CONFIG.cocAgencies[i % SEED_CONFIG.cocAgencies.length];
         
         const trackingCode = `TRK-${countryCode}-${String(trackingCodeCounter++).padStart(4, '0')}`;
         
@@ -117,6 +121,7 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
             marital_status: maritalStatus,
             phone_number: mockPhoneNumber,
             email: mockEmail, // Added email
+            coc_agency: cocAgency,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         });
@@ -126,7 +131,65 @@ const generateNewMockCandidates = (startId: number): Candidate[] => {
 
 export const SEED_CANDIDATES: Candidate[] = [...EXISTING_SEED_CANDIDATES, ...generateNewMockCandidates(4)];
 
-export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(candidate => generateInitialStages(candidate));
+// --- Custom Stage Progression for Seed Data ---
+const initialMedicalId = getStageId('initial_medical');
+const cocTrainingId = getStageId('coc_training');
+const securityClearanceId = getStageId('security_clearance');
+const laborId = getStageId('labor_id');
+const contractSigningId = getStageId('contract_signing');
+const biometricsId = getStageId('biometrics_passport');
+const jobMatchingId = getStageId('job_matching');
+const visaProcessingId = getStageId('visa_processing');
+const finalMedicalId = getStageId('final_medical');
+const pdoId = getStageId('pdo');
+const flightDepartureId = getStageId('flight_departure');
+
+export const SEED_CANDIDATE_STAGES: CandidateStage[] = SEED_CANDIDATES.flatMap(candidate => {
+    const stages = generateInitialStages(candidate);
+    
+    // Candidate 1 (Aster Bekele - TRK-ET-0001): Advanced, stuck at Final Medical
+    if (candidate.tracking_code === 'TRK-ET-0001') {
+        stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
+        stages.find(s => s.stage_id === cocTrainingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === securityClearanceId)!.status = 'Passed';
+        stages.find(s => s.stage_id === laborId)!.status = 'Issued';
+        stages.find(s => s.stage_id === contractSigningId)!.status = 'Passed';
+        stages.find(s => s.stage_id === biometricsId)!.status = 'Passed';
+        stages.find(s => s.stage_id === jobMatchingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === visaProcessingId)!.status = 'Issued';
+        stages.find(s => s.stage_id === finalMedicalId)!.status = 'Pending'; // Stuck here
+    } 
+    // Candidate 2 (Mariam Tesfaye - TRK-ET-0002): Stuck at CoC Training
+    else if (candidate.tracking_code === 'TRK-ET-0002') {
+        stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
+        stages.find(s => s.stage_id === cocTrainingId)!.status = 'In Progress'; // Stuck here
+    }
+    // Candidate 3 (Fatima Ali - TRK-DJ-0003): Blocked at Security Clearance
+    else if (candidate.tracking_code === 'TRK-DJ-0003') {
+        stages.find(s => s.stage_id === initialMedicalId)!.status = 'Passed';
+        stages.find(s => s.stage_id === cocTrainingId)!.status = 'Passed';
+        stages.find(s => s.stage_id === securityClearanceId)!.status = 'Failed'; // Blocked here
+    }
+    // Other candidates: Randomly progress them to various stages
+    else {
+        const progressLevel = Math.floor(Math.random() * ALL_STAGES.length);
+        for (let i = 0; i < progressLevel; i++) {
+            const stage = ALL_STAGES[i];
+            const candidateStage = stages.find(s => s.stage_id === stage.id);
+            if (candidateStage) {
+                // 70% chance of passing, 30% chance of being In Progress/Pending at the current level
+                if (i < progressLevel - 1 || Math.random() < 0.7) {
+                    candidateStage.status = 'Passed';
+                } else {
+                    candidateStage.status = Math.random() > 0.5 ? 'In Progress' : 'Pending';
+                }
+            }
+        }
+    }
+    
+    return stages;
+});
+// --- End Custom Stage Progression ---
 
 export const SEED_DOCUMENTS: Document[] = [
   {
