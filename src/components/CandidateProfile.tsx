@@ -47,12 +47,20 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
             <p className="font-medium text-muted-foreground">Phone Number</p>
             <p className="text-lg">{candidate.phone_number || 'N/A'}</p>
           </div>
+          <div className="text-sm">
+            <p className="font-medium text-muted-foreground">Date of Birth</p>
+            <p className="text-lg">{format(new Date(candidate.dob), 'PPP')}</p>
+          </div>
         </div>
         
         <div className="space-y-4">
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Tracking Code</p>
             <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
+          </div>
+          <div className="text-sm">
+            <p className="font-medium text-muted-foreground">COC Training Agency</p>
+            <p className="text-lg font-semibold">{candidate.coc_agency || 'N/A'}</p>
           </div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">Labor ID Registration Status</p>
@@ -69,10 +77,6 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit }
                 Date: {format(new Date(laborIdDate), 'PPP')}
               </p>
             )}
-          </div>
-          <div className="text-sm">
-            <p className="font-medium text-muted-foreground">Date of Birth</p>
-            <p className="text-lg">{format(new Date(candidate.dob), 'PPP')}</p>
           </div>
         </div>
         
