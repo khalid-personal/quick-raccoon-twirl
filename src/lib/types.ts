@@ -72,6 +72,7 @@ export interface Candidate {
   email: string; // NEW FIELD: Candidate login email
   coc_agency?: string; // NEW FIELD: COC Training Agency
   foreign_agency?: string; // NEW FIELD: Foreign Employment Agency
+  managing_local_agency?: string; // NEW FIELD: The Local Agency managing this candidate
   profile_image_url?: string; // NEW FIELD: URL for candidate's profile image
   created_at: string;
   updated_at: string;
