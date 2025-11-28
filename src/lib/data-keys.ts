@@ -12,3 +12,4 @@ export const LS_AUTH_CODES = 'mock_auth_codes'; // NEW KEY
 export const LS_COC_FACILITIES = 'mock_coc_facilities'; // NEW KEY
 export const LS_LOCAL_AGENCIES = 'mock_local_agencies'; // NEW KEY
 export const LS_FOREIGN_AGENCIES = 'mock_foreign_agencies'; // NEW KEY
+export const LS_PAYMENTS = 'mock_payments'; // NEW KEY

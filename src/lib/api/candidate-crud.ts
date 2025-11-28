@@ -6,8 +6,8 @@ import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
 import { recordApprovalLog } from './log-management';
 
-type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at'>;
-type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at'>>;
+type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>;
+type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>>;
 
 // GET /api/admin/candidate/:id
 export const getCandidateDetail = async (candidateId: string): Promise<CandidateDetail | null> => {
@@ -154,6 +154,8 @@ export const createCandidate = async (
         id: uuidv4(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        payment_status: 'unpaid', // Default payment status for new candidates
+        last_payment_id: undefined,
     } as Candidate; // Cast back to Candidate to satisfy return type
 
     candidates.push(newCandidate);

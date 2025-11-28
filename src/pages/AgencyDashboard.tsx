@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, Link } from 'react-router-dom';
-import { Loader2, Building, LogOut, Search, Filter, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
+import { Loader2, Building, LogOut, Search, Filter, ArrowUp, ArrowDown, CheckCircle, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { CandidateSummary, CandidateSortField, SortDirection, ALL_STAGES } from '@/lib/types';
+import { CandidateSummary, CandidateSortField, SortDirection, ALL_STAGES, ForeignAgency, LocalAgency } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
@@ -51,6 +55,7 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 
 const AgencyDashboard: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading, logout, userForeignAgencyName } = useAuth(); // Renamed
+  const queryClient = useQueryClient();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
@@ -59,6 +64,11 @@ const AgencyDashboard: React.FC = () => {
   // Sorting state
   const [sortBy, setSortBy] = useState<CandidateSortField>('tracking_code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Payment related states
+  const [selectedCandidatesForPayment, setSelectedCandidatesForPayment] = useState<CandidateSummary[]>([]);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [paymentProcessingMessage, setPaymentProcessingMessage] = useState('');
 
   const { data: candidates = [], isLoading, refetch } = useQuery<CandidateSummary[]>({
     queryKey: ['agencyCandidates', currentQuery, filterStatus, userForeignAgencyName, sortBy, sortDirection], // Renamed
@@ -75,7 +85,13 @@ const AgencyDashboard: React.FC = () => {
     enabled: !!userForeignAgencyName, // Only fetch if agency is known
     initialData: [],
   });
-  
+
+  const { data: localAgencies = [] } = useQuery<LocalAgency[]>({
+    queryKey: ['localAgencies'],
+    queryFn: api.getLocalAgencyList,
+    initialData: [],
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentQuery(searchQuery);
@@ -96,6 +112,78 @@ const AgencyDashboard: React.FC = () => {
     }
   };
 
+  const handleCandidateSelection = (candidate: CandidateSummary, isChecked: boolean) => {
+    setSelectedCandidatesForPayment(prev => {
+      if (isChecked) {
+        // When selecting, ensure all selected candidates belong to the same local agency
+        if (prev.length > 0 && prev[0].local_agency_id !== candidate.local_agency_id) {
+          toast.error("All selected candidates must belong to the same Local Agency for a single payment.");
+          return prev;
+        }
+        return [...prev, candidate];
+      } else {
+        return prev.filter(c => c.id !== candidate.id);
+      }
+    });
+  };
+
+  const handleInitiatePayment = () => {
+    if (selectedCandidatesForPayment.length === 0) {
+      toast.error("Please select at least one candidate to initiate payment.");
+      return;
+    }
+    setIsPaymentDialogOpen(true);
+  };
+
+  const paymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id || !user?.email || !userForeignAgencyName) {
+        throw new Error("User or foreign agency information missing.");
+      }
+      const payerForeignAgency = api.getForeignAgencyList().find(fa => fa.name === userForeignAgencyName);
+      if (!payerForeignAgency) {
+        throw new Error("Foreign agency not found in system.");
+      }
+
+      const candidateIds = selectedCandidatesForPayment.map(c => c.id);
+      setPaymentProcessingMessage("Initiating payment with gateway...");
+      const { checkoutUrl, paymentId } = await api.initiatePayment(
+        payerForeignAgency.id,
+        candidateIds,
+        user.id,
+        user.email
+      );
+
+      // Simulate redirect to checkout and then webhook callback
+      setPaymentProcessingMessage("Redirecting to payment gateway (mock)...");
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate redirect time
+
+      // Mock webhook success/failure
+      const paymentSuccess = Math.random() > 0.1; // 90% success rate
+      setPaymentProcessingMessage(`Payment gateway responded: ${paymentSuccess ? 'Success' : 'Failure'}. Processing...`);
+      await api.processPaymentWebhook(paymentId, paymentSuccess ? 'succeeded' : 'failed');
+      
+      return paymentSuccess;
+    },
+    onSuccess: (paymentSuccess) => {
+      if (paymentSuccess) {
+        toast.success("Payment processed successfully! Candidate statuses updated.");
+      } else {
+        toast.error("Payment failed. Please try again.");
+      }
+      setSelectedCandidatesForPayment([]);
+      setIsPaymentDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['agencyCandidates'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['paymentAnalytics'] });
+      refetch(); // Refetch candidates to update their payment status
+    },
+    onError: (error) => {
+      toast.error(`Payment initiation failed: ${(error as Error).message}`);
+      setIsPaymentDialogOpen(false);
+    },
+  });
+
   if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -110,6 +198,8 @@ const AgencyDashboard: React.FC = () => {
   
   const agencyEmail = user?.email || 'Foreign Agency';
   const agencyName = userForeignAgencyName; // Use the actual foreign agency name
+
+  const totalPaymentAmount = selectedCandidatesForPayment.length * 1000; // Mock fee per candidate
 
   return (
     <div className="min-h-screen container mx-auto py-12 space-y-8">
@@ -130,7 +220,17 @@ const AgencyDashboard: React.FC = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle>Staged Candidates ({candidates.length})</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                Staged Candidates ({candidates.length})
+                <Button 
+                  onClick={handleInitiatePayment} 
+                  disabled={selectedCandidatesForPayment.length === 0 || paymentMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {paymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
+                  Dispense & Pay ({selectedCandidatesForPayment.length})
+                </Button>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -177,6 +277,9 @@ const AgencyDashboard: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          {/* Select All Checkbox (Optional, for simplicity not implemented here) */}
+                        </TableHead>
                         <SortableHeader 
                           field="first_name" 
                           currentSort={sortBy} 
@@ -199,53 +302,73 @@ const AgencyDashboard: React.FC = () => {
                           label="Origin" 
                           onSort={handleSort} 
                         />
-                        <SortableHeader 
-                          field="progress_percent" 
-                          currentSort={sortBy} 
-                          currentDirection={sortDirection} 
-                          label="Progress" 
-                          onSort={handleSort} 
-                          className="w-[150px]"
-                        />
+                        <TableHead>Local Agency</TableHead> {/* Display Local Agency */}
+                        <TableHead>Payment Status</TableHead> {/* Display Payment Status */}
                         <SortableHeader 
                           field="overall_status" 
                           currentSort={sortBy} 
                           currentDirection={sortDirection} 
-                          label="Status" 
+                          label="Overall Status" 
                           onSort={handleSort} 
                         />
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {candidates.map((candidate) => (
-                        <TableRow key={candidate.id}>
-                          <TableCell className="font-medium">
-                            <Link 
-                              to={`/admin/candidate/${candidate.id}`} 
-                              className="hover:text-primary hover:underline transition-colors"
-                            >
-                              {candidate.first_name} {candidate.last_name}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{candidate.tracking_code}</TableCell>
-                          <TableCell>{candidate.passport_number}</TableCell>
-                          <TableCell>{candidate.country_of_origin}</TableCell>
-                          <TableCell>
-                            <ProgressIndicator percent={candidate.progress_percent} className="w-full" />
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={statusColors[candidate.overall_status]}>
-                              {candidate.overall_status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Link to={`/admin/candidate/${candidate.id}`}>
-                              <Button variant="outline" size="sm">View/Edit</Button>
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {candidates.map((candidate) => {
+                        const isSelected = selectedCandidatesForPayment.some(c => c.id === candidate.id);
+                        const localAgency = localAgencies.find(la => la.id === candidate.local_agency_id);
+                        
+                        // Only allow selection of candidates that are 'In Progress' and 'unpaid'
+                        const isSelectable = candidate.overall_status === 'In Progress' && candidate.payment_status === 'unpaid';
+
+                        return (
+                          <TableRow key={candidate.id} className={cn(isSelected && "bg-blue-50/50 dark:bg-blue-950/50")}>
+                            <TableCell>
+                              <Checkbox 
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleCandidateSelection(candidate, checked as boolean)}
+                                disabled={!isSelectable || paymentMutation.isPending}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <Link 
+                                to={`/admin/candidate/${candidate.id}`} 
+                                className="hover:text-primary hover:underline transition-colors"
+                              >
+                                {candidate.first_name} {candidate.last_name}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{candidate.tracking_code}</TableCell>
+                            <TableCell>{candidate.passport_number}</TableCell>
+                            <TableCell>{candidate.country_of_origin}</TableCell>
+                            <TableCell>{localAgency?.name || 'N/A'}</TableCell> {/* Display Local Agency Name */}
+                            <TableCell>
+                              <Badge 
+                                className={cn(
+                                  candidate.payment_status === 'paid' && 'bg-green-500',
+                                  candidate.payment_status === 'pending_payment' && 'bg-yellow-500',
+                                  candidate.payment_status === 'payment_failed' && 'bg-red-500',
+                                  candidate.payment_status === 'unpaid' && 'bg-gray-500',
+                                  'text-white'
+                                )}
+                              >
+                                {candidate.payment_status.replace(/_/g, ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={statusColors[candidate.overall_status]}>
+                                {candidate.overall_status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Link to={`/admin/candidate/${candidate.id}`}>
+                                <Button variant="outline" size="sm">View/Edit</Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -254,6 +377,53 @@ const AgencyDashboard: React.FC = () => {
           </Card>
         </CardContent>
       </Card>
+
+      {/* Payment Confirmation Dialog */}
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Payment for Selected Candidates</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              You are about to initiate a payment for the following candidates:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {selectedCandidatesForPayment.map(c => (
+                <li key={c.id}>
+                  {c.first_name} {c.last_name} ({c.tracking_code}) - Local Agency: {localAgencies.find(la => la.id === c.local_agency_id)?.name || 'N/A'}
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center justify-between font-bold text-lg border-t pt-4">
+              <Label>Total Amount (Mock)</Label>
+              <span>{totalPaymentAmount.toLocaleString()} ETB</span>
+            </div>
+            {paymentMutation.isPending && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{paymentProcessingMessage}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPaymentDialogOpen(false)} 
+              disabled={paymentMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => paymentMutation.mutate()} 
+              disabled={paymentMutation.isPending}
+            >
+              {paymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
+              Confirm & Pay
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

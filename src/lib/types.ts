@@ -32,6 +32,14 @@ export interface ForeignAgency {
   created_at: string;
 }
 
+// NEW: AppConfig Interface (Moved from data-seed.ts)
+export interface AppConfig {
+    countryOptions: string[];
+    cocFacilities: CocFacility[];
+    foreignAgencies: ForeignAgency[];
+    localAgencies: LocalAgency[];
+}
+
 // NEW: Staff User Interface
 export interface StaffUser {
   id: string;
@@ -88,6 +96,9 @@ export interface MedicalResult {
   document_id?: string;
 }
 
+// NEW: Payment Status for Candidates
+export type CandidatePaymentStatus = 'unpaid' | 'pending_payment' | 'paid' | 'payment_failed';
+
 export interface Candidate {
   id: string;
   first_name: string;
@@ -106,6 +117,8 @@ export interface Candidate {
   profile_image_url?: string; // NEW FIELD: URL for candidate's profile image
   created_at: string;
   updated_at: string;
+  payment_status: CandidatePaymentStatus; // NEW FIELD: Overall payment status for the candidate
+  last_payment_id?: string; // NEW FIELD: Link to the last payment transaction
 }
 
 // NEW: Chat Message Types
@@ -129,7 +142,7 @@ export interface ApprovalLog {
     timestamp: string;
     actor_id: string;
     actor_email: string;
-    target_type: 'StaffUser' | 'AuthorizationCode' | 'Config' | 'Candidate' | 'AttendanceRecord'; // Added 'Candidate' and 'AttendanceRecord'
+    target_type: 'StaffUser' | 'AuthorizationCode' | 'Config' | 'Candidate' | 'AttendanceRecord' | 'Payment'; // Added 'Candidate' and 'AttendanceRecord'
     target_id: string; // ID of the user/code/config item affected
     action: 'Created' | 'Approved' | 'Rejected' | 'Updated' | 'Deleted';
     description: string;
@@ -155,6 +168,20 @@ export interface AuthorizationCode {
     is_active: boolean;
     usage_count: number;
     max_uses?: number; // Optional max usage count
+}
+
+// NEW: Payment Interface
+export interface Payment {
+  id: string;
+  stripe_payment_intent_id?: string; // Actual Stripe ID if integrated
+  amount: number;
+  currency: string;
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded';
+  payer_foreign_agency_id: string; // ID of the foreign agency making the payment
+  payee_local_agency_id: string; // ID of the local agency receiving the payment
+  candidate_ids: string[]; // IDs of candidates covered by this payment
+  created_at: string;
+  updated_at: string;
 }
 
 // Combined data structure for Admin view
