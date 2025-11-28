@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle, DollarSign, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, CreditCard, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -48,7 +48,7 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
     },
     onSuccess: () => {
       // Replace loading toast with success toast, ensuring it stays visible for 5 seconds
-      toast.success(`Payment of ${feeAmount} ETB successful for ${stageTitle}!`, { id: 'payment-toast', duration: 5000 });
+      toast.success(`Payment of ${feeAmount.toLocaleString()} ETB successful for ${stageTitle}!`, { id: 'payment-toast', duration: 5000 });
       
       // Optimistically update the current query data to show the change immediately
       // This prevents the flicker while the full refetch runs.
@@ -96,7 +96,7 @@ const PaymentGate: React.FC<PaymentGateProps> = ({
           {paymentMutation.isPending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-            <DollarSign className="h-4 w-4 mr-2" />
+            <CreditCard className="h-4 w-4 mr-2" />
           )}
           Pay Now (Mock Telebirr)
         </Button>
