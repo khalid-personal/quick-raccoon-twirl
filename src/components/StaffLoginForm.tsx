@@ -10,18 +10,18 @@ import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const StaffLoginForm: React.FC = () => {
-  const { isAuthenticated, login, isLoading, userRole } = useAuth();
+  const { isAuthenticated, login, isLoading: isAuthLoading, userRole } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   React.useEffect(() => {
-    // Only redirect if authenticated AND the role is confirmed to be staff or admin
-    if (isAuthenticated && (userRole === 'admin' || userRole === 'staff')) {
+    // Only redirect if auth loading is complete, authenticated, AND the role is confirmed to be staff or admin
+    if (!isAuthLoading && isAuthenticated && (userRole === 'admin' || userRole === 'staff')) {
       navigate('/admin', { replace: true });
     }
-  }, [isAuthenticated, userRole, navigate]); // Removed isLoading from dependencies as it's handled by the component's loading state
+  }, [isAuthLoading, isAuthenticated, userRole, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ const StaffLoginForm: React.FC = () => {
     }
   };
   
-  if (isLoading) {
+  if (isAuthLoading) { // Use isAuthLoading from useAuth hook
     return (
       <div className="flex items-center justify-center h-40">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -18,11 +18,11 @@ const CandidateLoginForm: React.FC = () => {
   const [isFetchingRandom, setIsFetchingRandom] = useState(false);
 
   React.useEffect(() => {
-    // If already authenticated as a candidate, redirect immediately
-    if (isAuthenticated && candidateTrackingCode) {
+    // If auth loading is complete, and already authenticated as a candidate, redirect immediately
+    if (!isAuthLoading && isAuthenticated && candidateTrackingCode) {
       navigate(`/track/${candidateTrackingCode}`, { replace: true });
     }
-  }, [isAuthenticated, candidateTrackingCode, navigate]);
+  }, [isAuthLoading, isAuthenticated, candidateTrackingCode, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,7 @@ const CandidateLoginForm: React.FC = () => {
     }
   };
   
-  if (isAuthLoading) {
+  if (isAuthLoading) { // Use isAuthLoading from useAuth hook
     return (
       <div className="flex items-center justify-center h-40">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
