@@ -7,6 +7,7 @@ import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, get
 import { calculateProgress } from '../utils-data';
 import { getStageId } from './utils';
 import { getCandidateDetail } from './candidate-crud';
+import { recordApprovalLog } from './log-management'; // NEW IMPORT
 
 // GET /api/track/:tracking_code
 export const getPublicTrackingData = async (trackingCode: string): Promise<PublicTrackingData | null> => {
@@ -111,8 +112,17 @@ export const sendNotification = async (type: 'sms' | 'whatsapp', recipient: stri
 };
 
 // NEW: Mock API for sending candidate profile to foreign agency
-export const sendProfileToForeignAgency = async (candidateId: string, trackingCode: string, foreignAgencyName: string) => {
+export const sendProfileToForeignAgency = async (
+    candidateId: string, 
+    trackingCode: string, 
+    foreignAgencyName: string,
+    actorId: string, // NEW PARAMETER
+    actorEmail: string // NEW PARAMETER
+) => {
     console.log(`[MOCK ACTION] Candidate ${trackingCode} (ID: ${candidateId}) profile sent to Foreign Agency: ${foreignAgencyName}`);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    
+    await recordApprovalLog(actorId, actorEmail, 'Candidate', candidateId, 'Updated', `Sent profile to foreign agency: ${foreignAgencyName}`);
+
     return { success: true, message: `Profile for ${trackingCode} successfully sent to ${foreignAgencyName}.` };
 };
