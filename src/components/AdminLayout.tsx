@@ -71,7 +71,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[250px] p-4 pt-10 flex flex-col">
-                <h2 className="text-xl font-bold text-primary mb-4">Agency Admin</h2>
+                <h2 className="text-xl font-bold text-primary mb-4">DAWM Portal</h2>
                 <nav className="flex flex-col space-y-1 flex-grow">
                   {navItems.map(item => (
                     <NavLink
@@ -101,9 +101,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
           {/* Desktop Navigation (Hidden on Mobile) */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/admin" className="text-xl font-bold text-primary flex items-center space-x-2">
+            <Link to="/admin" className="text-xl font-extrabold tracking-tight text-primary flex items-center space-x-2">
                 <Home className="h-6 w-6" />
-                <span>Admin ({userRole})</span>
+                <span className="text-lg">Domestic Agency Workforce Management (DAWM) Portal</span>
+                <span className="text-sm font-medium text-muted-foreground ml-2">({userRole})</span>
             </Link>
             
             <nav className="flex items-center space-x-2 ml-6">
@@ -137,7 +138,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         {children}
       </main>
       <footer className="p-4 text-center text-sm text-gray-500 border-t dark:border-gray-800">
-        © 2024 Employment Agency Tracker
+        © 2024 Domestic Agency Workforce Management
       </footer>
     </div>
   );
