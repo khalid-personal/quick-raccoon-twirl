@@ -25,7 +25,7 @@ const commonSteps: GuideStep[] = [
 
 const roleSteps: Record<UserRole, GuideStep[]> = {
   superadmin: [
-    { title: 'Balance staff work', what: 'Open tasks are created from each candidate’s next unfinished stage. Equal workload is the default.', next: 'Set a staff weight, then apply the workload settings.', href: '/admin/tasks' },
+    { title: 'Start with My tasks and team workload', what: 'My tasks lists your review, reply and approval work. Team workload lists each candidate’s next required stage and its owner.', next: 'Read urgent work, open a record, then assign or balance staff work if needed. Save follow-up on the candidate.', href: '/admin/tasks' },
     { title: 'Review record warnings', what: 'Warnings show records that need a closer look. Correct the missing or conflicting details rather than hiding the warning.', next: 'Open Record checks and start with urgent issues.', href: '/admin/integrity' },
     { title: 'Practice with demo records', what: 'Six examples show different numbers of record and payment problems while keeping the same candidates.', next: 'Open Settings and choose a demo practice example.', href: '/admin/settings' },
     { title: 'Review online staff', what: 'The green dot means the account was recently active. Recorded attendance begins at sign-in and ends at logout.', next: 'Review the staff list or attendance history.', href: '/admin/users' },
@@ -42,6 +42,7 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Keep in touch', what: 'Candidate chat and notifications keep follow-ups attached to the candidate workflow.', next: 'Open your inbox and record the next action on the task.', href: '/admin/chat' },
   ],
   'local-agency': [
+    { title: 'Start with My tasks and team workload', what: 'Your queue includes record warnings, agency replies and contract receipt checks. Team work stays within your agency.', next: 'Open My tasks, review owners and due dates, then assign or balance work among your approved staff.', href: '/local-agency/tasks' },
     { title: 'Review candidate progress', what: 'The dashboard summarizes each stage and lists blocked, flagged, or inactive candidate files.', next: 'Open the candidate row to review the next step.', href: '/local-agency' },
     { title: 'Confirm received contracts', what: 'The foreign agency shares a secure contract link. Your agency confirms once the contract has arrived.', next: 'Open the candidate profile and mark the contract received.', href: '/local-agency' },
     { title: 'Prepare clearance', what: 'Visa, Enjaz, and Tasheer checks show what remains before ministry issuance.', next: 'Complete local checks and wait for the official ministry QR.', href: '/local-agency/clearance' },
@@ -49,40 +50,55 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     ...commonSteps,
   ],
   'foreign-agency': [
+    { title: 'Start with My tasks and team workload', what: 'Your follow-ups and approved staff assignments stay within your foreign agency; they do not replace local-stage ownership.', next: 'Read My tasks, review work by staff member, then assign a task or use Balance agency work.', href: '/agency/tasks' },
     { title: 'Review candidate introductions', what: 'Candidate summaries, skills, languages, and introduction videos help you review a profile before sending a contract.', next: 'Open a candidate from your agency dashboard.', href: '/agency' },
     { title: 'Send a contract link', what: 'Share a secure HTTPS link with the candidate’s linked Ethiopian agency. The other agency confirms receipt.', next: 'Open the candidate viewer and send the contract link.', href: '/agency' },
     { title: 'Track clearance', what: 'The tracker shows local checks and whether the Labour Ministry certificate has been issued.', next: 'Review the candidate’s clearance status.', href: '/agency/clearance' },
     { title: 'Review payments and messages', what: 'Your agency’s payments, receipt references, and candidate conversations stay in one workspace.', next: 'Open payments to follow a receipt, or chat to coordinate a candidate.', href: '/agency/payments' },
   ],
   'foreign-agency-staff': [
+    { title: 'Start with My tasks', what: 'Only your assigned current-stage work is listed. Payment blockers still apply.', next: 'Open your earliest task, read the candidate record and save a permitted follow-up.', href: '/agency/tasks' },
     { title: 'Review candidate introductions', what: 'Candidate summaries, skills, languages, and introduction videos help you review a profile before sending a contract.', next: 'Open a candidate from your agency dashboard.', href: '/agency' },
     { title: 'Track a contract', what: 'The foreign agency shares a secure contract link; the linked Ethiopian agency marks it received.', next: 'Open the candidate viewer to check the handoff.', href: '/agency' },
     { title: 'Follow clearance', what: 'See visa and clearance progress for candidates linked to your agency.', next: 'Open the clearance tracker.', href: '/agency/clearance' },
     { title: 'Coordinate candidate follow-up', what: 'Use chat and the candidate timeline to keep agency communication connected to the file.', next: 'Open candidate chat or review payments.', href: '/agency/chat' },
   ],
   candidate: [
+    { title: 'Read your document reminders', what: 'Your tracking page gives helpful reminders for missing current-stage documents, not staff assignments or penalties.', next: 'Ask the agency what is needed, then open documents and submit it to the correct stage.', href: '/track' },
     { title: 'Check your journey', what: 'Your timeline shows each step and its current status.', next: 'Open the next stage and read any action requested by your agency.', href: '/track' },
     { title: 'Share documents safely', what: 'Uploads are screened for common file risks. A review message means the agency should check the file.', next: 'Choose the stage and upload the requested document.', href: '/track' },
     { title: 'View your profile', what: 'Your photo, introduction, and recorded progress help your agencies work from one current profile.', next: 'Ask your local agency to correct anything that is out of date.', href: '/track' },
     { title: 'Contact your agency', what: 'Use candidate chat for a question about a stage, document, payment, or follow-up.', next: 'Open chat from your tracking page.', href: '/track' },
   ],
   auditor: [
+    { title: 'Start with My tasks', what: 'Your queue groups active warnings into read-only reviews. A score summarizes warnings; it does not prove wrongdoing.', next: 'Open the highest-priority review and check supporting evidence without changing records.', href: '/auditor/tasks' },
     { title: 'Review record warnings', what: 'Checks look for missing or conflicting candidate, stage, payment and document details.', next: 'Review the supporting records and activity history for each issue.', href: '/auditor' },
     { title: 'Understand review findings', what: 'A finding identifies a record that needs review; it is not a conclusion of wrongdoing.', next: 'Inspect the evidence available in the integrity workspace.', href: '/auditor' },
   ],
   viewer: [
+    { title: 'Start with My tasks', what: 'Your follow-up is public tracking only. Viewer tasks never expose private candidate records.', next: 'Use a tracking code shared with you to open public progress.', href: '/viewer/tasks' },
     { title: 'Look up a candidate', what: 'Viewer access is read-only and depends on public tracking availability.', next: 'Enter a tracking code on the viewer dashboard.', href: '/viewer' },
     { title: 'Understand flags', what: 'A flag is a request to review a record, not a conclusion that someone did something wrong.', next: 'Share the candidate tracking code with an authorized staff member.', href: '/viewer' },
+  ],
+  admin: [
+    { title: 'Start with My tasks', what: 'Review role-specific warnings and monitor staff workload. Only authorized managers can change assignments.', next: 'Open a task, check its evidence and save the permitted follow-up on the record.', href: '/admin/tasks' },
+    ...commonSteps,
+  ],
+  agency: [
+    { title: 'Start with My tasks and team workload', what: 'Agency follow-ups and staff assignments stay in your foreign agency.', next: 'Review current tasks and assign them to approved agency staff.', href: '/agency/tasks' },
+    { title: 'Review money sent', what: 'Only your agency’s outbound receipts are available, without bank-audit tools.', next: 'Open a receipt and check the receiving agency and reference.', href: '/agency/payments' },
   ],
 };
 
 const roleLabels: Record<UserRole, string> = {
-  superadmin: 'Administrator', staff: 'Staff', 'local-agency': 'Ethiopian agency', 'foreign-agency': 'Foreign agency',
+  superadmin: 'Administrator', admin: 'Administrator', agency: 'Foreign agency', staff: 'Staff', 'local-agency': 'Ethiopian agency', 'foreign-agency': 'Foreign agency',
   'foreign-agency-staff': 'Foreign agency staff', candidate: 'Candidate', auditor: 'Auditor', viewer: 'Viewer',
 };
 
 const roleDescriptions: Record<UserRole, string> = {
   superadmin: 'Manages system settings, access, candidates and operations.',
+  admin: 'Reviews candidate operations and monitors staff work within assigned permissions.',
+  agency: 'Reviews its foreign-agency candidates, contracts and team workload.',
   staff: 'Works candidate files, tasks, stages, payments and operational follow-up.',
   'local-agency': 'Manages its candidate pipeline, local checks, payments and agency staff.',
   'foreign-agency': 'Reviews its candidates, contracts, deployment and agency staff.',
@@ -93,7 +109,7 @@ const roleDescriptions: Record<UserRole, string> = {
 };
 
 const manual = [
-  ['Registration', 'Staff and administrators', 'Use Add New Candidate or passport upload; review identity, contact, agency and tracking details before creating the record.'],
+  ['Ministry intake and passport upload', 'Ministry, staff and administrators', 'Candidate intake must come through ELMIS with the responsible local agency and Labor ID. The official connection is pending. Passport image/PDF scanning attaches evidence to one existing matching candidate; no manual new record is created.'],
   ['Search and filters', 'Staff, administrators and agencies', 'Search by candidate details, and use available agency, batch and status filters to narrow the pipeline.'],
   ['Candidate profile', 'Staff and linked agencies', 'Open a candidate to review identity, contacts, agencies, introduction, journey and previous employment history.'],
   ['Stages and timeline', 'Staff and authorized agencies', 'Open Timeline Editor to record stage status, dates and references. The candidate tracking view displays progress.'],
@@ -104,7 +120,7 @@ const manual = [
   ['Training and deployment maps', 'Staff, administrators and agencies', 'Filter by agency, phase, center or region where available; select a destination or candidate to inspect journeys.'],
   ['Return and reapplication', 'Staff, linked agencies and candidates', 'Review recorded previous journeys and return dates in the profile. A new application has its own current progression.'],
   ['Payments and receipts', 'Candidates, agencies, staff and administrators', 'Review payment status and receipts. Local agencies can compare settled transfers with an uploaded bank statement.'],
-  ['Tasks and assignments', 'Staff and administrators', 'Open My Tasks for assigned follow-up; administrators can configure workload allocation.'],
+  ['My tasks and workload manager', 'All account roles', 'Start with role-specific follow-ups, open the underlying record and save your permitted action there. Managers assign or balance eligible staff in their scope. Staff follow their assigned stages and due dates. Auditors/viewers have read-only follow-ups; candidates only have document reminders. Assignment never skips payments or stages.'],
   ['Chat and notifications', 'Candidates, agencies, staff and administrators', 'Use the relevant inbox to follow conversations and notifications associated with candidate work.'],
   ['User management and authorization', 'Administrators and agency account managers', 'Review account approvals and manage authorized users and codes within the permissions of your workspace.'],
   ['Integrity and audit', 'Staff, administrators and auditors', 'Review findings and their supporting information. A warning calls for review and does not by itself establish misconduct.'],

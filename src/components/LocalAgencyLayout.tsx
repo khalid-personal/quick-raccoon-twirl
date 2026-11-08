@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, CalendarDays, Handshake, LayoutDashboard, Map, MessageSquare, Receipt, UserCog, BadgeCheck } from 'lucide-react';
+import { BookOpen, CalendarDays, Handshake, LayoutDashboard, ListTodo, Map, MessageSquare, Receipt, UserCog, BadgeCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import AppShell from './AppShell';
@@ -20,6 +20,7 @@ export default function LocalAgencyLayout({ children }: { children: React.ReactN
     label: 'Operations',
     items: [
       { to: '/local-agency', label: 'Dashboard', icon: <LayoutDashboard /> },
+      { to: '/local-agency/tasks', label: 'My tasks & team', icon: <ListTodo /> },
       { to: '/local-agency/users', label: 'Staff', icon: <UserCog /> },
       { to: '/local-agency/payments', label: 'Payment History', icon: <Receipt /> },
       { to: '/local-agency/clearance', label: 'Clearance', icon: <BadgeCheck /> },

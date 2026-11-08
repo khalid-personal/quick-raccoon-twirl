@@ -13,6 +13,8 @@ import { useCandidateGuidance } from '@/hooks/use-candidate-guidance';
 import { candidateListStatus } from '@/lib/candidate-list-status';
 import { Progress } from '@/components/ui/progress';
 import { EntityProfileButton, useCandidateWorkspace } from './CandidateQuickViewProvider';
+import { candidateLaborId } from '@/lib/ministry-candidates';
+import { getCandidateStages } from '@/lib/data-store';
 
 interface CandidateListProps {
   candidates: CandidateSummary[];
@@ -26,6 +28,7 @@ interface CandidateListProps {
 const CandidateList: React.FC<CandidateListProps> = ({ candidates, basePath, sortBy, direction, presence, onSort }) => {
   const guidance = useCandidateGuidance(candidates);
   const openCandidate = useCandidateWorkspace();
+  const stages = getCandidateStages();
   const heading = (label: string, field: CandidateSortField) => <Button type="button" variant="ghost" size="sm" className="-ml-3 h-8 gap-1" onClick={() => onSort(field)}>
     {label}{sortBy !== field ? <ArrowUpDown className="h-3.5 w-3.5" /> : direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
   </Button>;
@@ -46,7 +49,7 @@ const CandidateList: React.FC<CandidateListProps> = ({ candidates, basePath, sor
       const state = presence ? presenceFor(presence, 'candidate', candidate.id) : { online: false, lastSeen: undefined };
       return <TableRow key={candidate.id}>
       <TableCell>{openCandidate ? <button type="button" className="flex items-center gap-2 text-left font-medium hover:text-primary hover:underline" onClick={() => openCandidate(candidate.id)}><CandidateAvatar candidate={candidate} className="h-9 w-9" /><span>{candidate.first_name} {candidate.last_name}</span></button> : <Link className="flex items-center gap-2 font-medium underline-offset-4 hover:underline" to={`${basePath}/${candidate.id}`}><CandidateAvatar candidate={candidate} className="h-9 w-9" /><span>{candidate.first_name} {candidate.last_name}</span></Link>}</TableCell>
-      <TableCell className="font-mono text-xs">{candidate.tracking_code}</TableCell>
+      <TableCell className="text-xs"><p className="font-mono">{candidate.tracking_code}</p><p className="mt-1 text-muted-foreground">Labor ID: <span className="font-mono">{candidateLaborId(candidate, stages) || 'Awaiting ministry details'}</span></p></TableCell>
       <TableCell className="capitalize">{candidate.gender || 'Not recorded'}</TableCell>
       <TableCell className="min-w-28 tabular-nums"><div className="space-y-1"><span className="text-xs">{Math.round(candidate.progress_percent)}%</span><Progress value={candidate.progress_percent} className="h-1.5" /></div></TableCell>
       <TableCell><LastOnline at={state.lastSeen} online={state.online} /></TableCell>

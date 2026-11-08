@@ -43,4 +43,11 @@ describe('ELMIS demo workflow', () => {
     expect(await getElmisMode()).toBeNull();
     await expect(verifyCandidateWithElmis(candidate, { id: 'user', email: 'user@example.test' })).rejects.toThrow(/not configured/);
   });
+  it('does not overwrite a live ministry record with practice identity data', async () => {
+    sessionStorage.setItem('dawm_demo_session', '1');
+    const official: Candidate = { ...candidate, elmis: { candidate_id: 'MIN-1', labor_id: 'LAB-1', status: 'verified', mode: 'live', checked_at: '2026-11-08' } };
+    saveCandidates([official]);
+    await expect(verifyCandidateWithElmis(official, { id: 'user', email: 'user@example.test' })).rejects.toThrow('live ministry identity');
+    expect(getCandidates()).toEqual([official]);
+  });
 });

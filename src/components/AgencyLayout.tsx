@@ -27,7 +27,7 @@ const AgencyLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       label: 'Workspace',
       items: [
         { to: '/agency', label: 'Dashboard', icon: <LayoutDashboard /> },
-        { to: '/agency/tasks', label: 'Staff Workload', icon: <ListTodo /> },
+        { to: '/agency/tasks', label: userRole === 'foreign-agency-staff' ? 'My tasks' : 'My tasks & team', icon: <ListTodo /> },
         { to: '/agency/introductions', label: 'Candidate Introductions', icon: <Film /> },
         { to: '/agency/training-map', label: 'Destination Map', icon: <Map /> },
         { to: '/agency/clearance', label: 'Clearance Tracker', icon: <BadgeCheck /> },

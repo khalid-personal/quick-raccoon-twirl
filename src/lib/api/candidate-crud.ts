@@ -1,12 +1,12 @@
-import { v4 as uuidv4 } from 'uuid';
 import { Candidate, CandidateDetail, ALL_STAGES } from '../types'; // Added ALL_STAGES import
-import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, saveCandidateStages, getChatMessages, getCocFacilities, getForeignAgencies, getLocalAgencies } from '../data-store'; // Import new getters
-import { generateInitialStages } from '../data-seed';
+import { getCandidates, getCandidateStages, getMedicalResults, getDocuments, saveCandidates, getChatMessages, getCocFacilities, getForeignAgencies, getLocalAgencies, getStaffUsers } from '../data-store'; // Import new getters
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
 import { recordApprovalLog } from './log-management';
 import { hasCompleteCandidateIntroduction } from '../candidate-introduction';
 import { requireAgencyOperations } from '../agency-resolution';
+import { getApiPrincipal } from './auth';
+import { matchPassportCandidate, MINISTRY_INTAKE_MESSAGE, normalizeIdentity } from '../ministry-candidates';
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>>;
@@ -55,8 +55,8 @@ export const getCandidateDetailByTrackingCode = async (trackingCode: string): Pr
 export const updateCandidateDetails = async (
     candidateId: string, 
     data: CandidateUpdateData,
-    actorId: string, // NEW PARAMETER for logging
-    actorEmail: string // NEW PARAMETER for logging
+    actorId: string,
+    actorEmail: string
 ): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
@@ -67,6 +67,10 @@ export const updateCandidateDetails = async (
     }
 
     const existingCandidate = candidates[index];
+    if (existingCandidate.elmis?.mode === 'live' && existingCandidate.elmis.candidate_id
+      && (['first_name', 'last_name', 'dob', 'gender', 'passport_number', 'tracking_code'] as const).some(field => field in data && data[field] !== existingCandidate[field])) {
+      throw new Error('Identity details on a ministry-synced candidate must be corrected through ELMIS. You can still update contact and support information.');
+    }
     if (data.gender !== undefined && data.gender !== 'male' && data.gender !== 'female') {
         throw new Error('Candidate gender must be male or female.');
     }
@@ -92,7 +96,7 @@ export const updateCandidateDetails = async (
     }
 
     if (newPassportNumber && newPassportNumber !== existingCandidate.passport_number) {
-        if (candidates.some(c => c.passport_number === newPassportNumber)) {
+        if (candidates.some(c => c.id !== candidateId && normalizeIdentity(c.passport_number) === normalizeIdentity(newPassportNumber))) {
             throw new Error(`Passport number '${newPassportNumber}' already exists.`);
         }
     }
@@ -115,6 +119,12 @@ export const updateCandidateDetails = async (
       requireAgencyOperations('foreign', existingCandidate.foreign_agency_id);
       requireAgencyOperations('local', updatedCandidate.local_agency_id);
       requireAgencyOperations('foreign', updatedCandidate.foreign_agency_id);
+    }
+    if (updatedCandidate.local_agency_id !== existingCandidate.local_agency_id) {
+      throw new Error('The managing local agency comes from the ministry record. Request an ELMIS correction instead.');
+    }
+    if (data.elmis && JSON.stringify(data.elmis) !== JSON.stringify(existingCandidate.elmis)) {
+      throw new Error('Ministry identity and Labor ID details can only be updated through ELMIS.');
     }
 
     candidates[index] = updatedCandidate;
@@ -141,66 +151,41 @@ export const updateCandidateDetails = async (
 // POST /api/admin/candidate
 export const createCandidate = async (
     data: CandidateCreationData,
-    actorId: string, // NEW PARAMETER for logging
-    actorEmail: string // NEW PARAMETER for logging
+    _actorId: string,
+    _actorEmail: string
 ): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     requireAgencyOperations('local', data.local_agency_id);
     requireAgencyOperations('foreign', data.foreign_agency_id);
+    throw new Error(MINISTRY_INTAKE_MESSAGE);
+};
+
+export const attachCandidatePassport = async (
+    scan: { data: NonNullable<Candidate['passport_identity']> & Partial<Pick<Candidate, 'passport_nationality' | 'passport_issuing_country' | 'passport_expiry_date' | 'passport_document_type'>>; imageUrl: string; screeningReport: NonNullable<Candidate['passport_image_scan_report']> },
+): Promise<Candidate> => {
+    const principal = await getApiPrincipal();
+    if (!['superadmin', 'admin', 'staff', 'local-agency'].includes(principal.role)) throw new Error('Your account cannot attach candidate passports.');
+    if (!scan.imageUrl || scan.screeningReport.status === 'blocked') throw new Error('A usable screened passport upload is required.');
     const candidates = getCandidates();
-
-    if (data.gender !== 'male' && data.gender !== 'female') {
-        throw new Error('Candidate gender is required.');
+    const candidate = matchPassportCandidate(candidates, scan.data.passport_number);
+    if (principal.role === 'local-agency' && (!principal.localAgencyId || candidate.local_agency_id !== principal.localAgencyId)
+      || principal.role === 'staff' && (principal.localAgencyId && candidate.local_agency_id !== principal.localAgencyId
+        || candidate.assigned_staff_id !== principal.id && !getCandidateStages().some(stage => stage.candidate_id === candidate.id && stage.assigned_staff_id === principal.id))) {
+      throw new Error('This candidate is not assigned to your account or agency.');
     }
-    if (!hasCompleteCandidateIntroduction(data)) {
-        throw new Error('Candidate gender, introduction, skills, languages, and introduction video are required.');
-    }
-
-    // --- Duplicate Check for Creation ---
-    if (candidates.some(c => c.tracking_code.trim().toUpperCase() === data.tracking_code.trim().toUpperCase())) {
-        throw new Error(`Tracking code '${data.tracking_code}' already exists.`);
-    }
-    if (candidates.some(c => c.passport_number === data.passport_number)) {
-        throw new Error(`Passport number '${data.passport_number}' already exists.`);
-    }
-    if (candidates.some(c => c.email === data.email)) {
-        throw new Error(`Email '${data.email}' already exists.`);
-    }
-    // --- End Duplicate Check ---
-
-    // Age validation
-    if (!isAdult(data.dob)) {
-        throw new Error("Candidate must be 18 years or older.");
-    }
-
-    const newCandidate: Candidate = {
-        ...data,
-        tracking_code: data.tracking_code.trim().toUpperCase(),
-        id: uuidv4(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        payment_status: 'unpaid', // Default payment status for new candidates
-        last_payment_id: undefined,
-    } as Candidate; // Cast back to Candidate to satisfy return type
-
-    candidates.push(newCandidate);
-    saveCandidates(candidates);
-
-    // Initialize stages for the new candidate
-    const initialStages = generateInitialStages(newCandidate);
-    const allStages = getCandidateStages();
-    saveCandidateStages([...allStages, ...initialStages]);
-
-    // --- LOGGING ---
-    let description = `Created new candidate: ${newCandidate.first_name} ${newCandidate.last_name} (${newCandidate.tracking_code}).`;
-    if (newCandidate.foreign_agency_id) description += ` Assigned to foreign agency ID: '${newCandidate.foreign_agency_id}'.`;
-    if (newCandidate.local_agency_id) description += ` Assigned to local agency ID: '${newCandidate.local_agency_id}'.`;
-    if (newCandidate.coc_facility_id) description += ` Assigned to COC facility ID: '${newCandidate.coc_facility_id}'.`;
-    if (newCandidate.profile_image_url) description += ` Profile image uploaded.`;
-    await recordApprovalLog(actorId, actorEmail, 'Candidate', newCandidate.id, 'Created', description);
-    // --- END LOGGING ---
-
-    return newCandidate;
+    const updated: Candidate = { ...candidate,
+      passport_identity: { first_name: scan.data.first_name, last_name: scan.data.last_name, dob: scan.data.dob, passport_number: scan.data.passport_number, gender: scan.data.gender },
+      passport_image_url: scan.imageUrl, passport_image_scan_report: scan.screeningReport,
+      passport_nationality: scan.data.passport_nationality ?? candidate.passport_nationality,
+      passport_issuing_country: scan.data.passport_issuing_country ?? candidate.passport_issuing_country,
+      passport_expiry_date: scan.data.passport_expiry_date ?? candidate.passport_expiry_date,
+      passport_document_type: scan.data.passport_document_type ?? candidate.passport_document_type,
+      updated_at: new Date().toISOString() };
+    saveCandidates(candidates.map(item => item.id === candidate.id ? updated : item));
+    await recordApprovalLog(principal.id, getStaffUsers().find(person => person.id === principal.id)?.email ?? principal.id, 'Candidate', candidate.id, 'Updated',
+      `Passport attached to ${candidate.first_name} ${candidate.last_name} (${candidate.tracking_code}). Original identity and agency assignment retained; scanned details are available for record checks.`);
+    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+    return updated;
 };
 
 // Helper to get candidate by email (needed after Supabase login)

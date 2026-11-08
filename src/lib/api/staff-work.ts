@@ -2,6 +2,7 @@ import { getCandidateStages, getCandidates, getConfig, getStaffUsers, saveCandid
 import type { AppConfig, CandidateStage } from '../types';
 import { assignUnassignedStageTasks, getActiveStageTasks, rebalanceStageTasks } from '../staff-tasks';
 import { recordApprovalLog } from './log-management';
+import { getApiPrincipal } from './auth';
 
 const saveStageAssignments = (next: CandidateStage[]) => {
   const current = getCandidateStages();
@@ -71,7 +72,8 @@ export const assignCandidateStageTask = async (
   staffId: string,
   actor: { id: string; email: string; role: string },
 ): Promise<CandidateStage> => {
-  if (actor.role !== 'superadmin' || !actor.id || !actor.email) throw new Error('Only a signed-in superadmin can reassign tasks.');
+  if (!['superadmin', 'local-agency'].includes(actor.role) || !actor.id || !actor.email) throw new Error('Only a signed-in superadmin or local agency manager can reassign tasks.');
+  const principal = actor.role === 'local-agency' ? await getApiPrincipal() : undefined;
   const users = getStaffUsers();
   if (!users.some(user => user.id === staffId && user.role === 'staff' && user.is_approved)) {
     throw new Error('Choose an approved staff account.');
@@ -81,6 +83,10 @@ export const assignCandidateStageTask = async (
   if (index < 0) throw new Error('Candidate stage not found.');
   const owner = users.find(user => user.id === staffId)!;
   const candidate = getCandidates().find(candidate => candidate.id === candidateId);
+  if (principal && (principal.role !== 'local-agency' || !principal.localAgencyId || candidate?.local_agency_id !== principal.localAgencyId
+    || owner.local_agency_id !== principal.localAgencyId)) {
+    throw new Error('Assign only candidates and approved staff belonging to your own local agency.');
+  }
   if (!candidate || !getActiveStageTasks([candidate], stages, Date.now(), paymentContext()).some(task => task.stage.stage_id === stageId)) {
     throw new Error('Assign the candidate’s current required stage. Earlier unpaid or unfinished stages must be handled first.');
   }
@@ -88,5 +94,6 @@ export const assignCandidateStageTask = async (
   stages[index] = { ...stages[index], assigned_staff_id: staffId, follow_up_due_at: stages[index].follow_up_due_at ?? new Date(Date.now() + 86_400_000).toISOString() };
   saveCandidateStages(stages);
   await recordApprovalLog(actor.id, actor.email, 'Candidate', candidateId, 'Updated', `Assigned stage ${stageId} task to staff ${staffId}.`);
+  window.dispatchEvent(new CustomEvent('supabase-data-changed'));
   return stages[index];
 };

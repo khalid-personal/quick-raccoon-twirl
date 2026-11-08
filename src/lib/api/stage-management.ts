@@ -25,6 +25,8 @@ export const updateStageStatus = async (
     if (!candidate) throw new Error('Candidate not found.');
 
     const stageSlug = ALL_STAGES.find(s => s.id === stageId)?.slug;
+    if (stageSlug === 'registration' && candidate.elmis?.labor_id && referenceId !== undefined
+      && referenceId !== allStages[candidateStageIndex].reference_id) throw new Error('Registration references for ministry-managed candidates must be corrected through ELMIS.');
     const blockers = stageProgressBlockers(candidate, stageId, status, allStages, getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments());
     if (blockers.length) throw new Error(blockers.join(' '));
     if (stageSlug === 'medical' && ['Passed', 'Issued', 'Completed'].includes(status)) {

@@ -41,6 +41,7 @@ import ChechePayReturnPage from '@/pages/ChechePayReturnPage';
 import ViewerDashboard from '@/pages/ViewerDashboard';
 import StaffTasksPage from '@/pages/StaffTasksPage';
 import ForeignStaffTasksPage from '@/pages/ForeignStaffTasksPage';
+import ReviewTasksPage from '@/pages/ReviewTasksPage';
 import StakeholderGuide from '@/pages/StakeholderGuide';
 import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -100,6 +101,7 @@ const AppRoutes = () => (
     <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminLayout><SuperadminSettings /></AdminLayout></ProtectedRoute>} />
 
     <Route path="/local-agency" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><LocalAgencyDashboard /></LocalAgencyLayout></ProtectedRoute>} />
+    <Route path="/local-agency/tasks" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><StaffTasksPage /></LocalAgencyLayout></ProtectedRoute>} />
     <Route path="/local-agency/users" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><LocalAgencyUserManagement /></LocalAgencyLayout></ProtectedRoute>} />
     <Route path="/local-agency/payments" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><LocalAgencyPayments /></LocalAgencyLayout></ProtectedRoute>} />
     <Route path="/local-agency/clearance" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><AgencyClearance /></LocalAgencyLayout></ProtectedRoute>} />
@@ -120,7 +122,9 @@ const AppRoutes = () => (
     <Route path="/agency/candidate/:candidateId" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AdminCandidateDetail /></AgencyLayout></ProtectedRoute>} />
     <Route path="/viewer" element={<ProtectedRoute allowedRoles={['viewer', 'superadmin']}><ViewerDashboard /></ProtectedRoute>} />
     <Route path="/auditor" element={<ProtectedRoute allowedRoles={['auditor', 'superadmin']}><AuditorLayout><AdminIntegrity /></AuditorLayout></ProtectedRoute>} />
-    <Route path="/guide" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff', 'local-agency', 'foreign-agency', 'foreign-agency-staff', 'candidate', 'viewer', 'auditor']}><StakeholderGuide /></ProtectedRoute>} />
+    <Route path="/auditor/tasks" element={<ProtectedRoute allowedRoles={['auditor']}><ReviewTasksPage /></ProtectedRoute>} />
+    <Route path="/viewer/tasks" element={<ProtectedRoute allowedRoles={['viewer']}><ReviewTasksPage /></ProtectedRoute>} />
+    <Route path="/guide" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff', 'agency', 'local-agency', 'foreign-agency', 'foreign-agency-staff', 'candidate', 'viewer', 'auditor']}><StakeholderGuide /></ProtectedRoute>} />
     <Route path="/notifications" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff', 'local-agency', 'foreign-agency', 'foreign-agency-staff', 'candidate', 'viewer', 'auditor']}><NotificationsPage /></ProtectedRoute>} />
 
     <Route path="/unauthorized" element={<Navigate to="/login" replace />} />

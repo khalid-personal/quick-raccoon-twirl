@@ -143,8 +143,9 @@ const StageEditorDialog: React.FC<StageEditorDialogProps> = ({
               placeholder="Enter a stage reference"
               value={referenceId}
               onChange={(e) => setReferenceId(e.target.value)}
-              disabled={isSaving}
+              disabled={isSaving || stage.slug === 'registration' && !!candidateDetail.elmis?.labor_id}
             />
+            {stage.slug === 'registration' && candidateDetail.elmis?.labor_id && <p className="text-xs text-muted-foreground">Ministry Labor ID: {candidateDetail.elmis.labor_id}. Corrections must come through ELMIS.</p>}
           </div>
           <div className="space-y-2 pt-2">
             <Label htmlFor={fieldId('notes')}>Internal Notes</Label>

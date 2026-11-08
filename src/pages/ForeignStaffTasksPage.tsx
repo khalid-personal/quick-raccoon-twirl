@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth-context';
 import { assignForeignStaffTask, getForeignStaffWork, rebalanceForeignStaffTasks } from '@/lib/api/foreign-staff-work';
 import { actorDisplayName } from '@/lib/demo-identities';
+import PortalWorkQueue from '@/components/PortalWorkQueue';
 
 export default function ForeignStaffTasksPage() {
   const { user, userRole, userForeignAgencyId, viewAs } = useAuth();
@@ -36,7 +37,9 @@ export default function ForeignStaffTasksPage() {
   const names = new Map(data.staff.map(person => [person.id, actorDisplayName(person.id, person.email)]));
   const unassigned = data.tasks.filter(task => !names.has(task.stage.foreign_assigned_staff_id ?? '')).length;
   return <div className="space-y-6">
-    <PageHeader title={data.canManage ? 'Staff Workload' : 'My Work'}
+    {data.canManage && <PortalWorkQueue />}
+    <section data-tour="workload-manager" className="rounded-2xl border bg-primary/5 p-5"><h2 className="font-semibold">{data.canManage ? 'How to manage agency workload' : 'How to use My tasks'}</h2><p className="mt-2 text-sm text-muted-foreground">{data.canManage ? 'Review work by staff member, assign a current task or balance agency work, then follow up on blockers. Only approved staff from your agency are eligible.' : 'Open your assigned candidate, read the current stage and blockers, then record your permitted follow-up. Your assignment does not give permission to complete local stages or skip payments.'}</p></section>
+    <PageHeader title={data.canManage ? 'Team workload' : 'My tasks'}
       description={data.canManage ? 'Assign your agency’s current candidate tasks to approved team members.' : 'Your current candidate tasks and follow-ups.'}
       actions={data.canManage ? <Button onClick={() => balance.mutate()} disabled={balance.isPending || !data.staff.length}>
         {balance.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}

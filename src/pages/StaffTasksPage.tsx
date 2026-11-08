@@ -18,30 +18,45 @@ import { getCandidateStages, getCandidates, getConfig, getLocalAgencies, getStaf
 import { useAuth } from '@/lib/auth-context';
 import { ALL_STAGES, type CandidateStage, type StaffUser } from '@/lib/types';
 import { getActiveStageTasks } from '@/lib/staff-tasks';
-import { assignCandidateStageTask, autoBalanceStaffTasks, prepareStaffTasks, rebalanceStaffTasks, updateStaffTaskWeights } from '@/lib/api/staff-work';
+import { assignCandidateStageTask, autoBalanceStaffTasks, rebalanceStaffTasks, updateStaffTaskWeights } from '@/lib/api/staff-work';
 import CandidateAvatar from '@/components/CandidateAvatar';
 import UserAvatar from '@/components/UserAvatar';
+import PortalWorkQueue from '@/components/PortalWorkQueue';
+import { balanceLocalAgencyTasks } from '@/lib/api/local-staff-work';
+import { getApiPrincipal } from '@/lib/api/auth';
 
 const todayKey = new Date().toISOString().slice(0, 10);
 const DONE = new Set(['Passed', 'Issued', 'Completed']);
 const NO_OWNER = 'unassigned';
 
 const StaffTasksPage: React.FC = () => {
-  const { user, userRole, viewAs } = useAuth();
+  const { user, userRole, viewAs, userLocalAgencyId } = useAuth();
   const effectiveUserId = viewAs?.userId ?? user?.id;
   const queryClient = useQueryClient();
-  const isManager = userRole === 'superadmin' || userRole === 'admin';
+  const isLocalManager = userRole === 'local-agency';
+  const isManager = userRole === 'superadmin' || userRole === 'admin' || isLocalManager;
   const canManage = userRole === 'superadmin';
+  const canAssign = canManage || isLocalManager;
+  const candidateBasePath = isLocalManager ? '/local-agency/candidate' : '/admin/candidate';
   const [weights, setWeights] = useState<Record<string, number>>({});
   const [assigneeFilter, setAssigneeFilter] = usePageMemory('assignee', 'all');
   const [localFilter, setLocalFilter] = usePageMemory('agency', 'all');
   const actor = { id: effectiveUserId ?? '', email: user?.email ?? '', role: userRole ?? '' };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['staff-workboard'],
+    queryKey: ['staff-workboard', effectiveUserId, userRole, userLocalAgencyId],
     queryFn: async () => {
-      await prepareStaffTasks(canManage);
-      return { candidates: getCandidates(), stages: getCandidateStages(), staff: getStaffUsers(), locals: getLocalAgencies(), weights: getConfig().staffTaskWeights ?? {},
+      const principal = isLocalManager || userRole === 'staff' ? await getApiPrincipal() : undefined;
+      if (isLocalManager && (principal?.role !== 'local-agency' || !principal.localAgencyId)) throw new Error('An approved local agency account is required.');
+      if (userRole === 'staff' && principal?.role !== 'staff') throw new Error('An approved staff account is required.');
+      const allStages = getCandidateStages();
+      const scopedCandidates = getCandidates().filter(candidate => isLocalManager ? candidate.local_agency_id === principal?.localAgencyId
+        : userRole !== 'staff' || (!principal?.localAgencyId || candidate.local_agency_id === principal.localAgencyId)
+          && (candidate.assigned_staff_id === principal?.id || allStages.some(stage => stage.candidate_id === candidate.id && stage.assigned_staff_id === principal?.id)));
+      const scopedIds = new Set(scopedCandidates.map(candidate => candidate.id));
+      return { candidates: scopedCandidates, stages: allStages.filter(stage => scopedIds.has(stage.candidate_id)),
+        staff: getStaffUsers().filter(person => !isLocalManager || person.local_agency_id === principal?.localAgencyId),
+        locals: getLocalAgencies(), weights: getConfig().staffTaskWeights ?? {},
         paymentContext: { fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: getPayments() } };
     },
     refetchInterval: 30000,
@@ -52,11 +67,11 @@ const StaffTasksPage: React.FC = () => {
     setWeights(JSON.parse(savedWeightsKey) as Record<string, number>);
   }, [savedWeightsKey]);
 
-  const candidates = useMemo(() => (data?.candidates ?? []).filter(candidate => !isManager || localFilter === 'all' || candidate.local_agency_id === localFilter), [data?.candidates, isManager, localFilter]);
+  const candidates = useMemo(() => (data?.candidates ?? []).filter(candidate => isLocalManager || !isManager || localFilter === 'all' || candidate.local_agency_id === localFilter), [data?.candidates, isManager, isLocalManager, localFilter]);
   const scopedIds = useMemo(() => new Set(candidates.map(candidate => candidate.id)), [candidates]);
   const stages = useMemo(() => (data?.stages ?? []).filter(stage => scopedIds.has(stage.candidate_id)), [data?.stages, scopedIds]);
   const allStaff = (data?.staff ?? []).filter(person => person.role === 'staff' && person.is_approved);
-  const staff = allStaff.filter(person => localFilter === 'all' || person.local_agency_id === localFilter);
+  const staff = allStaff.filter(person => isLocalManager || localFilter === 'all' || person.local_agency_id === localFilter);
   const tasks = useMemo(() => getActiveStageTasks(candidates, stages, Date.now(), data?.paymentContext), [candidates, stages, data?.paymentContext]);
   const mine = tasks.filter(task => task.stage.assigned_staff_id === effectiveUserId);
   const visibleTasks = (isManager ? tasks : mine).filter(task => {
@@ -73,10 +88,10 @@ const StaffTasksPage: React.FC = () => {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['staff-workboard'] });
   const automaticDistribution = useMutation({
-    mutationFn: () => autoBalanceStaffTasks(actor),
+    mutationFn: () => isLocalManager ? balanceLocalAgencyTasks() : autoBalanceStaffTasks(actor),
     onSuccess: result => {
       if (result.unassigned) toast.warning(`${result.assigned} tasks assigned. ${result.unassigned} need eligible staff in their agency; paused staff were not activated.`);
-      else toast.success(`${result.assigned} active tasks balanced across all agencies. ${result.changed} owners changed.`);
+      else toast.success(`${result.assigned} active tasks balanced ${isLocalManager ? 'within your agency' : 'across all agencies'}. ${result.changed} owners changed.`);
       void refresh();
     },
     onError: error => toast.error(error instanceof Error ? error.message : 'Could not balance work.'),
@@ -112,10 +127,15 @@ const StaffTasksPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {isManager && <PortalWorkQueue />}
+      <section data-tour="workload-manager" className="rounded-2xl border bg-primary/5 p-5">
+        <h2 className="font-semibold">{isManager ? 'How to manage workload' : 'How to use My tasks'}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{isManager ? 'Review work by staff member, assign the next required stage to an eligible owner, then use due dates to follow up. Balancing changes owners only, never payments or stage completion.' : 'Choose your earliest due task, open the candidate, read the blockers and save a status or follow-up note. Await payment means follow up on the fee; do not advance a later stage.'}</p>
+      </section>
       <PageHeader
-        title={isManager ? 'Staff Workboard' : 'My Daily Work'}
+        title={isManager ? 'Team workload' : 'My tasks'}
         description={isManager ? 'Balance candidate follow-ups and stage work across the team.' : 'Your assigned candidate follow-ups and stage actions, ordered by due date.'}
-        actions={isManager ? <div className="flex flex-wrap items-center gap-2">
+        actions={isManager && !isLocalManager ? <div className="flex flex-wrap items-center gap-2">
           <Select value={localFilter} onValueChange={value => { setLocalFilter(value); setAssigneeFilter('all'); }}>
             <SelectTrigger aria-label="Filter tasks by local agency" className="w-56"><SelectValue placeholder="Local agency" /></SelectTrigger>
             <SelectContent>
@@ -140,7 +160,7 @@ const StaffTasksPage: React.FC = () => {
             <CardTitle className="text-base">Today’s progress</CardTitle>
             <Badge variant={caughtUp ? 'default' : overdue ? 'destructive' : 'outline'}>{caughtUp ? 'Caught up' : overdue ? 'Overdue work' : 'In progress'}</Badge>
           </div>
-          <CardDescription>{caughtUp ? 'All tasks due today are complete.' : `${completedToday} completed of ${completedToday + dueToday + overdue} due or overdue tasks.`}</CardDescription>
+          <CardDescription>{caughtUp ? 'No due or overdue stage tasks remain. Role-specific review follow-ups are shown separately.' : `${completedToday} completed of ${completedToday + dueToday + overdue} due or overdue stage tasks.`}</CardDescription>
         </CardHeader>
         <CardContent><Progress value={progress} aria-label="Daily task progress" className="h-2.5" /></CardContent>
       </Card>
@@ -149,8 +169,8 @@ const StaffTasksPage: React.FC = () => {
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="max-w-2xl"><CardTitle className="text-base">Workload balance</CardTitle>
-            <CardDescription>Auto-balance assigns equal shares across all agencies, even if this view is filtered. Paused staff (weight 0) stay paused. Completed stages and payment status never change. Use custom weights below when needed.</CardDescription></div>
-            {canManage && <Button onClick={() => automaticDistribution.mutate()} disabled={automaticDistribution.isPending || applyDistribution.isPending || !allStaff.length}>{automaticDistribution.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}Auto-populate & balance all</Button>}
+            <CardDescription>{isLocalManager ? 'Balance current tasks only within your agency. Staff from other agencies are not eligible. Paused staff stay paused.' : 'Auto-balance assigns equal shares across all agencies, even if this view is filtered. Paused staff (weight 0) stay paused. Completed stages and payment status never change. Use custom weights below when needed.'}</CardDescription></div>
+            {canAssign && <Button onClick={() => automaticDistribution.mutate()} disabled={automaticDistribution.isPending || applyDistribution.isPending || !allStaff.length}>{automaticDistribution.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}{isLocalManager ? 'Balance agency work' : 'Auto-populate & balance all'}</Button>}
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {staff.length === 0 ? <p className="text-sm text-muted-foreground">No approved staff accounts are available for assignment.</p> : staff.map(person => (
@@ -180,12 +200,12 @@ const StaffTasksPage: React.FC = () => {
                     const progress = taskProgress(task);
                     return (
                       <TableRow key={`${task.candidate.id}:${task.stage.stage_id}`}>
-                        <TableCell><div className="flex items-center gap-2"><CandidateAvatar candidate={task.candidate} className="h-9 w-9" /><div><Link to={`/admin/candidate/${task.candidate.id}`} className="font-medium hover:text-primary hover:underline">{task.candidate.first_name} {task.candidate.last_name}</Link><p className="font-mono text-xs text-muted-foreground">{task.candidate.tracking_code}</p></div></div></TableCell>
+                        <TableCell><div className="flex items-center gap-2"><CandidateAvatar candidate={task.candidate} className="h-9 w-9" /><div><Link to={`${candidateBasePath}/${task.candidate.id}`} className="font-medium hover:text-primary hover:underline">{task.candidate.first_name} {task.candidate.last_name}</Link><p className="font-mono text-xs text-muted-foreground">{task.candidate.tracking_code}</p></div></div></TableCell>
                         <TableCell><p className="font-medium">{task.action}</p><p className="text-xs text-muted-foreground">{task.stageTitle}{task.stage.follow_up_note ? ` · ${task.stage.follow_up_note}` : ''}</p></TableCell>
                         <TableCell><div className="min-w-28 space-y-1"><p className="text-xs">{progress.completed} / {progress.total}</p><Progress value={progress.percent} className="h-1.5" /></div></TableCell>
                         <TableCell><Badge variant={task.overdue ? 'destructive' : task.dueAt.slice(0, 10) === todayKey ? 'secondary' : 'outline'}>{task.overdue ? 'Overdue' : formatDue(task.dueAt)}</Badge></TableCell>
-                        <TableCell>{canManage ? <Select value={task.stage.assigned_staff_id ?? NO_OWNER} onValueChange={value => value !== NO_OWNER && assignTask.mutate({ candidateId: task.candidate.id, stageId: task.stage.stage_id, staffId: value })}><SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_OWNER}>Unassigned</SelectItem>{allStaff.filter(person => !person.local_agency_id || person.local_agency_id === task.candidate.local_agency_id).map(person => <SelectItem key={person.id} value={person.id}>{person.email}</SelectItem>)}</SelectContent></Select> : staffName(task.stage.assigned_staff_id)}</TableCell>
-                        <TableCell className="text-right"><Button asChild size="sm" variant="outline"><Link to={`/admin/candidate/${task.candidate.id}?tab=timeline&stage=${task.stage.stage_id}`}>Work <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></TableCell>
+                        <TableCell>{canAssign ? <Select value={task.stage.assigned_staff_id ?? NO_OWNER} onValueChange={value => value !== NO_OWNER && assignTask.mutate({ candidateId: task.candidate.id, stageId: task.stage.stage_id, staffId: value })}><SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_OWNER}>Unassigned</SelectItem>{allStaff.filter(person => !person.local_agency_id || person.local_agency_id === task.candidate.local_agency_id).map(person => <SelectItem key={person.id} value={person.id}>{person.email}</SelectItem>)}</SelectContent></Select> : staffName(task.stage.assigned_staff_id)}</TableCell>
+                        <TableCell className="text-right"><Button asChild size="sm" variant="outline"><Link to={`${candidateBasePath}/${task.candidate.id}?tab=timeline&stage=${task.stage.stage_id}`}>Work <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></TableCell>
                       </TableRow>
                     );
                   })}

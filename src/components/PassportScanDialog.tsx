@@ -18,7 +18,7 @@ export interface PassportScanResult {
 interface PassportScanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (scan: PassportScanResult) => void;
+  onConfirm: (scan: PassportScanResult) => void | Promise<void>;
 }
 
 const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenChange, onConfirm }) => {
@@ -27,6 +27,7 @@ const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenCha
   const [data, setData] = useState<PassportPrefill>({});
   const [progress, setProgress] = useState(0);
   const [scanning, setScanning] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screeningReport, setScreeningReport] = useState<UploadScanReport | null>(null);
 
@@ -76,7 +77,17 @@ const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenCha
 
   const update = <Key extends keyof PassportPrefill>(key: Key, value: NonNullable<PassportPrefill[Key]>) => setData(current => ({ ...current, [key]: value }));
 
-  const canSubmit = !!file && !!imageUrl && !!data.first_name && !!data.last_name && !!data.dob && !!data.passport_number && !!data.gender && !scanning;
+  const canSubmit = !!file && !!imageUrl && !!data.first_name && !!data.last_name && !!data.dob && !!data.passport_number && !!data.gender && !scanning && !confirming && screeningReport?.status !== 'blocked';
+  const confirm = async () => {
+    if (!canSubmit) return;
+    setConfirming(true);
+    try {
+      const report = screeningReport ?? { status: 'review' as const, findings: ['Verify the entered details against the passport image.'], scanned_at: new Date().toISOString() };
+      await onConfirm({ data: { ...data, passport_image_url: imageUrl, passport_image_scan_report: report }, imageUrl, screeningReport: report });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not attach the passport. Try again.');
+    } finally { setConfirming(false); }
+  };
 
   const reportStatus = screeningReport?.status === 'clear' ? 'Passport image cleared screening' : screeningReport?.status === 'review' ? 'Passport image passed basic screening, please verify details.' : screeningReport?.status === 'blocked' ? 'Passport upload was blocked by the security scan.' : null;
 
@@ -84,7 +95,7 @@ const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenCha
     <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>Review passport details</DialogTitle>
-        <DialogDescription>Upload a passport image or PDF up to 15 MB and verify the details before using them to create the candidate record.</DialogDescription>
+        <DialogDescription>Upload a passport image or PDF up to 15 MB and review the details. The passport must match one existing candidate; no new candidate is created.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         {!file ? (
@@ -94,7 +105,7 @@ const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenCha
             </span>
             <div>
               <div className="text-lg font-semibold">Scan passport bio page</div>
-              <div className="mt-1 text-sm text-muted-foreground">Upload a passport image or PDF up to 15 MB to extract the data and review the details before creating the record.</div>
+              <div className="mt-1 text-sm text-muted-foreground">Upload a passport image or PDF up to 15 MB to read its details and attach it to the matching existing profile.</div>
             </div>
             <Input id="passport-scan-file" type="file" accept="image/*,application/pdf,.pdf" className="hidden" onChange={event => { const nextFile = event.target.files?.[0] ?? null; void applyFile(nextFile); event.target.value = ''; }} />
           </label>
@@ -154,11 +165,7 @@ const PassportScanDialog: React.FC<PassportScanDialogProps> = ({ open, onOpenCha
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
-        <Button type="button" disabled={!canSubmit} onClick={() => onConfirm({
-          data: { ...data, passport_image_url: imageUrl, passport_image_scan_report: screeningReport ?? { status: 'review', findings: ['Verify the entered details against the passport image.'], scanned_at: new Date().toISOString() } },
-          imageUrl,
-          screeningReport: screeningReport ?? { status: 'review', findings: ['Verify the entered details against the passport image.'], scanned_at: new Date().toISOString() },
-        })}>Use details</Button>
+        <Button type="button" disabled={!canSubmit} onClick={() => void confirm()}>{confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Attach to existing candidate</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;

@@ -219,6 +219,8 @@ export type ElmisStatus = 'verified' | 'not_found' | 'mismatch' | 'pending' | 'e
 export interface ElmisRecord {
   status: ElmisStatus;
   registration_id?: string;
+  candidate_id?: string;
+  labor_id?: string;
   checked_at: string;
   mode: 'live' | 'sandbox';
   mismatches?: string[];
@@ -316,6 +318,7 @@ export interface Candidate {
   passport_image_url?: string; // Image (URL or data URL) of the passport bio page
   profile_image_scan_report?: UploadScanReport;
   passport_image_scan_report?: UploadScanReport;
+  passport_identity?: Pick<Candidate, 'first_name' | 'last_name' | 'dob' | 'passport_number' | 'gender'>;
   created_at: string;
   updated_at: string;
   last_synced_at?: string;

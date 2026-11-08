@@ -94,6 +94,14 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
       detail: `${nameOf(c)} shares passport ${c.passport_number} with ${group.filter(o => o.id !== c.id).map(nameOf).join(', ')}. Possible duplicate or fraudulent identity.`,
     }));
   });
+  groupDuplicates(candidates, c => normalize(c.elmis?.labor_id)).forEach(group => {
+    group.forEach(c => add({ rule: 'duplicate-labor-id', severity: 'critical', candidateId: c.id,
+      title: 'Labor ID shared by several candidates', detail: `${nameOf(c)} shares a ministry Labor ID with another record. Review the ministry identifiers before syncing.` }));
+  });
+  groupDuplicates(candidates, c => normalize(c.elmis?.candidate_id)).forEach(group => {
+    group.forEach(c => add({ rule: 'duplicate-ministry-id', severity: 'critical', candidateId: c.id,
+      title: 'Ministry candidate ID shared by several records', detail: `${nameOf(c)} uses the same official candidate ID as another record. Resolve the conflicting entries before syncing.` }));
+  });
 
   groupDuplicates(candidates, c => normalize(c.phone_number)).forEach(group => {
     group.forEach(c => add({
@@ -104,6 +112,13 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
   });
 
   candidates.forEach(c => {
+    if (c.passport_identity) {
+      const fields = (['first_name', 'last_name', 'dob', 'passport_number', 'gender'] as const)
+        .filter(field => normalize(c[field]) !== normalize(c.passport_identity?.[field]));
+      if (fields.length) add({ rule: 'passport-identity-mismatch', severity: 'high', candidateId: c.id,
+        title: 'Passport details differ from the candidate record',
+        detail: `${nameOf(c)}: ${fields.map(field => field.replace(/_/g, ' ')).join(', ')} differ. Original candidate identity is retained; check the passport and request a ministry correction if needed.` });
+    }
     const imageReports: Array<[string, Candidate['profile_image_scan_report']]> = [
       ['profile photo', c.profile_image_scan_report],
       ['passport image', c.passport_image_scan_report],

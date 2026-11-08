@@ -13,6 +13,7 @@ import MinistryQrPanel from './MinistryQrPanel';
 import CandidateDeploymentPackage from './CandidateDeploymentPackage';
 import { EntityProfileButton } from './CandidateQuickViewProvider';
 import CandidateSubmissionDeadline from './CandidateSubmissionDeadline';
+import { candidateLaborId } from '@/lib/ministry-candidates';
 
 interface CandidateProfileProps {
   candidate: CandidateDetail;
@@ -70,6 +71,8 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit, 
             <p className="font-medium text-muted-foreground">Tracking Code</p>
             <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
           </div>
+          <div className="text-sm"><p className="font-medium text-muted-foreground">Labor ID</p><p className="font-mono font-semibold">{candidateLaborId(candidate, candidate.stages) || 'Awaiting ministry details'}</p></div>
+          <div className="text-sm"><p className="font-medium text-muted-foreground">ELMIS registration</p><p>{candidate.elmis?.registration_id || 'Awaiting ministry details'}</p><p className="text-xs text-muted-foreground">{candidate.elmis?.mode === 'live' ? 'Ministry record' : 'Official connection pending; existing practice details are not a live ministry record.'}</p></div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">COC Training Facility</p> {/* Updated Label */}
             <p className="text-lg font-semibold"><EntityProfileButton kind="coc" entityId={candidate.coc_facility_id}>{candidate.coc_facility_name || 'N/A'}</EntityProfileButton></p>

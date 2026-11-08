@@ -9,6 +9,7 @@ export const verifyCandidateWithElmis = async (candidate: Candidate, actor: { id
   if (!isDemoMode()) throw new Error('ELMIS verification is not configured.');
   const current = getCandidates().find(item => item.id === candidate.id);
   if (!current) throw new Error('Candidate not found.');
+  if (current.elmis?.mode === 'live') throw new Error('A live ministry identity cannot be replaced by a practice check. Request an ELMIS correction.');
 
   const record: ElmisRecord = {
     status: 'verified',

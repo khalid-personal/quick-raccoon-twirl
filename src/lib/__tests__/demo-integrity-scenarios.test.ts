@@ -2,13 +2,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyIntegrityDemoScenario, buildIntegrityDemoScenario, INTEGRITY_DEMO_SCENARIOS, measureStoredIntegrityDemo, resetIntegrityDemoScenario } from '../demo-integrity-scenarios';
 import { analyzeIntegrity, getIntegrityScoreLevel, riskScore } from '../integrity';
-import { getApprovalLogs, getCandidates, getConfig, saveConfig } from '../data-store';
+import { getApprovalLogs, getCandidates, getConfig, saveCandidates, saveConfig } from '../data-store';
 import { ALL_STAGES } from '../types';
 import { checkForeignPayment, isForeignPayment } from '../currency';
 import { loadReconciliationEvents } from '../bank-statement-store';
 import { bootDemo } from '../demo-loader';
 import { DEMO_CANDIDATE_COUNT, generateDemoDataset } from '../demo-dataset';
-import { createCandidate, updateCandidateDetails } from '../api/candidate-crud';
+import { updateCandidateDetails } from '../api/candidate-crud';
 import { getPayments } from '../data-store';
 import { agencyIsSuspended, amountDiscrepancies, decideAgencyCase, getAgencyResolutionCases } from '../agency-resolution';
 import { loadBankStatement, saveBankStatement } from '../bank-statement-store';
@@ -186,11 +186,12 @@ describe('DEMO integrity scenario data, not score overrides', () => {
     expect(Object.fromEntries(Object.entries(sessionStorage).filter(([key]) => key !== 'dawm_demo_version'))).toEqual(session);
   }, 30_000);
 });
-it('keeps identity edits, tracking codes and user-created candidates editable across every mode', async () => {
+it('keeps identity edits, tracking codes and legacy additional candidates across every mode', async () => {
   await applyIntegrityDemoScenario('high', actor, true, 'Named practice roster');
   const first = getCandidates()[0];
   await updateCandidateDetails(first.id, { first_name: 'EditedName', tracking_code: 'TRK-EDITED' }, actor.id, actor.email);
-  const created = await createCandidate({ ...first, first_name: 'NewName', tracking_code: 'TRK-NEW-DEMO', passport_number: 'NEW-PASSPORT', email: 'new@example.test' }, actor.id, actor.email);
+  const created = { ...first, id: 'legacy-additional-candidate', first_name: 'NewName', tracking_code: 'TRK-NEW-DEMO', passport_number: 'NEW-PASSPORT', email: 'new@example.test' };
+  saveCandidates([...getCandidates(), created]);
   for (const scenario of INTEGRITY_DEMO_SCENARIOS) {
     await applyIntegrityDemoScenario(scenario.id, actor, true, 'Switch without renaming');
     expect(getCandidates()).toHaveLength(436);

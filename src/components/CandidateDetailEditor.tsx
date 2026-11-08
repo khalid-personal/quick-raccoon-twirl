@@ -247,21 +247,22 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <h3 className="text-lg font-semibold border-b pb-2 mb-4">Personal & Tracking Details</h3>
+      {candidate.elmis?.mode === 'live' && candidate.elmis.candidate_id && <p className="text-sm text-muted-foreground">Ministry identity fields are read-only. Request corrections through ELMIS; contact and support details remain editable.</p>}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor={fieldId('first_name')}>First Name *</Label>
-          <Input id={fieldId('first_name')} {...register('first_name')} />
+          <Input id={fieldId('first_name')} {...register('first_name')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
           {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor={fieldId('last_name')}>Last Name *</Label>
-          <Input id={fieldId('last_name')} {...register('last_name')} />
+          <Input id={fieldId('last_name')} {...register('last_name')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
           {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor={fieldId('gender')}>Gender *</Label>
-          <Select value={watch('gender')} onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true })}>
+          <Select value={watch('gender')} onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true })} disabled={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id}>
             <SelectTrigger id={fieldId('gender')}><SelectValue placeholder="Select gender" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="female">Female</SelectItem>
@@ -275,7 +276,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor={fieldId('tracking_code')}>Tracking Code *</Label>
-          <Input id={fieldId('tracking_code')} {...register('tracking_code')} placeholder="TRK-XX-0000" />
+          <Input id={fieldId('tracking_code')} {...register('tracking_code')} placeholder="TRK-XX-0000" readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
           {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
         </div>
         <div className="space-y-2">
@@ -315,12 +316,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor={fieldId('passport_number')}>Passport Number *</Label>
-          <Input id={fieldId('passport_number')} {...register('passport_number')} />
+          <Input id={fieldId('passport_number')} {...register('passport_number')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
           {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor={fieldId('dob')}>Date of Birth * (YYYY-MM-DD)</Label>
-          <Input id={fieldId('dob')} type="date" {...register('dob')} />
+          <Input id={fieldId('dob')} type="date" {...register('dob')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
       </div>
@@ -333,7 +334,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         <Select
             value={watch('local_agency_id')}
             onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
-            disabled={isSubmitting || localAgencies.length === 0}
+            disabled
         >
             <SelectTrigger id={fieldId('local_agency_id')}>
                 <SelectValue placeholder="Select Local Agency" />
@@ -348,6 +349,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
             </SelectContent>
         </Select>
         {errors.local_agency_id && <p className="text-red-500 text-xs">{errors.local_agency_id.message}</p>}
+        <p className="text-xs text-muted-foreground">Assigned by the ministry. Request an ELMIS correction to change this agency.</p>
       </div>
 
       {/* COC Facility Selection */}

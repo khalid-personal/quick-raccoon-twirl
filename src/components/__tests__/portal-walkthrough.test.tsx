@@ -12,7 +12,7 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ userRole: 'superadmin',
 let root: Root, container: HTMLDivElement;
 function RouteTarget() {
   const location = useLocation();
-  return <main><h1>Current feature</h1><p data-testid="route">{location.pathname}{location.search}</p><button data-tour="registration">Add New Candidate</button></main>;
+  return <main><h1>Current feature</h1><p data-testid="route">{location.pathname}{location.search}</p><section data-tour="registration">Ministry intake</section><section data-tour="workload-manager">My tasks</section></main>;
 }
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); sessionStorage.setItem('dawm_demo_session', '1');
@@ -37,14 +37,17 @@ it('moves one step at a time with explicit instructions and checks, and opens th
   expect(container.textContent).toContain('Before you continue');
   expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('1');
   await click('Next step');
-  expect(container.textContent).toContain('Register a candidate');
+  expect(container.textContent).toContain('Start with My tasks');
+  expect(container.querySelector('[data-testid="route"]')?.textContent).toBe('/admin/tasks');
+  await click('Next step');
+  expect(container.textContent).toContain('Understand ministry intake');
   await click('Next step');
   expect(container.querySelector('[data-testid="route"]')?.textContent).toBe('/admin/candidate/demo-cand-0001');
   await click('Next step');
   expect(container.textContent).toContain('Check registration payment');
   expect(container.querySelector('[data-testid="route"]')?.textContent).toContain('?tab=payments');
   await click('Previous');
-  expect(readWalkthrough()?.index).toBe(2);
+  expect(readWalkthrough()?.index).toBe(3);
   expect({ ...localStorage }).toEqual(recordsBefore);
 });
 it('pauses and resumes at the saved step, then finishes without changing candidate records', async () => {
@@ -54,7 +57,7 @@ it('pauses and resumes at the saved step, then finishes without changing candida
   await click('Exit walkthrough');
   expect(readWalkthrough()).toMatchObject({ index: 1, active: false, completed: false, returnTo: '/guide' });
   await act(async () => startWalkthrough(true));
-  expect(container.textContent).toContain('Register a candidate');
+  expect(container.textContent).toContain('Start with My tasks');
   const count = walkthroughSteps('superadmin').length;
   for (let index = 1; index < count - 1; index++) await click('Next step');
   await click('Finish walkthrough');
@@ -69,4 +72,8 @@ it('keeps foreign guides receipt-only, adds workload, and does not route non-sup
     expect(steps.every(step => step.instructions.length > 0 && step.check.length > 0)).toBe(true);
   }
   for (const role of ['admin', 'staff'] as const) expect(walkthroughSteps(role).some(step => step.path.includes('tab=resolution'))).toBe(false);
+  for (const role of ['superadmin', 'admin', 'staff', 'local-agency', 'agency', 'foreign-agency', 'foreign-agency-staff', 'auditor', 'viewer'] as const) {
+    expect(walkthroughSteps(role).some(step => step.path.endsWith('/tasks'))).toBe(true);
+  }
+  expect(walkthroughSteps('candidate', 'TRK-1').some(step => step.title.includes('document reminders'))).toBe(true);
 });

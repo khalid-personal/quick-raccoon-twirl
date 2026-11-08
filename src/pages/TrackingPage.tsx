@@ -18,6 +18,8 @@ import { format } from 'date-fns';
 import { CandidateDetail, PublicTrackingData } from '@/lib/types'; // NEW IMPORT
 import ViewAsButton from '@/components/ViewAsButton';
 import CandidateDeploymentPackage from '@/components/CandidateDeploymentPackage';
+import PortalWorkQueue from '@/components/PortalWorkQueue';
+import { candidateLaborId } from '@/lib/ministry-candidates';
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -105,11 +107,13 @@ const TrackingPage: React.FC = () => {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
+      {displayCandidateDetail && <PortalWorkQueue />}
       <Card>
         <CardHeader>
           <div className="flex justify-end"><ViewAsButton /></div>
           <CardTitle className="text-3xl">Application Status: {data.candidate_name}</CardTitle>
           <p className="text-lg text-muted-foreground">Tracking Code: <span className="font-mono font-semibold">{data.tracking_code}</span></p>
+          {displayCandidateDetail && <p className="text-sm text-muted-foreground">Labor ID: <span className="font-mono">{candidateLaborId(displayCandidateDetail, displayCandidateDetail.stages) || 'Awaiting ministry details'}</span></p>}
           
           {/* Display additional candidate details for authenticated candidates or public view */}
           {(displayCandidateDetail || isAdminOrStaffViewingPublic) && (
@@ -177,12 +181,12 @@ const TrackingPage: React.FC = () => {
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {displayCandidateDetail && (
-                <CandidateDocumentUploader
+                <div id="my-documents"><CandidateDocumentUploader
                     candidateId={displayCandidateDetail.id}
                     timeline={data.timeline}
                     existingDocuments={displayCandidateDetail.documents}
                     refetch={refetch}
-                />
+                /></div>
             )}
             
             {displayCandidateDetail && (

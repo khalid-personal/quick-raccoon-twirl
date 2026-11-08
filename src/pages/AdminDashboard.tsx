@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePageMemory } from '@/hooks/use-page-memory';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
@@ -8,9 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, PlusCircle, Loader2, Filter, ScanLine } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import NewCandidateForm, { type PassportPrefill } from '@/components/NewCandidateForm/index';
+import { Search, Loader2, Filter, ScanLine } from 'lucide-react';
 import PassportScanDialog from '@/components/PassportScanDialog';
 import CandidateList from '@/components/CandidateList';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +54,7 @@ const DashSection: React.FC<{ title: string; subtitle: string; icon: LucideIcon 
 const AdminDashboard: React.FC = () => {
   const { userRole, userLocalAgencyName, userLocalAgencyId, user, viewAs } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   React.useEffect(() => {
     const refresh = () => {
       for (const key of ['adminCandidates', 'presenceCandidates', 'staffUsers', 'dashboardLocalAgencies', 'dashboardForeignAgencies']) {
@@ -77,9 +76,7 @@ const AdminDashboard: React.FC = () => {
   const [filterForeignAgencyId, setFilterForeignAgencyId] = usePageMemory('foreign', ALL_AGENCIES_FILTER);
   const [visualLocalAgencyId, setVisualLocalAgencyId] = usePageMemory('visual-local', ALL_AGENCIES_FILTER);
   const [activeSection, setActiveSection] = usePageMemory('section', 'overview');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
-  const [prefill, setPrefill] = useState<PassportPrefill | null>(null);
   
   // Sorting state
   const [sortBy, setSortBy] = usePageMemory<CandidateSortField>('sort', 'tracking_code');
@@ -141,10 +138,6 @@ const AdminDashboard: React.FC = () => {
     setCurrentQuery(searchQuery);
   };
   
-  const handleCandidateCreated = () => {
-      refetch();
-  };
-  
   const handleStatusSelect = (status: string) => {
     if (status === ALL_STATUS_FILTER) setListStatus(null);
     else if (isCandidateListStatus(status)) setListStatus(status);
@@ -184,25 +177,29 @@ const AdminDashboard: React.FC = () => {
             <PassportScanDialog
               open={isScanOpen}
               onOpenChange={setIsScanOpen}
-              onConfirm={scan => {
-                setPrefill({ ...scan.data, passport_image_url: scan.imageUrl, passport_image_scan_report: scan.screeningReport });
-                setIsScanOpen(false);
-                setIsDialogOpen(true);
+              onConfirm={async scan => {
+                if (!scan.data.first_name || !scan.data.last_name || !scan.data.dob || !scan.data.passport_number || !scan.data.gender) {
+                  toast.error('Review all required passport details before continuing.');
+                  return;
+                }
+                try {
+                  const candidate = await api.attachCandidatePassport({ ...scan, data: { ...scan.data,
+                    first_name: scan.data.first_name, last_name: scan.data.last_name, dob: scan.data.dob,
+                    passport_number: scan.data.passport_number, gender: scan.data.gender } });
+                  toast.success('Passport attached. Review any identity differences in Record checks.');
+                  setIsScanOpen(false);
+                  void refetch();
+                  navigate(`/admin/candidate/${candidate.id}?tab=documents`);
+                } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not attach passport.'); }
               }}
             />
-            <Dialog open={isDialogOpen} onOpenChange={open => { setIsDialogOpen(open); if (!open) setPrefill(null); }}>
-              <DialogTrigger asChild>
-                <Button data-tour="registration"><PlusCircle className="mr-2 h-4 w-4" />Add New Candidate</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader><DialogTitle>Create New Candidate Record</DialogTitle></DialogHeader>
-                <NewCandidateForm onSuccess={handleCandidateCreated} onClose={() => setIsDialogOpen(false)} prefill={prefill} />
-              </DialogContent>
-            </Dialog>
-            <FeatureInfo title="Add new candidate" className="text-white/80 hover:bg-white/10" />
           </>
         )}
       />
+      <section data-tour="registration" className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+        <h2 className="font-semibold">Ministry-managed candidates</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Candidates will arrive from ELMIS with their Labor ID and assigned local agency. Manual creation is disabled. The official API connection is pending; existing records remain available. Passport upload attaches evidence to one matching existing candidate, never creates another.</p>
+      </section>
 
       {isSuperAdmin && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
         <span className="text-sm font-medium">Dashboard view</span>

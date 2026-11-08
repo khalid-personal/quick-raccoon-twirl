@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, Search, Eye } from 'lucide-react';
+import { BookOpen, Search, Eye, ListTodo } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import ControlRoomHeader from '@/components/ControlRoomHeader';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,10 @@ const ViewerDashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [code, setCode] = useState(searchParams.get('code') ?? '');
   const navigate = useNavigate();
-  return <AppShell portalName="Viewer" homePath="/viewer" navGroups={[]}>
+  return <AppShell portalName="Viewer" homePath="/viewer" navGroups={[{ label: 'Workspace', items: [
+    { to: '/viewer', label: 'Tracking', icon: <Eye /> }, { to: '/viewer/tasks', label: 'My tasks', icon: <ListTodo /> },
+    { to: '/guide', label: 'Getting started', icon: <BookOpen /> },
+  ] }]}>
     <div className="space-y-6">
       <ControlRoomHeader
         scope="Viewer · view only"
