@@ -6,6 +6,7 @@ import { REGION_NOT_SET, resolveEthiopianRegion } from './ethiopia-regions';
 import { currencyForCountry, minimumPerCandidate } from './currency';
 import { assignUnassignedStageTasks } from './staff-tasks';
 import { airportForCity } from './airports';
+import { demoActorIdentity, demoAgencyManager, paymentCandidateSummary, resolveActorIdentity } from './demo-identities';
 
 // A repeatable candidate dataset for demos and testing. Everything it creates has an id starting with "demo-",
 // so loading it again replaces it and removing it leaves real records untouched.
@@ -327,7 +328,7 @@ export const generateDemoDataset = (now = Date.now(), scenario: DemoScenario = '
       if (phaseIdx === 4 && i % 3 === 0) {
         clearance.tasheer = { status: 'completed', mode: 'sandbox', updated_at: stamp(stepAt) };
         clearance.local_ready_at = stamp(stepAt);
-        clearance.local_ready_by = 'Demo local agency';
+        clearance.local_ready_by = demoAgencyManager(candidate.local_agency_id)?.email;
         clearance.labour_ministry = {
           status: scenario !== 'high-performing' && i % 5 === 0 ? 'rejected' : 'pending',
           mode: 'sandbox', simulated: true,
@@ -371,8 +372,8 @@ export const generateDemoDataset = (now = Date.now(), scenario: DemoScenario = '
       }
       if (isRedeployed) {
         candidate.work_contract_record = {
-          status: 'received', sent_at: stamp(milestone[2]), sent_by: 'Demo foreign agency',
-          received_at: stamp(milestone[2] + DAY), received_by: 'Demo local agency',
+          status: 'received', sent_at: stamp(milestone[2]), sent_by: demoAgencyManager(candidate.foreign_agency_id)?.email,
+          received_at: stamp(milestone[2] + DAY), received_by: demoAgencyManager(candidate.local_agency_id)?.email,
           note: 'Simulated demo contract handoff.',
         };
       }
@@ -428,26 +429,46 @@ export const generateDemoDataset = (now = Date.now(), scenario: DemoScenario = '
     addPayment(candidate, 1, now - DAY, { status: scenario === 'high-performing' ? 'pending' : (['pending', 'failed', 'refunded'] as const)[index % 3], payment_method: 'DEMO / synthetic checkout attempt' }),
   );
   const staffUsers = buildDemoStaff(now);
+  const loggedSources = new Set<string>();
+  payments.forEach(payment => {
+    const initiator = payment.payer_type === 'candidate'
+      ? resolveActorIdentity(payment.payer_candidate_id ?? payment.candidate_ids[0], undefined, candidates)
+      : demoAgencyManager(payment.payer_foreign_agency_id);
+    const recorder = demoAgencyManager(payment.payee_local_agency_id);
+    payment.initiated_by = initiator && { id: initiator.id, email: initiator.email };
+    payment.recorded_by = recorder && { id: recorder.id, email: recorder.email };
+    payment.initiated_at = payment.created_at;
+    payment.origin = payment.payer_type === 'candidate' ? 'candidate-checkout' : 'agency-checkout';
+    const actor = recorder ?? initiator;
+    const date = new Date(payment.created_at);
+    const sourceKey = `${payment.payee_local_agency_id}:${payment.payer_type}`;
+    if (actor && !loggedSources.has(sourceKey) && date.getDay() > 0 && date.getDay() < 6 && date.getHours() >= 9 && date.getHours() < 18) {
+      loggedSources.add(sourceKey);
+      logs.push({
+      id: `${DEMO_PREFIX}payment-log-${payment.id}`, timestamp: payment.created_at,
+      actor_id: actor.id, actor_email: actor.email ?? actor.id, target_type: 'Payment', target_id: payment.id, action: 'Created',
+      description: `Recorded ${payment.status} payment ${payment.provider_reference || payment.receipt_number || payment.id} for ${paymentCandidateSummary(payment, candidates)}; ${payment.amount} ${payment.currency}; ${foreignAgencies.find(agency => agency.id === payment.payer_foreign_agency_id)?.name ?? payment.payer_display_name} → ${localAgencies.find(agency => agency.id === payment.payee_local_agency_id)?.name ?? payment.payee_local_agency_id}. Practice / synthetic record, not real bank proof.`,
+      });
+    }
+  });
   const assignedStages = assignUnassignedStageTasks(candidates, stages, staffUsers);
   return { candidates, stages: assignedStages, medicals, payments, paymentStatuses, logs, cocFacilities, localAgencies, foreignAgencies, documents, staffUsers };
 };
 
 // Every agency gets a manager plus working staff so each has someone to give workflow to.
-const LOCAL_STAFF = [['Meron', 'Yared', 'Selam'], ['Dagim', 'Hanna', 'Biniam'], ['Liya', 'Natnael', 'Ruth'], ['Samson', 'Eden', 'Kaleb']];
-const FOREIGN_STAFF = [['Amal', 'Faisal'], ['Noor', 'Tariq'], ['Salma', 'Rashid'], ['Dina', 'Omar']];
 const buildDemoStaff = (now: number): StaffUser[] => {
   const created = new Date(now - 400 * DAY).toISOString();
   const online = (n: number) => new Date(now - (n * 37 % 240) * 60_000).toISOString();
   const users: StaffUser[] = [];
   DEMO_LOCAL_AGENCIES.forEach((agency, index) => {
     const slug = `l${index + 1}`;
-    users.push({ id: `${DEMO_PREFIX}usr-${slug}-mgr`, email: `manager.${slug}@demo-agency.example.test`, role: 'local-agency', is_approved: true, created_at: created, local_agency_id: agency.id, last_online_at: online(index + 1) });
-    LOCAL_STAFF[index].forEach((name, n) => users.push({ id: `${DEMO_PREFIX}usr-${slug}-s${n + 1}`, email: `${name.toLowerCase()}.${slug}@demo-agency.example.test`, role: 'staff', is_approved: true, created_at: created, local_agency_id: agency.id, last_online_at: online(index * 3 + n + 5) }));
+    users.push({ id: `${DEMO_PREFIX}usr-${slug}-mgr`, email: demoActorIdentity(`${DEMO_PREFIX}usr-${slug}-mgr`)!.email!, role: 'local-agency', is_approved: true, created_at: created, local_agency_id: agency.id, last_online_at: online(index + 1) });
+    [0, 1, 2].forEach(n => users.push({ id: `${DEMO_PREFIX}usr-${slug}-s${n + 1}`, email: demoActorIdentity(`${DEMO_PREFIX}usr-${slug}-s${n + 1}`)!.email!, role: 'staff', is_approved: true, created_at: created, local_agency_id: agency.id, last_online_at: online(index * 3 + n + 5) }));
   });
   DEMO_FOREIGN_AGENCIES.forEach((agency, index) => {
     const slug = `f${index + 1}`;
-    users.push({ id: `${DEMO_PREFIX}usr-${slug}-mgr`, email: `manager.${slug}@demo-partner.example.test`, role: 'foreign-agency', is_approved: true, created_at: created, foreign_agency_id: agency.id, last_online_at: online(index + 9) });
-    FOREIGN_STAFF[index].forEach((name, n) => users.push({ id: `${DEMO_PREFIX}usr-${slug}-s${n + 1}`, email: `${name.toLowerCase()}.${slug}@demo-partner.example.test`, role: 'foreign-agency-staff', is_approved: true, created_at: created, foreign_agency_id: agency.id, last_online_at: online(index * 2 + n + 13) }));
+    users.push({ id: `${DEMO_PREFIX}usr-${slug}-mgr`, email: demoActorIdentity(`${DEMO_PREFIX}usr-${slug}-mgr`)!.email!, role: 'foreign-agency', is_approved: true, created_at: created, foreign_agency_id: agency.id, last_online_at: online(index + 9) });
+    [0, 1].forEach(n => users.push({ id: `${DEMO_PREFIX}usr-${slug}-s${n + 1}`, email: demoActorIdentity(`${DEMO_PREFIX}usr-${slug}-s${n + 1}`)!.email!, role: 'foreign-agency-staff', is_approved: true, created_at: created, foreign_agency_id: agency.id, last_online_at: online(index * 2 + n + 13) }));
   });
   return users;
 };
@@ -591,11 +612,11 @@ const applyAnomalies = (ctx: AnomalyContext): ApprovalLog[] => {
   // staff activity that an auditor should look at
   const logs: ApprovalLog[] = [];
   const staffActors = [
-    { id: 'demo-staff-1', email: 'dev.staff@dawm.local' },
-    { id: 'demo-staff-2', email: 'meron.staff@dawm.local' },
-    { id: 'demo-staff-3', email: 'yared.staff@dawm.local' },
+    { id: 'demo-staff-1', email: demoActorIdentity('demo-staff-1')!.email! },
+    { id: 'demo-staff-2', email: demoActorIdentity('demo-staff-2')!.email! },
+    { id: 'demo-staff-3', email: demoActorIdentity('demo-staff-3')!.email! },
   ];
-  const superActor = { id: 'demo-super-1', email: 'dev.superadmin@dawm.local' };
+  const superActor = { id: 'demo-super-1', email: demoActorIdentity('demo-super-1')!.email! };
   const log = (actor: { id: string; email: string }, targetType: ApprovalLog['target_type'], targetId: string, action: ApprovalLog['action'], description: string, at: number): void => {
     logs.push({ id: `${DEMO_PREFIX}log-${logs.length + 1}`, timestamp: new Date(at).toISOString(), actor_id: actor.id, actor_email: actor.email, target_type: targetType, target_id: targetId, action, description });
   };
@@ -611,7 +632,7 @@ const applyAnomalies = (ctx: AnomalyContext): ApprovalLog[] => {
   for (let i = 0; i < 6; i += 1) log(superActor, 'Config', 'config', 'Updated', 'Changed application settings.', dayAt(int(1, 40), 10));
   for (let i = 0; i < 4; i += 1) log(superActor, 'Payment', `demo-pay-${i}`, i % 2 ? 'Deleted' : 'Updated', 'Edited a payment record.', dayAt(int(1, 25), 15));
   for (let i = 0; i < 9; i += 1) log(staffActors[1], 'Candidate', candidates[i + 20].id, 'Updated', 'Weekend update.', (() => { const d = new Date(now - (7 * (i + 1)) * DAY); d.setDate(d.getDate() - d.getDay()); d.setHours(12, i, 0, 0); return d.getTime(); })());
-  log({ id: 'demo-staff-4', email: 'self.approver@dawm.local' }, 'StaffUser', 'demo-staff-4', 'Approved', 'Approved their own account.', dayAt(12, 14));
+  log({ id: 'demo-staff-4', email: demoActorIdentity('demo-staff-4')!.email! }, 'StaffUser', 'demo-staff-4', 'Approved', 'Approved their own account.', dayAt(12, 14));
   return logs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 };
 

@@ -1,5 +1,5 @@
-import { getConfig, saveConfig, getAuthorizationCodes, saveAuthorizationCodes, getCocFacilities, getForeignAgencies, getLocalAgencies, saveCocFacilities, saveForeignAgencies, saveLocalAgencies } from '../data-store';
-import { AppConfig, SEED_CONFIG } from '../data-seed';
+import { getConfig, saveConfig, getAuthorizationCodes, saveAuthorizationCodes, getCocFacilities, getForeignAgencies, getLocalAgencies } from '../data-store';
+import { AppConfig } from '../data-seed';
 import { recordApprovalLog } from './log-management';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthorizationCode, CocFacility, ForeignAgency, LocalAgency } from '../types';
@@ -10,6 +10,9 @@ export const getAppConfig = async (): Promise<AppConfig> => {
     return getConfig();
 };
 
+const directorySignature = (agencies: (LocalAgency | ForeignAgency)[]) =>
+    agencies.map(agency => JSON.stringify(Object.entries(agency).sort(([a], [b]) => a.localeCompare(b)))).sort();
+
 // Update configuration
 export const updateAppConfig = async (
     config: AppConfig,
@@ -19,7 +22,12 @@ export const updateAppConfig = async (
     await new Promise(resolve => setTimeout(resolve, 100));
     
     const oldConfig = getConfig();
-    const next = { ...config, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow };
+    if (!Array.isArray(config.localAgencies) || !Array.isArray(config.foreignAgencies)
+        || JSON.stringify(directorySignature(config.localAgencies)) !== JSON.stringify(directorySignature(oldConfig.localAgencies ?? []))
+        || JSON.stringify(directorySignature(config.foreignAgencies)) !== JSON.stringify(directorySignature(oldConfig.foreignAgencies ?? []))) {
+        throw new Error('Agency directory changes are unavailable until the official ELMIS integration is configured.');
+    }
+    const next = { ...config, localAgencies: oldConfig.localAgencies, foreignAgencies: oldConfig.foreignAgencies, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow };
     saveConfig(next);
     
     // --- LOGGING ---
@@ -29,17 +37,9 @@ export const updateAppConfig = async (
     const oldCocFacilities = oldConfig.cocFacilities.map(f => f.name).join(', ');
     const newCocFacilities = config.cocFacilities.map(f => f.name).join(', ');
 
-    const oldForeignAgencies = oldConfig.foreignAgencies.map(a => a.name).join(', ');
-    const newForeignAgencies = config.foreignAgencies.map(a => a.name).join(', ');
-
-    const oldLocalAgencies = oldConfig.localAgencies.map(a => a.name).join(', ');
-    const newLocalAgencies = config.localAgencies.map(a => a.name).join(', ');
-    
     let description = `Updated application configuration.`;
     if (oldCountries !== newCountries) description += ` Country list changed from [${oldCountries}] to [${newCountries}].`;
     if (oldCocFacilities !== newCocFacilities) description += ` COC Facilities changed from [${oldCocFacilities}] to [${newCocFacilities}].`;
-    if (oldForeignAgencies !== newForeignAgencies) description += ` Foreign Agencies changed from [${oldForeignAgencies}] to [${newForeignAgencies}].`;
-    if (oldLocalAgencies !== newLocalAgencies) description += ` Local Agencies changed from [${oldLocalAgencies}] to [${newLocalAgencies}].`;
 
     await recordApprovalLog(actorId, actorEmail, 'Config', 'global_config', 'Updated', description);
     // --- END LOGGING ---

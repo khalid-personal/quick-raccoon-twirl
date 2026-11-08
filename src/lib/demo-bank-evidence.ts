@@ -6,6 +6,7 @@ import { isForeignPayment } from './currency';
 import { evidenceToday } from './evidence-requests';
 import type { Candidate, LocalAgency, Payment, StaffUser } from './types';
 import { demoBankName } from './demo-payment-evidence';
+import { paymentCandidateSummary } from './demo-identities';
 
 const day = 86_400_000;
 export const buildDemoBankEvidence = (
@@ -25,7 +26,7 @@ export const buildDemoBankEvidence = (
         if (index % 23 === 3) return [];
         return [{
           date: payment.created_at.slice(0, 10),
-          description: `DEMO / synthetic credit for ${payment.candidate_ids.join(', ')}; not real bank proof`,
+          description: `DEMO / synthetic credit for ${paymentCandidateSummary(payment, candidates)}; ${agency.name}; ${payment.provider_reference || payment.receipt_number || payment.id}; not real bank proof`,
           reference: index % 23 === 4 ? `DEMO-WRONG-${payment.id}` : payment.provider_reference || payment.receipt_number || payment.id,
           amount: Math.round(payment.amount * (index % 23 === 1 ? 0.8 : index % 23 === 2 ? 1.15 : 1) * 100) / 100,
           currency: index % 23 === 5 ? (payment.currency === 'USD' ? 'EUR' : 'USD') : payment.currency,
@@ -33,16 +34,16 @@ export const buildDemoBankEvidence = (
       }),
     };
     const issues = reconcile(settled, statement.lines).matches.filter(match => match.status !== 'matched');
-    const needsEvidence: { caseId: string; payment?: Payment; explanation: string }[] = [
+    const needsEvidence: { caseId: string; payment?: Payment; candidate?: Candidate; explanation: string }[] = [
       ...issues.map(match => ({ caseId: match.payment.id, payment: match.payment, explanation: match.explanation })),
       ...scoped.filter(payment => payment.status === 'pending').map(payment => ({
         caseId: payment.id, payment, explanation: 'Pending transfer: no settled bank deposit has been invented.',
       })),
       ...(source === 'candidate' ? agencyCandidates.filter(candidate => !scoped.some(payment => payment.candidate_ids.includes(candidate.id))).map(candidate => ({
-        caseId: `candidate-evidence:${candidate.id}`, explanation: `No stage-fee receipt is recorded for ${candidate.first_name} ${candidate.last_name}. Request proof before claiming any deposit.`,
+        caseId: `candidate-evidence:${candidate.id}`, candidate, explanation: `No stage-fee receipt is recorded for ${candidate.first_name} ${candidate.last_name}. Request proof before claiming any deposit.`,
       })) : []),
     ];
-    const events = needsEvidence.map(({ caseId, payment, explanation }, index): ReconciliationCaseEvent => ({
+    const events = needsEvidence.map(({ caseId, payment, candidate, explanation }, index): ReconciliationCaseEvent => ({
       id: `demo-evidence-${source}-${caseId}`,
       caseId,
       action: 'request-evidence',
@@ -52,7 +53,9 @@ export const buildDemoBankEvidence = (
       dueDate: date(index % 3 === 0 ? -2 : index % 3 === 1 ? 1 : 5),
       createdAt: new Date(now.getTime() - 7 * day).toISOString(),
       source, synthetic: true,
-      evidence: { payment, statementName: statement.name, explanation },
+      evidence: { payment, statementName: statement.name, explanation, agencyName: agency.name,
+        candidateIdentities: (candidate ? [candidate] : candidates.filter(item => payment?.candidate_ids.includes(item.id)))
+          .map(item => ({ candidate_id: item.id, name: `${item.first_name} ${item.last_name}`, tracking_code: item.tracking_code })) },
     }));
     return { source, statement, events };
   });

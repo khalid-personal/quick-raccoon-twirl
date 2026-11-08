@@ -5,23 +5,33 @@ import { getCandidates, getForeignAgencies, getLocalAgencies, getPayments } from
 import { paymentProvenance } from '@/lib/payment-provenance';
 import { ALL_STAGES, type Payment } from '@/lib/types';
 import { PAYMENT_STATUS_LABELS } from '@/lib/payment-ledger';
+import { actorDisplayName, type ActorIdentity } from '@/lib/demo-identities';
 
 export default function PaymentProvenance({ payment, onCandidateOpen }: { payment: Payment; onCandidateOpen?: () => void }) {
   const { data: logs = [], isLoading, isError } = useQuery({
     queryKey: ['paymentProvenanceLogs', payment.id], queryFn: api.getAllApprovalLogs,
   });
-  const trail = paymentProvenance(payment, logs, getPayments());
-  const candidates = getCandidates().filter(candidate => payment.candidate_ids.includes(candidate.id));
+  const allCandidates = getCandidates();
+  const trail = paymentProvenance(payment, logs, getPayments(), allCandidates);
+  const candidates = allCandidates.filter(candidate => payment.candidate_ids.includes(candidate.id));
+  const actorLink = (actor: ActorIdentity | undefined, missing: string) => {
+    if (!actor) return isLoading ? 'Loading audit history…' : missing;
+    const label = actor.name ? `${actor.name}${actor.email ? ` · ${actor.email}` : ''}` : actor.email || actor.id;
+    return allCandidates.some(candidate => candidate.id === actor.id)
+      ? <CandidateWorkspaceLink to={`/admin/candidate/${actor.id}`} candidateId={actor.id} tab="payments" onClick={onCandidateOpen}>{label}</CandidateWorkspaceLink>
+      : <EntityProfileButton kind="staff" entityId={actor.id}>{label}</EntityProfileButton>;
+  };
   const payer = payment.payer_display_name || getForeignAgencies().find(agency => agency.id === payment.payer_foreign_agency_id)?.name ||
     getCandidates().find(candidate => candidate.id === payment.payer_candidate_id)?.tracking_code || payment.payer_candidate_id || payment.payer_foreign_agency_id || 'Not recorded';
   const payee = getLocalAgencies().find(agency => agency.id === payment.payee_local_agency_id)?.name || payment.payee_local_agency_id || 'Not recorded';
   return <section className="space-y-4 rounded-xl border bg-muted/20 p-4" aria-label="Superadmin payment investigation">
     <h3 className="font-semibold">Who paid and who updated the record</h3>
     <p className="text-xs text-muted-foreground">Only saved details are shown. The person paying may not be the person who started the payment. Missing history does not prove who was responsible.</p>
+    {(payment.demo_evidence?.synthetic || payment.id.startsWith('demo-') || payment.provider === 'mock' || /synthetic/i.test(payment.payment_method ?? '')) && <p role="note" className="text-xs text-muted-foreground">Practice / synthetic payment and staff attribution. Not real bank proof or a live bank confirmation.</p>}
     <dl className="grid gap-3 text-sm sm:grid-cols-2">
       <div><dt className="text-xs text-muted-foreground">Payer → recipient</dt><dd className="break-words"><EntityProfileButton kind="foreign-agency" entityId={payment.payer_foreign_agency_id}>{payer}</EntityProfileButton> → <EntityProfileButton kind="local-agency" entityId={payment.payee_local_agency_id}>{payee}</EntityProfileButton></dd></div>
-      <div><dt className="text-xs text-muted-foreground">Initiated by</dt><dd className="break-all"><EntityProfileButton kind="staff" entityId={trail.initiator?.id}>{trail.initiator?.email || trail.initiator?.id || (isLoading ? 'Loading audit history…' : 'Initiator not recorded')}</EntityProfileButton></dd></div>
-      <div><dt className="text-xs text-muted-foreground">Recorded / verified by</dt><dd className="break-all"><EntityProfileButton kind="staff" entityId={trail.recorder?.id}>{trail.recorder?.email || trail.recorder?.id || (isLoading ? 'Loading audit history…' : 'Recorder not recorded')}</EntityProfileButton></dd></div>
+      <div><dt className="text-xs text-muted-foreground">Initiated by</dt><dd className="break-all">{actorLink(trail.initiator, 'Initiator not recorded')}</dd></div>
+      <div><dt className="text-xs text-muted-foreground">Recorded / verified by</dt><dd className="break-all">{actorLink(trail.recorder, 'Recorder not recorded')}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Origin / payment channel</dt><dd>{payment.origin || 'Origin not recorded'} · {payment.provider || payment.payment_method || 'Channel not recorded'}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Initiated / recorded</dt><dd>{new Date(payment.initiated_at || payment.created_at).toLocaleString()}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Last recorded update</dt><dd>{new Date(payment.updated_at).toLocaleString()}</dd></div>
@@ -42,14 +52,14 @@ export default function PaymentProvenance({ payment, onCandidateOpen }: { paymen
       <h4 className="mb-2 text-sm font-semibold">Payment activity history</h4>
       {isLoading ? <p className="text-sm">Loading activity…</p> : isError ? <p role="alert" className="text-sm text-destructive">Could not load payment history. We cannot show who made earlier changes.</p> : <ol className="space-y-3 border-l pl-4">
         {trail.paymentEvents.map(event => <li key={event.id} className="text-sm">
-          <p className="font-medium">{event.action} · {event.actor_email || event.actor_id}</p>
+          <p className="font-medium">{event.action} · {actorDisplayName(event.actor_id, event.actor_email, allCandidates)}</p>
           <p className="whitespace-pre-wrap break-words">{event.description}</p>
           <p className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</p>
         </li>)}
         {!trail.paymentEvents.length && <li className="text-sm text-muted-foreground">No earlier payment activity was recorded. The current status does not show who changed it before.</li>}
       </ol>}
       {!isError && <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium">Related candidate activity ({trail.candidateEvents.length})</summary>
-        <ol className="mt-2 space-y-2">{trail.candidateEvents.map(event => <li key={event.id}><p>{event.action} · {event.actor_email || event.actor_id} · {new Date(event.timestamp).toLocaleString()}</p><p className="break-words text-xs text-muted-foreground">{event.description}</p></li>)}</ol>
+        <ol className="mt-2 space-y-2">{trail.candidateEvents.map(event => <li key={event.id}><p>{event.action} · {actorDisplayName(event.actor_id, event.actor_email, allCandidates)} · {new Date(event.timestamp).toLocaleString()}</p><p className="break-words text-xs text-muted-foreground">{event.description}</p></li>)}</ol>
         <p className="mt-2 text-xs text-muted-foreground">These events concern linked candidates; they are context, not proof that the actor initiated this payment.</p>
       </details>}
     </div>

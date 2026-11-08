@@ -6,6 +6,7 @@ import {
 import { clearDemoStorage, getDemoScenario, isDemoMode, setDemoScenario, type DemoScenario } from './demo-mode';
 import { DEMO_PREFIX, buildMergedStore, isDemoLoaded, demoConfigPatch, generateDemoDataset } from './demo-dataset';
 import { ensureDemoBankEvidence } from './demo-bank-evidence';
+import { migrateDemoIdentities } from './demo-identity-migration';
 
 const isDemoId = (id: string) => id.startsWith(DEMO_PREFIX);
 
@@ -133,11 +134,18 @@ export const repairDemoStagePlaceholders = (): number => {
 
 export const bootDemo = () => {
   if (!isDemoMode()) return;
-  const current = sessionStorage.getItem(VERSION_KEY) === DEMO_VERSION;
-  if (current && isDemoLoaded(getCandidates())) { repairDemoStagePlaceholders(); ensureDemoWorkflowExamples(); ensureDemoPartnerships(); ensureDemoBankEvidence(); return; }
+  if (isDemoLoaded(getCandidates())) {
+    migrateDemoIdentities();
+    if (!sessionStorage.getItem('dawm_integrity_scenario')) {
+      repairDemoStagePlaceholders(); ensureDemoWorkflowExamples(); ensureDemoPartnerships(); ensureDemoBankEvidence();
+    }
+    sessionStorage.setItem(VERSION_KEY, DEMO_VERSION);
+    return;
+  }
   sessionStorage.setItem(VERSION_KEY, DEMO_VERSION);
   clearDemoStorage();
   loadDemoData(getDemoScenario());
   initializeDataStore();
   ensureDemoPartnerships();
+  migrateDemoIdentities();
 };

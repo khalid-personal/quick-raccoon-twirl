@@ -6,6 +6,7 @@ import { EVIDENCE_STATUS_LABELS, getEvidenceRequests, type EvidenceRequestStatus
 import type { PaymentStatementSource, ReconciliationCaseEvent } from '@/lib/bank-statement-store';
 import { isForeignPayment } from '@/lib/currency';
 import { currentVerifiedPaymentIds } from '@/lib/payment-review-clearance';
+import { navigationItemClass } from './ui/navigation-rail';
 
 export default function EvidenceRequestList({ events, source, onReview }: {
   events: ReconciliationCaseEvent[]; source: PaymentStatementSource; onReview: (event: ReconciliationCaseEvent) => void;
@@ -20,10 +21,10 @@ export default function EvidenceRequestList({ events, source, onReview }: {
   return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
     <h3 className="flex items-center gap-2 font-semibold"><FileClock className="h-5 w-5" />Requests for proof</h3>
     <p className="text-xs text-muted-foreground">The deadline includes the full final day in Addis Ababa time. Reminders update here while the portal is open; the portal does not send email or text messages.</p>
-    <div className="flex flex-wrap gap-2">
-      {(['all', 'overdue', 'due-soon', 'pending', 'scheduled'] as const).map(status => <Button key={status} size="sm" variant={filter === status ? 'default' : 'outline'} aria-pressed={filter === status} onClick={() => setFilter(status)}>
+    <div role="group" aria-label="Request status" className="navigation-rail">
+      {(['all', 'overdue', 'due-soon', 'pending', 'scheduled'] as const).map(status => <button type="button" key={status} className={navigationItemClass(filter === status)} aria-pressed={filter === status} onClick={() => setFilter(status)}>
         {status === 'overdue' && <AlarmClock className="mr-1 h-4 w-4" />}{status === 'all' ? 'All requests' : EVIDENCE_STATUS_LABELS[status]} · {status === 'all' ? requests.length : requests.filter(request => request.status === status).length}
-      </Button>)}
+      </button>)}
     </div>
     <div className="max-h-96 space-y-2 overflow-y-auto">
       {visible.map(({ event, status }) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3">

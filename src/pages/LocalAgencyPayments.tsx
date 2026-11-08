@@ -13,7 +13,7 @@ import { BankReconciliation } from '@/components/BankReconciliation';
 import { checkForeignPayment, isForeignPayment, MIN_PAYMENT_USD } from '@/lib/currency';
 import { getCandidates } from '@/lib/data-store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TriangleAlert } from 'lucide-react';
+import { Globe2, TriangleAlert, UserRound } from 'lucide-react';
 import type { ReconciliationSummary } from '@/lib/bank-reconciliation';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
@@ -71,9 +71,9 @@ const LocalAgencyPayments: React.FC = () => {
       <PageHeader title="Payment History" description={paymentSource === 'foreign'
         ? `Foreign-agency transfers arrive in the work-contract currency, not ETB. The regulated baseline is ${MIN_PAYMENT_USD} USD per candidate.`
         : 'Candidate payments are local stage fees paid to this agency. They are tracked separately from foreign-agency transfers.'} />
-      <ToggleGroup type="single" value={paymentSource} onValueChange={value => { if (value) { setPaymentSource(value as typeof paymentSource); setPaymentFilter('all'); setReconciliation(null); } }} variant="outline" className="flex flex-wrap justify-start" aria-label="Payment source">
-        <ToggleGroupItem value="foreign" size="sm">Foreign agency → local · {foreignPayments.length}</ToggleGroupItem>
-        <ToggleGroupItem value="candidate" size="sm">Candidate → local · {candidatePayments.length}</ToggleGroupItem>
+      <ToggleGroup navigation type="single" value={paymentSource} onValueChange={value => { if (value) { setPaymentSource(value as typeof paymentSource); setPaymentFilter('all'); setReconciliation(null); } }} aria-label="Payment source">
+        <ToggleGroupItem value="foreign" size="sm"><Globe2 aria-hidden="true" />Foreign agency → local · {foreignPayments.length}</ToggleGroupItem>
+        <ToggleGroupItem value="candidate" size="sm"><UserRound aria-hidden="true" />Candidate → local · {candidatePayments.length}</ToggleGroupItem>
       </ToggleGroup>
       <PaymentLedgerSummary payments={filterPaymentLedger(payments, { search })} status={summaryStatus} onStatusChange={value => setPaymentFilter(value === 'succeeded' ? 'settled' : value === 'pending' ? 'initiated' : value)} />
       {paymentSource === 'foreign' && userLocalAgencyId && <>

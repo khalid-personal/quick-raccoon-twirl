@@ -17,7 +17,8 @@ export interface ReconciliationCaseEvent {
   synthetic?: boolean;
   override?: { decision: 'accept' | 'revoke'; actorId: string; priorStatus: string; auditId: string };
   createdAt: string;
-  evidence: { payment?: Payment; line?: BankLine; statementName: string; explanation: string };
+  evidence: { payment?: Payment; line?: BankLine; statementName: string; explanation: string;
+    candidateIdentities?: Array<{ candidate_id: string; name: string; tracking_code: string }>; agencyName?: string };
 }
 
 const caseKey = (agencyId: string) => `${keyFor(agencyId)}:cases`;

@@ -10,6 +10,8 @@ import { ALL_STAGES, type Candidate, type UserRole } from './types';
 import { withDemoPaymentEvidence, withDemoStatementOriginal } from './demo-payment-evidence';
 import { assignUnassignedStageTasks } from './staff-tasks';
 import { amountDiscrepancies, escalateAmountDiscrepancy, getAgencyResolutionCases } from './agency-resolution';
+import { demoAgencyManager, paymentCandidateSummary } from './demo-identities';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_DOCUMENTS, LS_MEDICAL_RESULTS, LS_PAYMENTS, LS_PAYMENT_STATUS, LS_APPROVAL_LOGS } from './data-keys';
 
 export const INTEGRITY_DEMO_SCENARIOS = [
   { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Several files have problems. Some bank slips show too little, too much, or no proof. Deployment is waiting.' },
@@ -135,7 +137,11 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
         candidate_ids: [candidate.id], ...minimum, status: 'succeeded' as const, created_at: stamp(28), updated_at: stamp(10),
         payer_display_name: data.foreignAgencies.find(agency => agency.id === candidate.foreign_agency_id)?.name ?? 'Recorded foreign agency' }];
     });
-    data.payments = data.payments.map(payment => withDemoPaymentEvidence(payment, data.candidates));
+    data.payments = data.payments.map(payment => withDemoPaymentEvidence({
+      ...payment,
+      initiated_by: { id: payment.payer_candidate_id ?? demoAgencyManager(payment.payer_foreign_agency_id)!.id },
+      recorded_by: { id: demoAgencyManager(payment.payee_local_agency_id)!.id },
+    }, data.candidates));
     data.paymentStatuses = data.candidates.flatMap((candidate, index) => ALL_STAGES.map(stage => ({
       candidateId: candidate.id, stageId: stage.id, isPaid: !(index < risky && index % 2 === 0 && stage.id === 4),
     })));
@@ -150,13 +156,13 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
           const index = data.candidates.findIndex(candidate => candidate.id === payment.candidate_ids[0]);
           const bad = riskyIds.has(payment.candidate_ids[0]) && payment.stage_id === 4;
           if (bad && index % 3 === 2) return [];
-          return [{ date: payment.created_at.slice(0, 10), description: `DEMO synthetic credit ${payment.id}, not real proof`,
+          return [{ date: payment.created_at.slice(0, 10), description: `Practice / synthetic credit for ${paymentCandidateSummary(payment, data.candidates)}; ${agency.name}; not real bank proof`,
             reference: payment.provider_reference || payment.receipt_number!, currency: payment.currency,
             amount: payment.amount * (bad ? (index % 3 === 0 ? 0.8 : 1.2) : 1) }];
         }) }, agency.name, source);
       const events: ReconciliationCaseEvent[] = reconcile(payments, statement.lines).matches.filter(match => match.status !== 'matched').map(match => ({
         id: `demo-integrity-evidence-${match.payment.id}`, caseId: match.payment.id, source, synthetic: true,
-        action: 'request-evidence', actor: 'DEMO synthetic example, not a real operator', owner: `DEMO ${agency.name}`,
+        action: 'request-evidence', actor: 'DEMO synthetic example, not a real operator', owner: demoAgencyManager(agency.id)!.email!,
         note: `DEMO ONLY: please find the correct pretend bank slip. ${match.explanation}`, submissionStart: stamp(7).slice(0, 10),
         dueDate: stamp(2).slice(0, 10), createdAt: stamp(7),
         evidence: { payment: match.payment, statementName: statement.name, explanation: `DEMO ${match.explanation}` },
@@ -203,7 +209,11 @@ const refreshScenario = () => {
 export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, actor: DemoScenarioActor, confirmed: boolean, reason: string) => {
   requireActor(actor, confirmed, reason);
   requireReplaceableCases();
-  bootDemo();
+  const previous = new Map(Object.entries(localStorage).filter(([key]) => key.startsWith(DEMO_KEY_PREFIX)));
+  const previousCases = localStorage.getItem(resolutionKey);
+  const previousScenario = sessionStorage.getItem('dawm_integrity_scenario');
+  const previousVersion = sessionStorage.getItem('dawm_demo_version');
+  try {
   bootDemo();
   const now = Date.now();
   const before = measureStoredIntegrityDemo(now);
@@ -221,10 +231,10 @@ export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, ac
   if (data.evidence.some(item => { const existing = loadBankStatement(item.agencyId, item.source); return existing && !existing.synthetic; })) {
     throw new Error('An uploaded statement is present. Remove it explicitly or use a separate demo sandbox before replacing scenario bank evidence.');
   }
-  const previous = new Map(Object.entries(localStorage).filter(([key]) => key.startsWith(DEMO_KEY_PREFIX)));
-  const previousCases = localStorage.getItem(resolutionKey);
-  const previousScenario = sessionStorage.getItem('dawm_integrity_scenario');
-  try {
+    // The backup is in memory. Release replaced collections before writing their
+    // successors so two complete practice folders never compete for browser quota.
+    [LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_DOCUMENTS, LS_MEDICAL_RESULTS, LS_PAYMENTS, LS_PAYMENT_STATUS, LS_APPROVAL_LOGS]
+      .forEach(key => localStorage.removeItem(`${DEMO_KEY_PREFIX}${key}`));
     const generatedIds = new Set(scenarioCases().map(record => record.id));
     localStorage.setItem(resolutionKey, JSON.stringify(getAgencyResolutionCases().filter(record => !generatedIds.has(record.id))));
     data.localAgencies.forEach(agency => {
@@ -269,8 +279,9 @@ export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, ac
     previous.forEach((value, key) => { if (localStorage.getItem(key) !== value) localStorage.setItem(key, value); });
     if (previousCases === null) localStorage.removeItem(resolutionKey); else localStorage.setItem(resolutionKey, previousCases);
     if (previousScenario === null) sessionStorage.removeItem('dawm_integrity_scenario'); else sessionStorage.setItem('dawm_integrity_scenario', previousScenario);
+    if (previousVersion === null) sessionStorage.removeItem('dawm_demo_version'); else sessionStorage.setItem('dawm_demo_version', previousVersion);
     refreshScenario();
-    throw new Error(`Could not switch demo mode; previous demo records were restored. ${error instanceof Error ? error.message : 'Browser storage failed.'}`);
+    throw new Error(`Could not switch demo mode; previous demo records were restored. ${error && typeof error === 'object' && 'message' in error ? error.message : 'Browser storage failed.'}`);
   }
 };
 

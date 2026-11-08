@@ -190,11 +190,11 @@ const AdminIntegrity: React.FC = () => {
 
       {canOverride && <AgencyResolutionCenter />}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="findings">Issues to review ({findings.length})</TabsTrigger>
-          <TabsTrigger value="overrides">Accepted exceptions ({overrides.filter(o => !o.revoked_at).length})</TabsTrigger>
-          {!isAuditor && <TabsTrigger value="elmis">Identity checks (ELMIS)</TabsTrigger>}
-          <TabsTrigger value="audit">Activity history</TabsTrigger>
+        <TabsList aria-label="Record check sections">
+          <TabsTrigger value="findings"><ShieldAlert aria-hidden="true" />Issues to review ({findings.length})</TabsTrigger>
+          <TabsTrigger value="overrides"><CheckCircle2 aria-hidden="true" />Accepted exceptions ({overrides.filter(o => !o.revoked_at).length})</TabsTrigger>
+          {!isAuditor && <TabsTrigger value="elmis"><ShieldCheck aria-hidden="true" />Identity checks (ELMIS)</TabsTrigger>}
+          <TabsTrigger value="audit"><Eye aria-hidden="true" />Activity history</TabsTrigger>
         </TabsList>
 
         <TabsContent value="findings" className="space-y-4">

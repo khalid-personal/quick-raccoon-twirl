@@ -63,7 +63,7 @@ const AgencyCandidateIntroductions: React.FC = () => {
       ]} />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search name, tracking code, skills, or languages" />
-        <ToggleGroup type="single" value={filter} onValueChange={value => { if (FILTERS.includes(value as Filter)) setFilter(value as Filter); }} variant="outline" className="flex flex-wrap justify-start" aria-label="Filter candidate introductions">
+        <ToggleGroup navigation type="single" value={filter} onValueChange={value => { if (FILTERS.includes(value as Filter)) setFilter(value as Filter); }} aria-label="Filter candidate introductions">
           <ToggleGroupItem value="all" size="sm">All</ToggleGroupItem>
           <ToggleGroupItem value="video" size="sm">Video available</ToggleGroupItem>
           <ToggleGroupItem value="needs-intro" size="sm">Needs details</ToggleGroupItem>

@@ -59,11 +59,7 @@ const SuperadminSettings: React.FC = () => {
   const [newCocFacilityName, setNewCocFacilityName] = useState(''); // For new facility name
 
   const [foreignAgencies, setForeignAgencies] = useState<ForeignAgency[]>([]);
-  const [newForeignAgencyName, setNewForeignAgencyName] = useState(''); // For new agency name
-  const [newForeignAgencyCountryCode, setNewForeignAgencyCountryCode] = useState('');
-
   const [localAgencies, setLocalAgencies] = useState<LocalAgency[]>([]);
-  const [newLocalAgencyName, setNewLocalAgencyName] = useState(''); // For new agency name
   const [agencyPartnerships, setAgencyPartnerships] = useState<AgencyPartnership[]>([]);
   const [stageFees, setStageFees] = useState<Record<number, number>>({});
   const [integrityScoreThresholds, setIntegrityScoreThresholds] = useState({ greenMin: 85, yellowMin: 60 });
@@ -170,60 +166,6 @@ const SuperadminSettings: React.FC = () => {
     setCocFacilities(cocFacilities.filter(f => f.id !== idToRemove));
   };
   
-  const handleAddForeignAgency = () => { // NEW FUNCTION
-    const trimmedName = newForeignAgencyName.trim();
-    if (!trimmedName) return;
-    if (!newForeignAgencyCountryCode) {
-      toast.error('Select the foreign agency country so its flag can be shown.');
-      return;
-    }
-    
-    if (foreignAgencies.some(a => a.name === trimmedName)) {
-        toast.warning("This Foreign Employment Agency is already in the list.");
-        return;
-    }
-    
-    setForeignAgencies([...foreignAgencies, {
-      id: uuidv4(),
-      name: trimmedName,
-      country_code: newForeignAgencyCountryCode || undefined,
-      created_at: new Date().toISOString(),
-    }]);
-    setNewForeignAgencyName('');
-    setNewForeignAgencyCountryCode('');
-  };
-
-  const handleRemoveForeignAgency = (idToRemove: string) => { // NEW FUNCTION
-    setForeignAgencies(foreignAgencies.filter(a => a.id !== idToRemove));
-    setAgencyPartnerships(current => current.filter(item => item.foreign_agency_id !== idToRemove));
-  };
-
-  const handleForeignAgencyCountryChange = (agencyId: string, countryCode: string) => {
-    setForeignAgencies(current => current.map(agency =>
-      agency.id === agencyId
-        ? { ...agency, country_code: countryCode === 'none' ? undefined : countryCode }
-        : agency,
-    ));
-  };
-
-  const handleAddLocalAgency = () => { // NEW FUNCTION
-    const trimmedName = newLocalAgencyName.trim();
-    if (!trimmedName) return;
-    
-    if (localAgencies.some(a => a.name === trimmedName)) {
-        toast.warning("This Local Agency is already in the list.");
-        return;
-    }
-    
-    setLocalAgencies([...localAgencies, { id: uuidv4(), name: trimmedName, created_at: new Date().toISOString() }]);
-    setNewLocalAgencyName('');
-  };
-
-  const handleRemoveLocalAgency = (idToRemove: string) => { // NEW FUNCTION
-    setLocalAgencies(localAgencies.filter(a => a.id !== idToRemove));
-    setAgencyPartnerships(current => current.filter(item => item.local_agency_id !== idToRemove));
-  };
-
   const togglePartnership = (local: LocalAgency, foreign: ForeignAgency, checked: boolean) => {
     const matches = (item: AgencyPartnership) => item.local_agency_id === local.id && item.foreign_agency_id === foreign.id;
     if (!checked) { setAgencyPartnerships(current => current.filter(item => !matches(item))); return; }
@@ -246,6 +188,10 @@ const SuperadminSettings: React.FC = () => {
   };
 
   const handleSave = () => {
+    if (!config) {
+      toast.error('Application settings could not be loaded.');
+      return;
+    }
     if (countryOptions.length === 0) {
         toast.error("The country list cannot be empty.");
         return;
@@ -262,7 +208,7 @@ const SuperadminSettings: React.FC = () => {
     if (partnershipError) { toast.error(partnershipError); return; }
     // Foreign agencies and Local agencies can be empty, as they are optional for candidates/users
     
-    mutation.mutate({ countryOptions, cocFacilities, foreignAgencies, localAgencies, agencyPartnerships, stageFees, stageFeesInitialized: true, integrityScoreThresholds });
+    mutation.mutate({ ...config, countryOptions, cocFacilities, foreignAgencies, localAgencies, agencyPartnerships, stageFees, stageFeesInitialized: true, integrityScoreThresholds });
   };
 
   const handleToggleSeed = (value: boolean) => {
@@ -440,6 +386,15 @@ const SuperadminSettings: React.FC = () => {
         </CardContent>
       </Card>
       
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>ELMIS agency connection pending</AlertTitle>
+        <AlertDescription>
+          The agency directory is read-only. Existing agencies remain available for candidates, staff and contracts.
+          ELMIS agency access requires the official API contract and credentials; no agency data is being fetched or synchronized.
+        </AlertDescription>
+      </Alert>
+
       <Card className="max-w-lg">
         <CardHeader>
           <CardTitle>Foreign Employment Agencies</CardTitle>
@@ -456,55 +411,10 @@ const SuperadminSettings: React.FC = () => {
                       : <span className="text-xs text-muted-foreground">No country</span>}
                     <span className="truncate">{agency.name}</span>
                   </span>
-                  <div className="flex items-center gap-2">
-                    <SearchableCountrySelect
-                      value={agency.country_code}
-                      onChange={value => handleForeignAgencyCountryChange(agency.id, value ?? 'none')}
-                      placeholder="Choose country"
-                      allowNone
-                      disabled={mutation.isPending}
-                      className="w-52"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveForeignAgency(agency.id)}
-                      disabled={mutation.isPending}
-                      aria-label={`Remove ${agency.name}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
+                  {agency.country_code && <span className="text-sm text-muted-foreground">{agency.country_code}</span>}
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="new-foreign-agency-country">Agency country</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                placeholder="Add new foreign agency"
-                value={newForeignAgencyName}
-                onChange={(e) => setNewForeignAgencyName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddForeignAgency();
-                  }
-                }}
-                disabled={mutation.isPending}
-              />
-              <SearchableCountrySelect
-                value={newForeignAgencyCountryCode}
-                onChange={value => setNewForeignAgencyCountryCode(value ?? '')}
-                placeholder="Select country"
-                disabled={mutation.isPending}
-                className="sm:w-56"
-              />
-              <Button onClick={handleAddForeignAgency} type="button" disabled={mutation.isPending || !newForeignAgencyName.trim() || !newForeignAgencyCountryCode}>
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
+              {!foreignAgencies.length && <p className="text-sm text-muted-foreground">No foreign agencies in the existing directory.</p>}
             </div>
           </div>
         </CardContent>
@@ -521,35 +431,10 @@ const SuperadminSettings: React.FC = () => {
               {localAgencies.map((agency) => (
                 <div key={agency.id} className="flex items-center justify-between p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
                   <span>{agency.name}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleRemoveLocalAgency(agency.id)}
-                    disabled={mutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
                 </div>
               ))}
+              {!localAgencies.length && <p className="text-sm text-muted-foreground">No local agencies in the existing directory.</p>}
             </div>
-          </div>
-
-          <div className="flex space-x-2 pt-2">
-            <Input 
-              placeholder="Add new local agency"
-              value={newLocalAgencyName}
-              onChange={(e) => setNewLocalAgencyName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddLocalAgency();
-                }
-              }}
-              disabled={mutation.isPending}
-            />
-            <Button onClick={handleAddLocalAgency} type="button" disabled={mutation.isPending || !newLocalAgencyName.trim()}>
-              <Plus className="h-4 w-4 mr-1" /> Add
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -577,7 +462,7 @@ const SuperadminSettings: React.FC = () => {
               </div>
             </section>;
           })}
-          {(!localAgencies.length || !foreignAgencies.length) && <p className="text-sm text-muted-foreground">Add local and foreign agencies before creating contracts.</p>}
+          {(!localAgencies.length || !foreignAgencies.length) && <p className="text-sm text-muted-foreground">Existing local and foreign agencies are needed before creating contracts. The ELMIS connection is pending.</p>}
         </CardContent>
       </Card>
 

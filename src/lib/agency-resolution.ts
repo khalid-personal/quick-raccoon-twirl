@@ -4,9 +4,10 @@ import { localFeeRows } from './local-payment-evidence';
 import { analyzeAgencyPayments } from './agency-payments';
 import { isForeignPayment } from './currency';
 import { loadBankStatement } from './bank-statement-store';
-import { reconcile } from './bank-reconciliation';
+import { paymentReferences, paymentsWithReusedReferences, reconcile, type BankLine } from './bank-reconciliation';
 import { recordApprovalLog } from './api/log-management';
 import { currentVerifiedPaymentIds } from './payment-review-clearance';
+import type { Candidate, Payment } from './types';
 
 export interface ResolutionActor { id: string; email: string; role: string; localAgencyId?: string | null; foreignAgencyId?: string | null; }
 export interface AmountDiscrepancy {
@@ -18,6 +19,84 @@ export interface AgencyResolutionCase {
   id: string; issue: AmountDiscrepancy; state: 'escalated' | 'suspended' | 'appealed' | 'resolved';
   holdActive: boolean; dueDate: string; createdAt: string; updatedAt: string;
   events: { id: string; action: string; reason: string; actorId: string; actor: string; at: string; auditId: string; evidenceUrl?: string }[];
+}
+const decisionLabels: Record<string, string> = {
+  escalated: 'Follow-up opened',
+  suspend: 'New agency activity paused',
+  'verified-underpayment-pause': 'Candidate-linked shortfall verified; agency paused',
+  'request-follow-up': 'More information requested',
+  appeal: 'Agency explanation or appeal received',
+  'reject-appeal': 'Appeal declined',
+  reinstate: 'Explanation accepted; agency pause lifted',
+  resolve: 'Issue closed with a recorded decision',
+};
+export const agencyDecisionLabel = (action: string): string => decisionLabels[action] ?? action;
+export interface AgencyReviewEvidence {
+  candidate?: Candidate;
+  payment?: Payment;
+  line?: BankLine;
+  statementName?: string;
+  practice: boolean;
+  checks: { title: string; passed: boolean; detail: string }[];
+  canAutoPause: boolean;
+  snapshot: string;
+}
+
+export function agencyReviewEvidence(issue: AmountDiscrepancy): AgencyReviewEvidence {
+  const payments = getPayments();
+  const payment = payments.find(item => item.id === issue.paymentId);
+  const candidates = getCandidates();
+  const candidate = payment?.candidate_ids.length === 1 ? candidates.find(item => item.id === payment.candidate_ids[0]) : undefined;
+  const statement = loadBankStatement(issue.recipientId, issue.source);
+  const references = payment ? paymentReferences(payment).map(reference => reference.trim().toLowerCase()) : [];
+  const matchingLines = statement?.lines.filter(line => line.reference.trim() && references.includes(line.reference.trim().toLowerCase())) ?? [];
+  const line = matchingLines.length === 1 ? matchingLines[0] : undefined;
+  const current = amountDiscrepancies().find(item => item.id === issue.id);
+  const practice = isDemoMode() || statement?.synthetic === true || payment?.demo_evidence?.synthetic === true;
+  const candidateLinked = !!candidate && !!payment && candidate.local_agency_id === payment.payee_local_agency_id
+    && (issue.source === 'candidate' || candidate.foreign_agency_id === payment.payer_foreign_agency_id)
+    && !!candidate.tracking_code && !!line
+    && line.description.toLowerCase().split(/[\s,;|()[\]]+/).includes(candidate.tracking_code.toLowerCase())
+    && candidates.filter(item => !!item.tracking_code && line.description.toLowerCase().split(/[\s,;|()[\]]+/).includes(item.tracking_code.toLowerCase())).length === 1;
+  const checks = [
+    { title: 'Current payment record', passed: !!payment && payment.status === 'succeeded' && current?.snapshot === issue.snapshot, detail: 'The payment is marked successful, and its recorded details have not changed since this review opened.' },
+    { title: 'Unique transfer reference', passed: !!payment && !!line && !paymentsWithReusedReferences(payments).has(payment.id), detail: 'One bank credit has the exact payment reference; it is not reused by another settled payment.' },
+    { title: 'Candidate identified', passed: candidateLinked, detail: candidate ? `${candidate.first_name} ${candidate.last_name} · ${candidate.tracking_code}. The bank credit must name this tracking code and the agency assignments must agree.` : 'A single candidate must be identified by both the payment and the bank credit. Shared or unallocated payments need manual review.' },
+    { title: 'Confirmed bank shortfall', passed: issue.basis === 'bank' && issue.kind === 'underpayment' && !!payment && !!line
+      && Number.isFinite(payment.amount) && Number.isFinite(line.amount) && payment.amount > 0 && line.amount > 0
+      && !!line.currency && line.currency.toUpperCase() === payment.currency.toUpperCase() && Math.round((payment.amount - line.amount) * 100) > 0,
+      detail: 'The bank credit is below the recorded payment in the same currency. Contract estimates and candidate fee debt alone do not qualify.' },
+    { title: 'Usable bank file', passed: !!statement && (!statement.scan_report || statement.scan_report.status === 'clear'), detail: 'A file flagged for closer inspection or unsafe content cannot trigger an automatic pause. File checks cannot prove that the bank issued this file.' },
+  ];
+  return { candidate, payment, line, statementName: statement?.name, practice, checks,
+    canAutoPause: checks.every(check => check.passed),
+    snapshot: JSON.stringify({ issue: current?.snapshot, payment,
+      candidate: candidate && { id: candidate.id, first_name: candidate.first_name, last_name: candidate.last_name, tracking_code: candidate.tracking_code, local_agency_id: candidate.local_agency_id, foreign_agency_id: candidate.foreign_agency_id },
+      matchingLines, scan: statement?.scan_report, practice, checks }) };
+}
+
+export async function verifyAgencyUnderpayment(issueId: string, evidenceSnapshot: string, reason: string, dueDate: string, actor: ResolutionActor): Promise<AgencyResolutionCase> {
+  assertSuperadmin(actor);
+  if (reason.trim().length < 10 || !validDeadline(dueDate)) throw new Error('Record what you checked and choose a valid reply deadline.');
+  const issue = amountDiscrepancies().find(item => item.id === issueId);
+  if (!issue) throw new Error('This difference is no longer present. Reload the current evidence.');
+  const evidence = agencyReviewEvidence(issue);
+  if (!evidence.canAutoPause) throw new Error('Automatic pause checks are incomplete. Request an agency reply instead.');
+  if (evidence.snapshot !== evidenceSnapshot) throw new Error('Candidate or bank evidence changed. Review the current checks before confirming.');
+  const existing = getAgencyResolutionCases().find(record => record.issue.id === issueId && record.state !== 'resolved');
+  if (existing && (existing.holdActive || existing.state === 'appealed' || existing.issue.snapshot !== issue.snapshot)) throw new Error('This case requires review of its current decision or appeal; it cannot be automatically paused again.');
+  const description = `${evidence.practice ? 'Practice evidence only. ' : ''}Verified underpayment portal pause requested: ${evidence.candidate?.first_name} ${evidence.candidate?.last_name}, ${evidence.candidate?.tracking_code}; reference ${evidence.line?.reference}; recorded ${evidence.payment?.amount}, bank credit ${evidence.line?.amount} ${evidence.line?.currency}. Agency ${agencyCaseName(issue)}. Reason: ${reason.trim()}. Reply by ${dueDate}. No legal finding or provider freeze. Snapshot: ${evidence.snapshot}`;
+  const audit = await recordApprovalLog(actor.id, actor.email, 'Payment', issue.paymentId, 'Updated', description);
+  const latest = getAgencyResolutionCases().find(record => record.issue.id === issueId && record.state !== 'resolved');
+  if (latest?.events.at(-1)?.id !== existing?.events.at(-1)?.id || agencyReviewEvidence(issue).snapshot !== evidenceSnapshot) throw new Error('This case or its evidence changed during verification. Reload before continuing.');
+  const at = new Date().toISOString();
+  const record: AgencyResolutionCase = {
+    ...(existing ?? { id: crypto.randomUUID(), issue, createdAt: at, events: [] }),
+    state: 'suspended', holdActive: true, dueDate, updatedAt: at,
+    events: [...(existing?.events ?? []), { id: crypto.randomUUID(), action: 'verified-underpayment-pause', reason: description.split(' Snapshot:')[0], actorId: actor.id, actor: actor.email, at, auditId: audit.id }],
+  };
+  saveCases(existing ? getAgencyResolutionCases().map(item => item.id === existing.id ? record : item) : [...getAgencyResolutionCases(), record]);
+  return record;
 }
 const storageKey = () => `${isDemoMode() ? 'demo:' : ''}dawm-agency-resolution`;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);

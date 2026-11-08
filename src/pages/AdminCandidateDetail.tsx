@@ -160,7 +160,7 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
       <EmploymentJourneyHistory candidate={candidate} /></>}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList data-tour="candidate-stages" className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-2 [&>button]:min-h-12 [&>button]:shrink-0 [&>button]:gap-2 [&>button]:rounded-xl [&>button]:px-4 [&>button]:py-3 [&>button]:text-sm [&>button[data-state=active]]:bg-cyan-500/15 [&>button[data-state=active]]:text-cyan-700 dark:[&>button[data-state=active]]:text-cyan-200 [&>button[data-state=active]]:shadow-sm">
+        <TabsList aria-label="Candidate profile sections" data-tour="candidate-stages" className="w-full">
           {workspace && <TabsTrigger value="profile">Profile</TabsTrigger>}
           <TabsTrigger value="timeline"><Clock3 className="h-5 w-5" />Timeline</TabsTrigger>
           <TabsTrigger value="documents"><Files className="h-5 w-5" />Documents</TabsTrigger>

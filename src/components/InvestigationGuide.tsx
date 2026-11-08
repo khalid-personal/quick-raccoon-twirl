@@ -15,7 +15,7 @@ export default function InvestigationGuide({ payment, match, issue, onAction, on
   const steps = amountGap ? [
     'Compare the receipt with the bank deposit and the amount owed under the contract. Record how much is missing or extra.',
     'Open Payment issues. Ask the agency to explain the difference and provide deposit slips or refund records before deciding who is responsible.',
-    'A superadmin can suspend the agency for this issue and must record why. The agency can appeal. Only an approved reinstatement lifts this suspension.',
+    'A superadmin can confirm a uniquely referenced, candidate-linked bank shortfall to apply an agency pause, or record a separate suspension decision. The agency can appeal. Only approved reinstatement lifts the pause.',
   ] : exact ? [
     'Check who paid, who received the money, the candidate, stage and dates. A matching deposit does not complete the candidate’s work.',
     'Record what you checked and how the difference was corrected. Stop reminders only when the supporting records agree.',

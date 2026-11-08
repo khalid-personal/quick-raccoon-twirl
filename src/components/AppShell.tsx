@@ -24,6 +24,7 @@ import FeatureInfo from './FeatureInfo';
 import { evidenceNotificationScope } from '@/lib/evidence-notifications';
 import AvatarActivity from './AvatarActivity';
 import AgencyResolutionCenter from './AgencyResolutionCenter';
+import { navigationItemClass } from './ui/navigation-rail';
 
 export interface ShellNavItem {
   to: string;
@@ -74,7 +75,7 @@ const isItemActive = (pathname: string, item: ShellNavItem, homePath: string) =>
   return pathname === item.to || pathname.startsWith(`${item.to}/`);
 };
 
-const SidebarContent: React.FC<{
+export const SidebarContent: React.FC<{
   portalName: string;
   homePath: string;
   navGroups: ShellNavGroup[];
@@ -82,56 +83,50 @@ const SidebarContent: React.FC<{
   pathname: string;
   onNavigate?: () => void;
 }> = ({ portalName, homePath, navGroups, collapsed, pathname, onNavigate }) => (
-  <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+  <div className="flex h-full flex-col bg-[#101827] text-slate-200">
     <Link to={homePath} onClick={onNavigate} aria-label="DAWM Portal home" className={cn('flex h-16 items-center border-b border-sidebar-border px-4', collapsed ? 'justify-center px-0' : '')}>
       {collapsed
         ? <DawmBrand appearance="dark" compact iconOnly />
         : <DawmBrand appearance="dark" compact subtitle={portalName} />}
     </Link>
-    <nav className="flex-1 space-y-5 overflow-y-auto px-2 py-4">
+    <nav aria-label={`${portalName} menu`} className={cn('navigation-rail navigation-rail-sidebar flex-1 space-y-5 overflow-y-auto px-2 py-4', collapsed && 'navigation-rail-sidebar-collapsed')}>
       {navGroups.map((group, groupIndex) => {
         const items = group.items.filter(item => !item.hidden);
         if (items.length === 0) return null;
         return (
           <div key={group.label ?? groupIndex} className="space-y-0.5">
             {group.label && !collapsed && (
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">{group.label}</p>
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{group.label}</p>
             )}
             {items.map(item => {
               const active = isItemActive(pathname, item, homePath);
               const content = (
                 <>
-                  <span className={cn('shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]', active ? 'text-sidebar-primary' : 'text-sidebar-foreground/70 group-hover:text-white')}>{item.icon}</span>
+                  <span aria-hidden="true" className="navigation-rail-icon shrink-0">{item.icon}</span>
                   {!collapsed && <span className="truncate">{item.label}</span>}
                   {!collapsed && !!item.badge && item.badge > 0 && (
-                    <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white ${item.badgeTone === 'red' ? 'bg-red-600' : item.badgeTone === 'yellow' ? 'bg-amber-500 text-black' : item.badgeTone === 'green' ? 'bg-emerald-600' : 'bg-sidebar-primary'}`}>
-                      {item.badgeTone && <span aria-hidden="true">▲</span>}{item.badge}
+                    <span className="navigation-rail-count">
+                      {item.badge}
                     </span>
                   )}
                   {collapsed && !!item.badge && item.badge > 0 && (
-                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-sidebar-primary" />
+                    <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-sky-300" />
                   )}
                 </>
               );
-              const classes = cn(
-                'group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                collapsed && 'justify-center px-0',
-                active ? 'bg-sidebar-accent text-white' : 'hover:bg-sidebar-accent/60 hover:text-white',
-                !collapsed && !active && 'motion-safe:hover:translate-x-1',
-              );
+              const classes = navigationItemClass(active, 'group gap-3');
               const navigation = item.to === '#' ? (
                 <button key={item.label} type="button" title={item.label} aria-label={item.label} className={cn(classes, 'w-full text-left')} onClick={() => { item.onClick?.(); onNavigate?.(); }}>
                   {content}
                 </button>
               ) : (
-                <Link key={item.to} to={item.to} title={item.label} aria-label={item.label} className={classes} onClick={() => { item.onClick?.(); onNavigate?.(); }}>
-                  {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-sidebar-primary motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2 duration-300" />}
+                <Link key={item.to} to={item.to} title={item.label} aria-label={item.label} aria-current={active ? 'page' : undefined} className={classes} onClick={() => { item.onClick?.(); onNavigate?.(); }}>
                   {content}
                 </Link>
               );
               return <div key={item.to === '#' ? item.label : item.to} className={cn('flex items-center gap-0.5', collapsed && 'flex-col')}>
                 <div className="min-w-0 flex-1 self-stretch">{navigation}</div>
-                <FeatureInfo title={item.label} className="text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-white" />
+                <FeatureInfo title={item.label} className="text-slate-400 hover:bg-white/5 hover:text-white" />
               </div>;
             })}
           </div>
@@ -142,7 +137,7 @@ const SidebarContent: React.FC<{
 );
 
 const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, children, topBarExtra, overlays }) => {
-  const { user, logout, userRole, userLocalAgencyId, viewAs } = useAuth();
+  const { user, logout, userRole, userLocalAgencyId, viewAs, isDemo } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const clock = useAddisAbabaTime();
@@ -152,7 +147,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const notificationUserId = viewAs?.userId ?? user?.id;
-  const notificationEmail = viewAs?.userId ? viewAs.label : user?.email;
+  const notificationEmail = isDemo ? user?.email : viewAs?.userId ? viewAs.label : user?.email;
   const notificationScope = React.useMemo(() => evidenceNotificationScope(userRole, notificationEmail, userLocalAgencyId), [userRole, notificationEmail, userLocalAgencyId]);
 
   const { data: currentUser, refetch: refetchUser } = useQuery<StaffUser | null>({
@@ -231,6 +226,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
   const currentItem = [...allItems].sort((a, b) => b.to.length - a.to.length).find(item => isItemActive(location.pathname, item, homePath));
   const displayName = (currentUser as (StaffUser & { full_name?: string; name?: string }) | undefined)?.full_name
     ?? (currentUser as { name?: string } | undefined)?.name
+    ?? user?.user_metadata?.full_name
     ?? user?.email
     ?? 'Account';
 
@@ -247,7 +243,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-card/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/70 md:px-6">
+        <header className="navigation-rail-topbar sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 md:px-6">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
@@ -256,17 +252,17 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
           </Button>
 
           <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-            <Link to={homePath} className="truncate text-muted-foreground hover:text-foreground">{portalName}</Link>
+            <Link to={homePath} className="truncate rounded px-1 text-slate-300 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-200">{portalName}</Link>
             {currentItem && currentItem.to !== homePath && (
               <>
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                 <span className="truncate font-medium">{currentItem.label}</span>
               </>
             )}
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <div className="mr-2 hidden items-center gap-1.5 rounded-md border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground lg:flex">
+            <div className="mr-2 hidden items-center gap-1.5 px-2.5 py-1 text-xs text-slate-400 lg:flex">
               <Clock className="h-3.5 w-3.5" />
               <span className="tabular-nums">{clock}</span>
             </div>
@@ -323,14 +319,14 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 text-left transition-colors hover:bg-muted" aria-label="User menu">
+                <button className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 text-left transition-colors hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-200" aria-label="User menu">
                   <Avatar className="h-8 w-8 !overflow-visible">
                     <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initialsOf(displayName)}</AvatarFallback>
                     <AvatarActivity id={notificationUserId} kind="staff" lastSeen={currentUser?.last_online_at} />
                   </Avatar>
                   <span className="hidden min-w-0 leading-tight sm:block">
                     <span className="block max-w-[140px] truncate text-[13px] font-medium">{displayName}</span>
-                    <span className="block text-[11px] text-muted-foreground">{userRole ? ROLE_LABELS[userRole] ?? userRole : ''}</span>
+                    <span className="block text-[11px] text-slate-400">{userRole ? ROLE_LABELS[userRole] ?? userRole : ''}</span>
                   </span>
                 </button>
               </DropdownMenuTrigger>

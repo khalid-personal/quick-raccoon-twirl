@@ -52,6 +52,11 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(data.candidates.every(candidate => candidate.clearance?.labour_ministry?.status === 'pending'
         && candidate.clearance.labour_ministry.simulated && !candidate.clearance.labour_ministry.qr_image_url)).toBe(true);
       expect(data.payments.every(payment => payment.amount > 0 && payment.status === 'succeeded')).toBe(true);
+      data.evidence.forEach(({ statement }) => statement.lines.forEach(line => {
+        expect(line.description).toMatch(/TRK-D\d{4}/);
+        expect(line.description).toContain('Practice / synthetic');
+        expect(line.description).toContain('not real bank proof');
+      }));
       data.payments.filter(isForeignPayment).forEach(payment => expect(checkForeignPayment(payment, data.candidates)).toBeNull());
       data.candidates.forEach(candidate => {
         const stages = data.stages.filter(stage => stage.candidate_id === candidate.id);
@@ -114,7 +119,9 @@ describe('DEMO integrity scenario data, not score overrides', () => {
     expect(getApprovalLogs().at(-1)).toMatchObject({ actor_id: actor.id, actor_email: actor.email });
     expect(getApprovalLogs().at(-1)?.description).toContain(`after=${result.after.score}/${result.after.level}`);
     expect(loadReconciliationEvents('demo-local-1').every(event => event.synthetic && event.note.startsWith('DEMO'))).toBe(true);
+    const storedBeforeBoot = { ...localStorage };
     bootDemo();
+    expect({ ...localStorage }).toEqual(storedBeforeBoot);
     expect(getCandidates()).toHaveLength(435);
     expect(result.after).toEqual(measureStoredIntegrityDemo());
     const reset = resetIntegrityDemoScenario(actor, true, 'Back to the normal practice folder');
@@ -191,6 +198,12 @@ it.each(INTEGRITY_DEMO_SCENARIOS)('applies $id to the actual payment and agency 
       }
       const storedCharacters = Object.entries(localStorage).reduce((total, [key, value]) => total + key.length + value.length, 0);
       expect(storedCharacters).toBeLessThan(5_000_000);
+      const storedBeforeBoot = { ...localStorage };
+      bootDemo();
+      expect({ ...localStorage }).toEqual(storedBeforeBoot);
+      expect(result.after).toEqual(measureStoredIntegrityDemo());
+      const refreshedIssues = amountDiscrepancies();
+      open.forEach(record => expect(refreshedIssues.find(issue => issue.id === record.issue.id)?.snapshot).toBe(record.issue.snapshot));
       console.log('Stored scenario', scenario.id, result.after.score, result.after.flaggedPayments, issues.length, open.length, storedCharacters);
   } finally { window.removeEventListener('demo-scenario-changed', onRefresh); }
 }, 30_000);

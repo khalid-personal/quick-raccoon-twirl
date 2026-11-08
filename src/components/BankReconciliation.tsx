@@ -133,7 +133,7 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
               </button>)}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <ToggleGroup type="single" value={view} onValueChange={value => { if (value) setView(value); }} variant="outline" aria-label="Reconciliation view">
+              <ToggleGroup navigation type="single" value={view} onValueChange={value => { if (value) setView(value); }} aria-label="Reconciliation view">
                 <ToggleGroupItem value="discrepancies">Needs review · {problems}</ToggleGroupItem>
                 <ToggleGroupItem value="all">All payment records</ToggleGroupItem>
               </ToggleGroup>

@@ -24,6 +24,7 @@ import CandidateAvatar from '@/components/CandidateAvatar';
 import { useCandidateWorkspace } from '@/components/CandidateQuickViewProvider';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
 import { usePageMemory } from '@/hooks/use-page-memory';
+import { navigationItemClass } from '@/components/ui/navigation-rail';
 import {
   clampTrainingMapRouteIndex,
   filterTrainingMapCandidates,
@@ -250,9 +251,9 @@ const AdminTrainingMap: React.FC = () => {
                   <SelectItem value="redeployed">Redeployed</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex gap-1">
-                <Button size="sm" variant={view === 'intake' ? 'default' : 'outline'} onClick={() => { setView('intake'); setRouteIndex(0); }}>Intake to centers</Button>
-                <Button size="sm" variant={view === 'contracts' ? 'default' : 'outline'} onClick={() => { setView('contracts'); setRouteIndex(0); }}>Contract routes</Button>
+              <div role="group" aria-label="Journey map view" className="navigation-rail">
+                <button type="button" className={navigationItemClass(view === 'intake')} aria-pressed={view === 'intake'} onClick={() => { setView('intake'); setRouteIndex(0); }}><GraduationCap aria-hidden="true" />Intake to centers</button>
+                <button type="button" className={navigationItemClass(view === 'contracts')} aria-pressed={view === 'contracts'} onClick={() => { setView('contracts'); setRouteIndex(0); }}><Navigation aria-hidden="true" />Contract routes</button>
               </div>
             </div>
           </CardHeader>

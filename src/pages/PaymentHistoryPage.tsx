@@ -7,7 +7,8 @@ import PageHeader from '@/components/page/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowRight, Building2, ChartNoAxesCombined, FileSearch, Globe2, Landmark, List, Loader2, Scale, UserRound } from 'lucide-react';
+import { ChartNoAxesCombined, FileSearch, Globe2, Landmark, List, Loader2, Scale, UserRound } from 'lucide-react';
+import { navigationAccent } from '@/components/ui/navigation-rail';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { checkForeignPayment, isForeignPayment } from '@/lib/currency';
 import { BankReconciliation } from '@/components/BankReconciliation';
@@ -34,7 +35,6 @@ import { amountDiscrepancies, autoResolveVerifiedAgencyCases, getAgencyResolutio
 import MinistrySubmissionCountdown from '@/components/MinistrySubmissionCountdown';
 
 type PaymentView = 'all' | 'foreign' | 'candidate';
-const sourceTileClass = 'control-nav-shine relative isolate flex h-auto min-h-28 w-full justify-start gap-4 overflow-hidden rounded-2xl border-2 p-5 text-left shadow-sm transition-all motion-safe:hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none';
 
 const PaymentHistoryPage: React.FC = () => {
   const { user, viewAs, isDemo, userRole, userLocalAgencyId, userForeignAgencyId, userLocalAgencyName, userForeignAgencyName } = useAuth();
@@ -111,11 +111,11 @@ const PaymentHistoryPage: React.FC = () => {
   return <div className="space-y-6">
     <PageHeader title={title} description="See what is marked as paid and what is still waiting. Open a receipt; reviewers can compare it with the agency’s uploaded bank records." actions={<MinistrySubmissionCountdown />} />
     <Tabs value={effectiveTab} onValueChange={setTab} className="space-y-5">
-    <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-muted/50 p-2 lg:flex lg:justify-start">
-      <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="overview"><ChartNoAxesCombined className="h-5 w-5" />Finance overview</TabsTrigger>
-      <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="ledger"><List className="h-5 w-5" />Payments list</TabsTrigger>
-      {canInspect && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="discrepancies"><FileSearch className="h-5 w-5" />Bank records & checks</TabsTrigger>}
-      {userRole === 'superadmin' && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="resolution"><Scale className="h-5 w-5" />Payment issues</TabsTrigger>}
+    <TabsList aria-label="Payment sections" className="w-full">
+      <TabsTrigger value="overview"><ChartNoAxesCombined aria-hidden="true" />Finance overview</TabsTrigger>
+      <TabsTrigger value="ledger"><List aria-hidden="true" />Payments list</TabsTrigger>
+      {canInspect && <TabsTrigger value="discrepancies"><FileSearch aria-hidden="true" />Bank records & checks</TabsTrigger>}
+      {userRole === 'superadmin' && <TabsTrigger value="resolution"><Scale aria-hidden="true" />Payment issues</TabsTrigger>}
     </TabsList>
     {userRole === 'superadmin' && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-rose-500/5 p-4" aria-label="Payment resolution status">
       <div><h2 className="text-lg font-semibold">Automatic payment checks → Payment issues</h2><p className="text-sm text-muted-foreground">{reviewQueue.isLoading ? 'Checking receipts and uploaded bank records…' : `${summaryPayments.filter(payment => reviewQueue.data?.verified.has(payment.id)).length} payments fully checked in this view · ${reviewQueue.data?.cases.length ?? 0} issues to review · ${reviewQueue.data?.gaps.length ?? 0} amount differences to check across the portal.`}</p><p className="mt-1 text-xs text-muted-foreground">Only payments confirmed as received and passing all required checks are cleared automatically. A bank match alone is not enough. An agency suspension stays in place until an administrator explicitly lifts it.</p></div>
@@ -125,18 +125,18 @@ const PaymentHistoryPage: React.FC = () => {
     {(effectiveTab === 'overview' || effectiveTab === 'ledger') && <section className="space-y-4 rounded-2xl border bg-card/60 p-4" aria-label="Payment scope filters">
     {!isForeign && <div className="space-y-2">
       <p className="text-base font-semibold">Choose the payment flow</p>
-      <ToggleGroup type="single" value={paymentView} onValueChange={value => { if (value === 'all' || value === 'foreign' || value === 'candidate') setPaymentView(value); }} variant="outline" className="grid w-full grid-cols-1 gap-3 md:grid-cols-3" aria-label="Filter payment source">
-        <ToggleGroupItem value="all" aria-label={`All payments · ${payments.length}`} className={`${sourceTileClass} border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 hover:text-slate-900 data-[state=on]:border-slate-600 data-[state=on]:bg-slate-200 data-[state=on]:text-slate-950 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800 dark:data-[state=on]:bg-slate-800 dark:data-[state=on]:text-white`}>
-          <span className="control-nav-icon rounded-xl bg-slate-500/10 p-3"><Landmark className="h-8 w-8" /></span>
-          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">All payments</span><span className="mt-1 block text-sm">Both flows in one view</span><span className="mt-2 block text-base font-semibold tabular-nums">{payments.length.toLocaleString()} receipts</span></span>
+      <ToggleGroup navigation type="single" value={paymentView} onValueChange={value => { if (value === 'all' || value === 'foreign' || value === 'candidate') setPaymentView(value); }} className="navigation-rail-sources w-full" aria-label="Filter payment source">
+        <ToggleGroupItem value="all" aria-label={`All payments · ${payments.length}`}>
+          <Landmark aria-hidden="true" />
+          <span className="min-w-0"><span className="block font-semibold">All payments</span><span className="navigation-rail-detail">Both flows in one view · {payments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="foreign" aria-label={`Foreign agency payments to local agencies · ${foreignPayments.length}`} style={{ '--section-delay': '1.2s' } as React.CSSProperties} className={`${sourceTileClass} border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950 data-[state=on]:border-sky-600 data-[state=on]:bg-sky-100 data-[state=on]:text-sky-950 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60 dark:data-[state=on]:bg-sky-900/70 dark:data-[state=on]:text-sky-100`}>
-          <span className="control-nav-icon rounded-xl bg-sky-500/15 p-3"><Globe2 className="h-8 w-8" /></span>
-          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Foreign agency → local agency</span><span className="mt-1 flex items-center gap-2 text-sm"><Building2 className="h-4 w-4 shrink-0" />Agency payments<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{foreignPayments.length.toLocaleString()} receipts</span></span>
+        <ToggleGroupItem value="foreign" aria-label={`Foreign agency payments to local agencies · ${foreignPayments.length}`} style={navigationAccent('#7dd3fc')}>
+          <Globe2 aria-hidden="true" />
+          <span className="min-w-0"><span className="block font-semibold">Foreign agency → local agency</span><span className="navigation-rail-detail">Agency payments · {foreignPayments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="candidate" aria-label={`Candidate payments to local agencies · ${candidatePayments.length}`} style={{ '--section-delay': '2.4s' } as React.CSSProperties} className={`${sourceTileClass} border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 data-[state=on]:border-emerald-600 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60 dark:data-[state=on]:bg-emerald-900/70 dark:data-[state=on]:text-emerald-100`}>
-          <span className="control-nav-icon rounded-xl bg-emerald-500/15 p-3"><UserRound className="h-8 w-8" /></span>
-          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Candidate → local agency</span><span className="mt-1 flex items-center gap-2 text-sm"><Landmark className="h-4 w-4 shrink-0" />Candidate stage fees<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{candidatePayments.length.toLocaleString()} receipts</span></span>
+        <ToggleGroupItem value="candidate" aria-label={`Candidate payments to local agencies · ${candidatePayments.length}`} style={navigationAccent('#6ee7b7')}>
+          <UserRound aria-hidden="true" />
+          <span className="min-w-0"><span className="block font-semibold">Candidate → local agency</span><span className="navigation-rail-detail">Candidate stage fees · {candidatePayments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
       </ToggleGroup>
     </div>}
@@ -178,7 +178,7 @@ const PaymentHistoryPage: React.FC = () => {
     </CardContent></Card>
     </TabsContent>
     {canInspect && <TabsContent value="discrepancies" className="space-y-4">
-      <ToggleGroup type="single" value={statementSource} onValueChange={value => { if (value) setStatementSource(value as typeof statementSource); }} variant="outline" className="justify-start" aria-label="Statement payment source"><ToggleGroupItem value="foreign">Foreign → local</ToggleGroupItem><ToggleGroupItem value="candidate">Candidate → local / ChechePay</ToggleGroupItem></ToggleGroup>
+      <ToggleGroup navigation type="single" value={statementSource} onValueChange={value => { if (value) setStatementSource(value as typeof statementSource); }} aria-label="Statement payment source"><ToggleGroupItem value="foreign"><Globe2 aria-hidden="true" />Foreign → local</ToggleGroupItem><ToggleGroupItem value="candidate"><UserRound aria-hidden="true" />Candidate → local / ChechePay</ToggleGroupItem></ToggleGroup>
       {!isLocal && !isLocalStaff && <Select value={agency || 'all'} onValueChange={value => setAgency(value === 'all' ? '' : value)}><SelectTrigger aria-label="Recipient agency for statement review" className="w-full sm:w-96"><SelectValue placeholder="Select a recipient local agency" /></SelectTrigger><SelectContent><SelectItem value="all">All local agencies</SelectItem>{agencies.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select>}
       {userRole === 'superadmin' && statementSource === 'foreign' && <AgencyPaymentReconciliation localAgencyId={reviewAgency || undefined} />}
       {statementSource === 'candidate' && <LocalPaymentEvidence key={reviewAgency || 'all'} localAgencyId={reviewAgency || (isLocal || isLocalStaff ? userLocalAgencyId ?? undefined : undefined)} />}

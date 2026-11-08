@@ -81,7 +81,7 @@ const AgencyClearanceTracker: React.FC = () => {
       ]} />
       <div className="space-y-3">
         <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search name or tracking code" />
-        <ToggleGroup type="single" value={filter} onValueChange={value => { if (value) setFilter(value as typeof filter); }} variant="outline" className="flex flex-wrap justify-start" aria-label="Filter clearance status">
+        <ToggleGroup navigation type="single" value={filter} onValueChange={value => { if (value) setFilter(value as typeof filter); }} aria-label="Filter clearance status">
           <ToggleGroupItem value="all" size="sm">All candidates</ToggleGroupItem>
           <ToggleGroupItem value="awaiting-local" size="sm">Awaiting local agency</ToggleGroupItem>
           <ToggleGroupItem value="in-clearance" size="sm">In clearance</ToggleGroupItem>

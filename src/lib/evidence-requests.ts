@@ -36,11 +36,13 @@ export const EVIDENCE_STATUS_LABELS: Record<EvidenceRequestStatus, string> = {
 
 export const buildEvidenceReminders = (
   user: Pick<StaffUser, 'id' | 'email' | 'local_agency_id'> & { role: UserRole }, cases: { agencyId: string; events: ReconciliationCaseEvent[] }[], now = new Date(),
-): Notification[] => cases.flatMap(({ agencyId, events }) => {
+): Notification[] => {
+  const verified = currentVerifiedPaymentIds();
+  return cases.flatMap(({ agencyId, events }) => {
   const manager = user.role === 'local-agency' && user.local_agency_id === agencyId;
   const superadmin = user.role === 'superadmin';
   if (!manager && !superadmin && !(user.role === 'staff' && user.local_agency_id === agencyId)) return [];
-  return getEvidenceRequests(events, now, currentVerifiedPaymentIds()).filter(({ event, status }) =>
+  return getEvidenceRequests(events, now, verified).filter(({ event, status }) =>
     (status === 'overdue' || status === 'due-soon')
     && (manager || superadmin || [user.id, user.email.toLowerCase()].includes(event.owner.trim().toLowerCase())),
   ).map(({ event, status }) => ({
@@ -48,8 +50,9 @@ export const buildEvidenceReminders = (
     type: 'payment',
     recipient_id: user.id,
     read: false,
-    message: `${event.synthetic ? 'DEMO / synthetic · ' : ''}${EVIDENCE_STATUS_LABELS[status]}: ${event.evidence.payment?.receipt_number || event.caseId}. Evidence due ${event.dueDate}; owner ${event.owner}.`,
+    message: `${event.evidence.candidateIdentities?.map(identity => `${identity.name} (${identity.tracking_code})`).join(', ') || event.evidence.payment?.payer_display_name || 'Evidence review'} · ${EVIDENCE_STATUS_LABELS[status]}: ${event.evidence.payment?.provider_reference || event.evidence.payment?.receipt_number || event.caseId}${event.evidence.agencyName ? ` · ${event.evidence.agencyName}` : ''}. Evidence due ${event.dueDate}; owner ${event.owner}.${event.synthetic ? ' Practice / synthetic evidence, not real bank proof.' : ''}`,
     link: `${manager ? '/local-agency/payments' : '/admin/payments'}?tab=discrepancies&agency=${encodeURIComponent(agencyId)}&case=${encodeURIComponent(event.caseId)}&source=${event.source ?? 'foreign'}`,
     created_at: new Date(`${event.dueDate}T00:00:00+03:00`).toISOString(),
   }));
-});
+  });
+};

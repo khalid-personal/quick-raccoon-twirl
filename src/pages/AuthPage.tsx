@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, FlaskConical, ShieldCheck, Workflow, Wallet } from 'lucide-react';
+import { CheckCircle2, FlaskConical, ShieldCheck, UserRound, Workflow, Wallet } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StaffLoginForm from '@/components/StaffLoginForm';
 import CandidateLoginForm from '@/components/CandidateLoginForm';
@@ -66,9 +66,9 @@ const AuthPage: React.FC = () => {
 
           <div className="rounded-xl border bg-card p-6 shadow-sm motion-safe:animate-scale-in [animation-delay:120ms]">
             <Tabs defaultValue={initialTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="staff">Staff Login</TabsTrigger>
-                <TabsTrigger value="candidate">Candidate Login</TabsTrigger>
+              <TabsList aria-label="Login type" className="grid w-full grid-cols-2">
+                <TabsTrigger value="staff"><ShieldCheck aria-hidden="true" />Staff Login</TabsTrigger>
+                <TabsTrigger value="candidate"><UserRound aria-hidden="true" />Candidate Login</TabsTrigger>
               </TabsList>
               <TabsContent value="staff" className="pt-5">
                 <StaffLoginForm />

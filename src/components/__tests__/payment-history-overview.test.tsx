@@ -34,19 +34,19 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); client.clear(); container.remove(); vi.restoreAllMocks(); });
 describe('payment history finance-first view', () => {
-  it('uses large animated color-coded flow controls without changing source filtering', async () => {
+  it('uses compact static rail controls without changing source filtering', async () => {
     await render('/admin/payments?tab=ledger');
     const foreign = container.querySelector<HTMLButtonElement>('[aria-label="Foreign agency payments to local agencies · 4"]')!;
     const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate payments to local agencies · 1"]')!;
     for (const control of [foreign, candidate]) {
-      expect(control.className).toContain('min-h-28');
-      expect(control.className).toContain('control-nav-shine');
-      expect(control.className).toContain('motion-reduce:transition-none');
-      expect(control.querySelector('.control-nav-icon svg')).not.toBeNull();
-      expect(control.querySelector('.text-xl')).not.toBeNull();
+      expect(control.className).toContain('navigation-rail-item');
+      expect(control.className).not.toContain('control-nav-shine');
+      expect(control.querySelectorAll('svg')).toHaveLength(1);
+      expect(control.querySelector('.navigation-rail-detail')).not.toBeNull();
+      expect(control.className).not.toContain('min-h-28');
     }
-    expect(foreign.className).toContain('text-sky-800');
-    expect(candidate.className).toContain('text-emerald-800');
+    expect(foreign.style.getPropertyValue('--nav-color')).toBe('#7dd3fc');
+    expect(candidate.style.getPropertyValue('--nav-color')).toBe('#6ee7b7');
     await act(async () => candidate.click());
     expect(container.textContent).toContain('Candidate payments received · ETB');
     expect(container.textContent).not.toContain('Foreign agency payments · estimated USD total');

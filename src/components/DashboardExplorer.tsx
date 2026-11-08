@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CandidateWorkspaceLink, EntityProfileButton } from './CandidateQuickViewProvider';
-import { ArrowLeft, ArrowUpRight, Building2, ChevronRight, Globe2, GraduationCap, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Building2, ChartNoAxesCombined, ChevronRight, Globe2, GraduationCap, MapPin, ShieldAlert, Users, Wallet } from 'lucide-react';
 import { usePortalData } from '@/hooks/use-portal-data';
 import { getCocFacilities } from '@/lib/data-store';
 import { candidateCity, candidateRegion, groupCandidates, selectDashboardCandidates, type DashboardSelection } from '@/lib/dashboard-drilldown';
@@ -88,7 +88,7 @@ export default function DashboardExplorer({ localAgencyId, candidateBasePath, se
       <DialogHeader><DialogTitle>{selection?.name}</DialogTitle><DialogDescription>{selectedCandidates.length} candidates · {localAgencyId ? 'Selected local agency' : 'All agencies'}</DialogDescription></DialogHeader>
       {(selection?.kind === 'local-agency' || selection?.kind === 'foreign-agency' || selection?.kind === 'coc') && <EntityProfileButton kind={selection.kind} entityId={selection.id} className="w-fit rounded-xl border bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">Open complete agency / center profile →</EntityProfileButton>}
       {selection?.kind === 'city' && selection.region && <Button variant="ghost" size="sm" className="w-fit" onClick={() => onSelect({ kind: 'region', name: selection.region! })}><ArrowLeft className="mr-2 h-4 w-4" />{selection.region}</Button>}
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="candidates">Candidates</TabsTrigger><TabsTrigger value="payments">Payments · {selectedPayments.length}</TabsTrigger><TabsTrigger value="compliance">Flags · {flags.length}</TabsTrigger></TabsList>
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4"><TabsList aria-label="Explorer sections"><TabsTrigger value="overview"><ChartNoAxesCombined aria-hidden="true" />Overview</TabsTrigger><TabsTrigger value="candidates"><Users aria-hidden="true" />Candidates</TabsTrigger><TabsTrigger value="payments"><Wallet aria-hidden="true" />Payments · {selectedPayments.length}</TabsTrigger><TabsTrigger value="compliance"><ShieldAlert aria-hidden="true" />Flags · {flags.length}</TabsTrigger></TabsList>
         <TabsContent value="overview" className="space-y-4">
           {agency && <dl className="grid gap-3 border-y py-4 text-sm sm:grid-cols-3"><div><dt className="text-muted-foreground">Address</dt><dd>{agency.address || 'Not recorded'}</dd></div><div><dt className="text-muted-foreground">Contact</dt><dd className="break-all">{agency.contact_email || 'Not recorded'}</dd></div><div><dt className="text-muted-foreground">Phone</dt><dd>{agency.phone_number || 'Not recorded'}</dd></div></dl>}
           <div className="grid grid-cols-2 gap-4 border-b pb-4 sm:grid-cols-4">{[['Candidates', selectedCandidates.length], ['Cities', cities.length], ['Payments', selectedPayments.length], ['Contract flags', flags.length]].map(([label, value]) => <div key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="text-2xl font-semibold tabular-nums">{value}</p></div>)}</div>

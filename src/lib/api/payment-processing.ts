@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { isDemoMode } from '../demo-mode';
 import { contractCountryOf, minimumPerCandidate } from '../currency';
 import { requireAgencyOperations } from '../agency-resolution';
+import { resolveActorIdentity } from '../demo-identities';
 
 export const initializeCandidateStageCheckout = async (candidateId: string, stageId: number, amount: number): Promise<{ checkoutUrl: string; transactionReference: string }> => {
     if (!candidateId || !Number.isInteger(stageId) || !Number.isFinite(amount) || amount <= 0) throw new Error('Candidate, stage and fee are required for checkout.');
@@ -79,7 +80,7 @@ export const initiatePayment = async (
 
     const newPayment: Payment = {
         id: uuidv4(),
-        initiated_by: { id: actorId, email: actorEmail },
+        initiated_by: { id: actorId, email: resolveActorIdentity(actorId, actorEmail, allCandidates).email },
         initiated_at: new Date().toISOString(),
         origin: 'agency-checkout',
         stripe_payment_intent_id: `pi_mock_${uuidv4().substring(0, 8)}`, // Mock Stripe ID
@@ -171,9 +172,10 @@ export const recordVerifiedStagePayment = async (input: RecordStagePaymentInput)
     const existing = payments.find(payment => payment.provider_reference === input.providerReference);
     const payment: Payment = existing ? { ...existing, ...(input.chechePayReceipt ? { chechepay_receipt: input.chechePayReceipt } : {}), ...(input.receiptNumber ? { receipt_number: input.receiptNumber } : {}) } : {
         id: input.id ?? uuidv4(),
-        initiated_by: input.initiatedBy,
+        initiated_by: input.initiatedBy && isDemoMode()
+            ? { id: input.initiatedBy.id, email: resolveActorIdentity(input.initiatedBy.id, input.initiatedBy.email, [candidate]).email } : input.initiatedBy,
         initiated_at: input.initiatedAt,
-        recorded_by: input.actorId ? { id: input.actorId, email: input.actorEmail } : undefined,
+        recorded_by: input.actorId ? { id: input.actorId, email: isDemoMode() ? resolveActorIdentity(input.actorId, input.actorEmail, [candidate]).email : input.actorEmail } : undefined,
         origin: input.origin ?? 'stage-payment',
         stage_id: input.stageId,
         provider: input.provider,
@@ -210,7 +212,7 @@ export const recordVerifiedStagePayment = async (input: RecordStagePaymentInput)
     }
 
     if (!existing && !input.alreadyPersisted && input.actorId && input.actorEmail) {
-        await recordApprovalLog(input.actorId, input.actorEmail, 'Payment', payment.id, 'Created', `Verified ${input.provider} payment of ${payment.amount} ${payment.currency} for candidate ${candidate.tracking_code}, stage ${input.stageId}.`);
+        await recordApprovalLog(input.actorId, input.actorEmail, 'Payment', payment.id, 'Created', `Verified ${input.provider} payment of ${payment.amount} ${payment.currency} for candidate ${candidate.tracking_code}, stage ${input.stageId}.${input.provider === 'mock' ? ' Practice / synthetic checkout, not real bank proof.' : ''}`);
     }
     return payment;
 };
@@ -218,7 +220,11 @@ export const recordVerifiedStagePayment = async (input: RecordStagePaymentInput)
 export const mockPayForStage = async (candidateId: string, stageId: number, amount: number): Promise<Payment> => {
     if (!isDemoMode()) throw new Error('Demo stage payments cannot be recorded outside the demo sandbox.');
     await new Promise(resolve => setTimeout(resolve, 300));
-    return recordVerifiedStagePayment({ candidateId, stageId, amount, provider: 'mock', providerReference: `demo_${uuidv4()}` });
+    return recordVerifiedStagePayment({
+        candidateId, stageId, amount, provider: 'mock', providerReference: `demo_${uuidv4()}`,
+        initiatedBy: resolveActorIdentity(candidateId, undefined, getCandidates()), initiatedAt: new Date().toISOString(), origin: 'candidate-checkout',
+        actorId: candidateId, actorEmail: resolveActorIdentity(candidateId, undefined, getCandidates()).email,
+    });
 };
 
 // Mock function to simulate Stripe Webhook processing
@@ -251,7 +257,7 @@ export const processPaymentWebhook = async (paymentId: string, status: 'succeede
 
     await recordApprovalLog(
         'system', // Webhooks are system actions
-        'system@agency.com',
+        isDemoMode() ? 'payment-simulator@dawm.test' : 'Payment provider system',
         'Payment',
         payment.id,
         'Updated',

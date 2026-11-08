@@ -8,6 +8,8 @@ import type { ViewAsTarget } from './auth-context';
 import { VIEW_AS_KEY, exitDemo, isDemoMode } from './demo-mode';
 import { toLoginEmail } from './identifier';
 import { endAttendanceSession, startPresence } from './presence';
+import { demoSessionUser, effectiveAuthUser } from './auth-identities';
+import { getCandidates, getStaffUsers } from './data-store';
 
 // Auth context and hook live in `src/lib/auth-context.ts`
 
@@ -125,7 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isDemoMode()) {
       // The demo is an offline sandbox: a built-in superadmin, with "view as" used to switch perspective.
-      const demoUser = { id: 'demo-superadmin', email: 'demo.superadmin@dawm.test', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: new Date().toISOString() } as User;
+      const demoUser = demoSessionUser();
       setSession({ user: demoUser, access_token: 'demo', refresh_token: 'demo', expires_in: 0, token_type: 'bearer' } as Session);
       setUser(demoUser);
       setUserRole('superadmin');
@@ -150,13 +152,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [updateAuthStatus]);
 
   useEffect(() => {
-    const presenceUserId = viewAs?.userId ?? user?.id;
-    const presenceRole = viewAs?.role ?? userRole;
-    const presenceEmail = viewAs?.label ?? user?.email ?? '';
-    const trackingCode = viewAs?.trackingCode ?? candidateTrackingCode;
+    const perspective = userRole === 'superadmin' ? viewAs : null;
+    const identity = effectiveAuthUser(user, perspective, isDemoMode(), isDemoMode() ? getCandidates() : [], isDemoMode() ? getStaffUsers() : []);
+    const presenceUserId = isDemoMode() ? identity?.id : perspective?.userId ?? user?.id;
+    const presenceRole = perspective?.role ?? userRole;
+    const presenceEmail = isDemoMode() ? identity?.email ?? '' : perspective?.label ?? user?.email ?? '';
+    const trackingCode = perspective?.trackingCode ?? candidateTrackingCode;
     if (!presenceUserId || !presenceRole) return;
     return startPresence(presenceUserId, presenceEmail, presenceRole, trackingCode);
-  }, [user?.id, user?.email, userRole, candidateTrackingCode, viewAs]);
+  }, [user, userRole, candidateTrackingCode, viewAs]);
 
   // Development shortcut: signs in the seeded account (see scripts/seed-supabase.ts) with the seed password.
   const loginAsDevelopmentUser = async (email: string) => {
@@ -250,6 +254,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Only a superadmin can view the portal as someone else.
   const active = userRole === 'superadmin' ? viewAs : null;
+  const effectiveUser = effectiveAuthUser(user, active, isDemo, isDemo ? getCandidates() : [], isDemo ? getStaffUsers() : []);
 
   return (
     <AuthContext.Provider value={{
@@ -260,7 +265,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       stopViewAs,
       isAuthenticated,
       userRole: active ? active.role : userRole,
-      user,
+      user: effectiveUser,
       isLoading,
       candidateTrackingCode: active ? active.trackingCode ?? null : candidateTrackingCode,
       userForeignAgencyName: active ? active.foreignAgencyName ?? null : userForeignAgencyName,
