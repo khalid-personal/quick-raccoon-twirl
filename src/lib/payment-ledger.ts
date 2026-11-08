@@ -2,7 +2,7 @@ import { isForeignPayment, toUsd } from './currency';
 import type { Payment } from './types';
 
 export const PAYMENT_STATUS_LABELS: Record<Payment['status'], string> = {
-  succeeded: 'Settled', pending: 'Pending', failed: 'Failed', refunded: 'Refunded',
+  succeeded: 'Settled', pending: 'Pending', failed: 'Payment failed', 'timed-out': 'Payment timed out', refunded: 'Refunded',
 };
 export type PaymentStatusFilter = Payment['status'] | 'all';
 

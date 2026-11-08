@@ -45,13 +45,13 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(findings.some(f => f.rule === 'skipped-stage' || f.rule === 'stage-without-payment')).toBe(false);
       expect(findings.filter(f => f.rule === 'elmis-mismatch')).toHaveLength(risky);
       expect(findings.filter(f => f.rule === 'stale-stage')).toHaveLength(risky);
-      expect(findings.filter(f => f.rule === 'fee-mismatch')).toHaveLength(risky);
-      expect(findings.filter(f => f.rule === 'manual-no-reference')).toHaveLength(risky);
-      expect(data.measured.bank.short + data.measured.bank.over + data.measured.bank.missing).toBe(risky * 2);
+      expect(findings.filter(f => f.rule === 'fee-mismatch' || f.rule === 'manual-no-reference')).toHaveLength(0);
+      expect(findings.filter(f => f.rule === 'payment-not-settled')).toHaveLength(risky);
+      expect(data.measured.bank.short + data.measured.bank.over + data.measured.bank.missing).toBe(risky);
       for (const source of ['foreign', 'candidate'] as const) {
         const events = data.evidence.filter(item => item.source === source).flatMap(item => item.events);
-        expect(events).toHaveLength(risky);
-        if (risky) {
+        expect(events).toHaveLength(source === 'foreign' ? risky : 0);
+        if (risky && source === 'foreign') {
           expect(events.every(event => isForeignPayment(event.evidence!.payment!) === (source === 'foreign'))).toBe(true);
           const differences = data.evidence.filter(item => item.source === source).flatMap(item =>
             reconcile(data.payments.filter(payment => payment.payee_local_agency_id === item.agencyId && isForeignPayment(payment) === (source === 'foreign')), item.statement.lines).matches);
@@ -71,7 +71,9 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(data.stages.every(stage => stage.notes?.startsWith('DEMO'))).toBe(true);
       expect(data.candidates.every(candidate => candidate.clearance?.labour_ministry?.status === 'pending'
         && candidate.clearance.labour_ministry.simulated && !candidate.clearance.labour_ministry.qr_image_url)).toBe(true);
-      expect(data.payments.every(payment => payment.amount > 0 && payment.status === 'succeeded')).toBe(true);
+      expect(data.payments.every(payment => payment.amount > 0)).toBe(true);
+      expect(data.payments.filter(payment => !isForeignPayment(payment)).every(payment => payment.amount === fees[payment.stage_id as keyof typeof fees])).toBe(true);
+      expect(data.payments.filter(payment => payment.status !== 'succeeded')).toHaveLength(risky);
       data.evidence.forEach(({ statement }) => statement.lines.forEach(line => {
         expect(line.description).toMatch(/TRK-D\d{4}/);
         expect(line.description).toContain('Practice / synthetic');
@@ -119,7 +121,7 @@ describe('DEMO integrity scenario data, not score overrides', () => {
     console.log('DEMO achieved measurements', JSON.stringify(measurements));
     expect(measurements.map(item => item.level)).toEqual(['red', 'yellow', 'yellow', 'green', 'yellow', 'green']);
     expect(new Set(measurements.map(item => item.score)).size).toBe(6);
-    expect(measurements.map(item => item.score)).toEqual([36, 66, 71, 91, 78, 100]);
+    expect(measurements.map(item => item.score)).toEqual([43, 71, 75, 93, 81, 100]);
     expect(measurements[1].start).toBeLessThan(measurements[1].score);
     expect(measurements[3].start).toBeLessThan(measurements[3].score);
     expect(measurements[4].start).toBeGreaterThan(measurements[4].score);
@@ -235,15 +237,16 @@ it.each(INTEGRITY_DEMO_SCENARIOS)('applies $id to the actual payment and agency 
       const index = INTEGRITY_DEMO_SCENARIOS.findIndex(item => item.id === scenario.id);
       // The existing priority roster has identity/contact warnings. Scenario
       // switching preserves these rather than secretly fixing passport edits.
-      expect(result.after.score).toBeLessThanOrEqual([36, 66, 71, 91, 78, 100][index]);
-      expect(result.after.score).toBeGreaterThanOrEqual([36, 66, 71, 91, 78, 100][index] - 5);
-      expect(result.after.flaggedPayments).toBe([88, 36, 30, 8, 22, 0][index]);
+      expect(result.after.score).toBeLessThanOrEqual([43, 71, 75, 93, 81, 100][index]);
+      expect(result.after.score).toBeGreaterThanOrEqual([43, 71, 75, 93, 81, 100][index] - 5);
+      expect(result.after.flaggedPayments).toBe([44, 18, 15, 4, 11, 0][index]);
       expect(open).toHaveLength([2, 2, 1, 1, 1, 0][index]);
       if (scenario.id !== 'high') {
         expect(result.after.openPaymentCases).toBeGreaterThan(0);
         expect(open.length).toBeGreaterThan(0);
         open.forEach(record => {
           expect(record).toMatchObject({ state: 'escalated', holdActive: false });
+          expect(record.issue).toMatchObject({ source: 'foreign', agencyType: 'foreign' });
           expect(issues.find(issue => issue.id === record.issue.id)?.snapshot).toBe(record.issue.snapshot);
           expect(record.events[0]).toMatchObject({ actorId: actor.id, actor: actor.email });
           expect(record.events[0].reason).toContain('DEMO ONLY');

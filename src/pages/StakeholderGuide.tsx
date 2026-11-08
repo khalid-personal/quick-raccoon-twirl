@@ -31,7 +31,7 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Review online staff', what: 'The green dot means the account was recently active. Recorded attendance begins at sign-in and ends at logout.', next: 'Review the staff list or attendance history.', href: '/admin/users' },
     { title: 'Manage access and fees', what: 'Approved accounts determine who can enter each workspace. Stage fees are shown to candidates before payment.', next: 'Review staff approvals, agency access, and stage fees.', href: '/admin/settings' },
     { title: 'Review payments', what: 'Payment records link the candidate, stage, amount, and receipt reference.', next: 'Check payment status and open a receipt when a payment is confirmed.', href: '/admin/payments' },
-    { title: 'Read system messages', what: 'Candidate chats, notifications, and audit entries help your team coordinate and trace decisions.', next: 'Open the relevant inbox or notification list.', href: '/admin/chat' },
+    { title: 'Read system messages', what: 'Candidate chats, notifications, and audit entries help your team coordinate and trace decisions.', next: 'Click the floating chat icon at bottom right for threads or New chat; notifications stay in their own list.', href: '/admin/chat' },
     ...commonSteps,
   ],
   staff: [
@@ -39,14 +39,14 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Update the stage', what: 'Stage updates are shared with the candidate and the linked agencies.', next: 'Set the status, date, and next follow-up in the timeline editor.', href: '/admin' },
     { title: 'Check flagged records', what: 'File and workflow warnings help you find mismatches and records that may be off track.', next: 'Review the finding and update the underlying record.', href: '/admin/integrity' },
     { title: 'Attendance is automatic', what: 'Your work session begins when you sign in and ends when you log out.', next: 'Use Log out when you finish for the day.', href: '/admin/attendance' },
-    { title: 'Keep in touch', what: 'Candidate chat and notifications keep follow-ups attached to the candidate workflow.', next: 'Open your inbox and record the next action on the task.', href: '/admin/chat' },
+    { title: 'Keep in touch', what: 'Candidate chat and notifications keep follow-ups attached to the candidate workflow.', next: 'Click the bottom-right chat icon, select a thread or New chat, then record the next action on the task.', href: '/admin/chat' },
   ],
   'local-agency': [
     { title: 'Start with My tasks and team workload', what: 'Your queue includes record warnings, agency replies and contract receipt checks. Team work stays within your agency.', next: 'Open My tasks, review owners and due dates, then assign or balance work among your approved staff.', href: '/local-agency/tasks' },
     { title: 'Review candidate progress', what: 'The dashboard summarizes each stage and lists blocked, flagged, or inactive candidate files.', next: 'Open the candidate row to review the next step.', href: '/local-agency' },
     { title: 'Confirm received contracts', what: 'The foreign agency shares a secure contract link. Your agency confirms once the contract has arrived.', next: 'Open the candidate profile and mark the contract received.', href: '/local-agency' },
     { title: 'Prepare clearance', what: 'Visa, Enjaz, and Tasheer checks show what remains before ministry issuance.', next: 'Complete local checks and wait for the official ministry QR.', href: '/local-agency/clearance' },
-    { title: 'Review payments and messages', what: 'Candidate fees, receipts, and chat stay linked to your agency’s candidate records.', next: 'Open payments to review receipts, or chat to reply to a candidate.', href: '/local-agency/payments' },
+    { title: 'Review payments and messages', what: 'Candidate fees, receipts, and chat stay linked to your agency’s candidate records.', next: 'Open payments to review receipts. Missing contract transfers need follow-up with the foreign agency. Use the bottom-right icon for chat.', href: '/local-agency/payments' },
     ...commonSteps,
   ],
   'foreign-agency': [
@@ -54,21 +54,21 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Review candidate introductions', what: 'Candidate summaries, skills, languages, and introduction videos help you review a profile before sending a contract.', next: 'Open a candidate from your agency dashboard.', href: '/agency' },
     { title: 'Send a contract link', what: 'Share a secure HTTPS link with the candidate’s linked Ethiopian agency. The other agency confirms receipt.', next: 'Open the candidate viewer and send the contract link.', href: '/agency' },
     { title: 'Track clearance', what: 'The tracker shows local checks and whether the Labour Ministry certificate has been issued.', next: 'Review the candidate’s clearance status.', href: '/agency/clearance' },
-    { title: 'Review payments and messages', what: 'Your agency’s payments, receipt references, and candidate conversations stay in one workspace.', next: 'Open payments to follow a receipt, or chat to coordinate a candidate.', href: '/agency/payments' },
+    { title: 'Make contract payments and keep receipts', what: 'After the work contract is sent, your foreign agency must pay the receiving local agency. No successful covering receipt means unpaid.', next: 'Open Make contract payment in My tasks, use the candidate Payments tab, then check Money sent for the receipt. Use the bottom-right icon for chat.', href: '/agency/tasks' },
   ],
   'foreign-agency-staff': [
     { title: 'Start with My tasks', what: 'Only your assigned current-stage work is listed. Payment blockers still apply.', next: 'Open your earliest task, read the candidate record and save a permitted follow-up.', href: '/agency/tasks' },
     { title: 'Review candidate introductions', what: 'Candidate summaries, skills, languages, and introduction videos help you review a profile before sending a contract.', next: 'Open a candidate from your agency dashboard.', href: '/agency' },
     { title: 'Track a contract', what: 'The foreign agency shares a secure contract link; the linked Ethiopian agency marks it received.', next: 'Open the candidate viewer to check the handoff.', href: '/agency' },
     { title: 'Follow clearance', what: 'See visa and clearance progress for candidates linked to your agency.', next: 'Open the clearance tracker.', href: '/agency/clearance' },
-    { title: 'Coordinate candidate follow-up', what: 'Use chat and the candidate timeline to keep agency communication connected to the file.', next: 'Open candidate chat or review payments.', href: '/agency/chat' },
+    { title: 'Coordinate candidate follow-up', what: 'Use chat and the candidate timeline to keep agency communication connected to the file.', next: 'Use the bottom-right chat icon. For missing post-contract payment, follow up with your foreign agency manager, not the candidate.', href: '/agency/chat' },
   ],
   candidate: [
     { title: 'Read your document reminders', what: 'Your tracking page gives helpful reminders for missing current-stage documents, not staff assignments or penalties.', next: 'Ask the agency what is needed, then open documents and submit it to the correct stage.', href: '/track' },
     { title: 'Check your journey', what: 'Your timeline shows each step and its current status.', next: 'Open the next stage and read any action requested by your agency.', href: '/track' },
     { title: 'Share documents safely', what: 'Uploads are screened for common file risks. A review message means the agency should check the file.', next: 'Choose the stage and upload the requested document.', href: '/track' },
     { title: 'View your profile', what: 'Your photo, introduction, and recorded progress help your agencies work from one current profile.', next: 'Ask your local agency to correct anything that is out of date.', href: '/track' },
-    { title: 'Contact your agency', what: 'Use candidate chat for a question about a stage, document, payment, or follow-up.', next: 'Open chat from your tracking page.', href: '/track' },
+    { title: 'Contact your agency', what: 'Use candidate chat for a question about a stage, document, payment, or follow-up.', next: 'Click the bottom-right chat icon on your tracking page, then open your thread or choose New chat.', href: '/track' },
   ],
   auditor: [
     { title: 'Start with My tasks', what: 'Your queue groups active warnings into read-only reviews. A score summarizes warnings; it does not prove wrongdoing.', next: 'Open the highest-priority review and check supporting evidence without changing records.', href: '/auditor/tasks' },
@@ -126,6 +126,7 @@ const manual = [
   ['Integrity and audit', 'Staff, administrators and auditors', 'Review findings and their supporting information. A warning calls for review and does not by itself establish misconduct.'],
   ['Attendance and presence', 'Staff and administrators', 'Review attendance sessions and recent presence in the staff workspace.'],
   ['Settings', 'Administrators', 'Manage configured agencies, CoC centers, fees, warning thresholds and demo scenarios.'],
+  ['Demo scenario top menu', 'Demo superadmins', 'Use Switch scenario at the top without opening Settings. The six practice scenarios still require a reason and confirmation, preserve held cases and protect uploaded statements. Hidden in live mode.'],
   ['Public and candidate tracking', 'Candidates and viewers', 'Candidates sign in to their own tracking page. Viewers use a tracking code and see only what public tracking makes available.'],
 ];
 

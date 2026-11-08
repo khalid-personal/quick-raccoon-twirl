@@ -1,6 +1,7 @@
 import { ALL_STAGES } from './types';
 import { checkForeignPayment, isForeignPayment } from './currency';
 import type { ApprovalLog, IntegrityOverride, Candidate, CandidateStage, Document, MedicalResult, Payment, PaymentStatus, StaffUser } from './types';
+import { stageFeeCovered } from './stage-readiness';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
@@ -149,7 +150,7 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
 
     candidateStages.filter(s => DONE.has(s.status)).forEach(s => {
       const fee = stageFees[s.stage_id] ?? 0;
-      if (fee > 0 && !paymentStatuses.some(p => p.candidateId === c.id && p.stageId === s.stage_id && p.isPaid)) {
+      if (fee > 0 && !stageFeeCovered(c, s.stage_id, stageFees, paymentStatuses, payments)) {
         const title = ALL_STAGES.find(stage => stage.id === s.stage_id)?.title ?? `Stage ${s.stage_id}`;
         add({ key: s.stage_id, rule: 'stage-without-payment', severity: 'high', candidateId: c.id, title: 'Stage passed without recorded payment', detail: `${nameOf(c)} passed "${title}" but no payment is recorded for it (fee ${fee}).` });
       }
@@ -299,6 +300,14 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
   });
 
   payments.forEach(p => {
+    if (!isForeignPayment(p) && (p.status === 'failed' || p.status === 'timed-out')) {
+      const candidate = candidates.find(candidate => candidate.id === p.candidate_ids[0]);
+      if (candidate && p.stage_id && !stageFeeCovered(candidate, p.stage_id, stageFees, paymentStatuses, payments)) {
+        add({ rule: 'payment-not-settled', severity: 'high', paymentId: p.id, candidateId: candidate.id,
+          title: p.status === 'failed' ? 'Payment failed' : 'Payment timed out',
+          detail: `${nameOf(candidate)}: the provider payment did not settle. Complete payment before advancing this stage; this is not an agency transfer discrepancy.` });
+      }
+    }
     if (time(p.created_at) > now + DAY) add({ rule: 'payment-future', severity: 'high', paymentId: p.id, title: 'Payment dated in the future', detail: `Payment of ${p.amount} ${p.currency} is dated ${p.created_at.slice(0, 10)}.` });
     const covered = p.candidate_ids.map(id => candidateById.get(id)).filter((c): c is Candidate => !!c);
     if (!isForeignPayment(p) && p.payer_candidate_id && !p.candidate_ids.includes(p.payer_candidate_id)) {

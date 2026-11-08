@@ -27,7 +27,7 @@ export const updateAppConfig = async (
         || JSON.stringify(directorySignature(config.foreignAgencies)) !== JSON.stringify(directorySignature(oldConfig.foreignAgencies ?? []))) {
         throw new Error('Agency directory changes are unavailable until the official ELMIS integration is configured.');
     }
-    const next = { ...config, localAgencies: oldConfig.localAgencies, foreignAgencies: oldConfig.foreignAgencies, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow };
+    const next = { ...config, localAgencies: oldConfig.localAgencies, foreignAgencies: oldConfig.foreignAgencies, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow, foreignUnderpaymentRenewal: oldConfig.foreignUnderpaymentRenewal };
     saveConfig(next);
     
     // --- LOGGING ---

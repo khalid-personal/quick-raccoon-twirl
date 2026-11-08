@@ -8,7 +8,7 @@ import { filterPaymentLedger, type PaymentStatusFilter } from '@/lib/payment-led
 import type { Payment } from '@/lib/types';
 vi.mock('@/hooks/use-reduced-motion', () => ({ usePrefersReducedMotion: () => true }));
 
-const payments = (['succeeded', 'pending', 'failed', 'refunded'] as const).map((status, index): Payment => ({
+const payments = (['succeeded', 'pending', 'failed', 'timed-out', 'refunded'] as const).map((status, index): Payment => ({
   id: String(index), status, amount: 3750, currency: 'SAR', payer_type: 'foreign-agency',
   payer_foreign_agency_id: 'foreign', payee_local_agency_id: 'local', candidate_ids: [],
   created_at: '2026-11-07', updated_at: '2026-11-07',
@@ -45,13 +45,13 @@ describe('interactive status summaries', () => {
   });
   it('filters and restores ledger rows when each status tile is clicked', async () => {
     await act(async () => root.render(<Ledger />));
-    for (const [label, status] of [['Settled', 'succeeded'], ['Pending', 'pending'], ['Failed', 'failed'], ['Refunded', 'refunded']]) {
+    for (const [label, status] of [['Settled', 'succeeded'], ['Pending', 'pending'], ['Payment failed', 'failed'], ['Payment timed out', 'timed-out'], ['Refunded', 'refunded']]) {
       const button = Array.from(container.querySelectorAll('button')).find(item => item.textContent?.includes(label))!;
       await act(async () => button.click());
       expect(button.getAttribute('aria-pressed')).toBe('true');
       expect(container.querySelector('[data-testid="ledger"]')?.textContent).toBe(status);
       await act(async () => button.click());
-      expect(container.querySelectorAll('[data-testid="ledger"] li')).toHaveLength(4);
+      expect(container.querySelectorAll('[data-testid="ledger"] li')).toHaveLength(5);
     }
   });
   it('makes shared portal stat cards keyboard-focusable filter buttons when wired', async () => {

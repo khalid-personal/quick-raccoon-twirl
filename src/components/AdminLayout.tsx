@@ -1,11 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { BadgeCheck, Bell, BookOpen, CalendarDays, ClipboardCheck, Eye, Key, LayoutDashboard, MapPin, MessageSquare, Receipt, ShieldAlert, Settings, UserCheck, UserCog } from 'lucide-react';
+import { BadgeCheck, Bell, BookOpen, CalendarDays, ClipboardCheck, Eye, Key, LayoutDashboard, MapPin, Receipt, ShieldAlert, Settings, UserCheck, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
-import api from '@/lib/api';
-import { ChatMessage } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +15,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [trackingOpen, setTrackingOpen] = React.useState(false);
   const [trackingCode, setTrackingCode] = React.useState('');
   const isSuperAdmin = userRole === 'superadmin';
-
-  const { data: inboxSummary = [] } = useQuery<ChatMessage[]>({
-    queryKey: ['adminInboxSummary'],
-    queryFn: api.getAdminInboxSummary,
-    enabled: userRole === 'superadmin' || userRole === 'staff',
-    refetchInterval: 10000,
-  });
-  const unreadChats = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
 
   const openTracking = () => {
     const code = trackingCode.trim();
@@ -43,7 +32,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       label: 'Operations',
       items: [
         { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard /> },
-        { to: '/admin/chat', label: 'Candidate Chat', icon: <MessageSquare />, badge: unreadChats },
         { to: '/admin/training-map', label: 'CoC Centers', icon: <MapPin /> },
         { to: '/admin/tasks', label: 'My Tasks', icon: <ClipboardCheck /> },
         { to: '/admin/clearance', label: 'Clearance & Visa', icon: <BadgeCheck /> },

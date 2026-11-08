@@ -136,15 +136,16 @@ describe('demo dataset', () => {
     expect(new Set(findings.map(f => f.id)).size).toBe(findings.length);
   });
 
-  it('creates a Priority scenario with an integrity score of 94 and a few flags', () => {
+  it('keeps Priority payment failures visible alongside its existing flags', () => {
     const findings = analyzeIntegrity({
       candidates: priorityData.candidates, stages: priorityData.stages, payments: priorityData.payments,
       paymentStatuses: priorityData.paymentStatuses, medicals: priorityData.medicals, logs: priorityData.logs,
       stageFees: { 1: 500, 2: 2200, 3: 2000, 4: 6000 }, now: NOW,
     });
-    expect(findings, findings.map(f => f.rule).join(', ')).toHaveLength(8);
-    expect(countBySeverity(findings)).toEqual({ critical: 2, high: 1, medium: 0, low: 5 });
-    expect(riskScore(findings, priorityData.candidates.length)).toBe(94);
+    expect(findings, findings.map(f => f.rule).join(', ')).toHaveLength(11);
+    expect(countBySeverity(findings)).toEqual({ critical: 2, high: 4, medium: 0, low: 5 });
+    expect(findings.filter(f => f.rule === 'payment-not-settled')).toHaveLength(3);
+    expect(riskScore(findings, priorityData.candidates.length)).toBe(92);
   });
 
   it('keeps High performing free of findings and Needs attention visibly off track', () => {

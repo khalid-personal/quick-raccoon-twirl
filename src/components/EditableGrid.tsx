@@ -82,6 +82,7 @@ const EditableGrid: React.FC<{ pageId: string; title?: string; items: GridItem[]
           return (
             <div
               key={id}
+              data-tour={`${pageId}-${id}`}
               className={cn('relative min-w-0 col-span-1', SPAN_CLASS[span], editing && 'cursor-grab rounded-xl outline outline-2 outline-offset-4 outline-primary/30 motion-safe:animate-jiggle', dragId === id && 'opacity-40')}
               style={editing ? { animationDelay: `${(index % 4) * -220}ms` } : undefined}
               draggable={editing}

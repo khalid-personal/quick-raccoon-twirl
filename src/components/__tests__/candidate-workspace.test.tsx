@@ -30,6 +30,9 @@ describe('candidate multitasking workspace', () => {
   it('opens profiles without navigating, preserves draft/section through minimize and switches bottom tabs', async () => {
     await act(async () => render());
     await act(async () => button(candidates[0].first_name).click());
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.querySelector<HTMLElement>('[role="dialog"]')?.style.resize).toBe('both');
+    expect(button('Minimize to list').className).toContain('text-yellow-600');
     expect(container.querySelector('[data-testid="route"]')?.textContent).toBe('/admin');
     const draft = document.querySelector<HTMLTextAreaElement>(`textarea[aria-label="Draft ${candidates[0].id}"]`)!;
     await act(async () => {
@@ -38,11 +41,14 @@ describe('candidate multitasking workspace', () => {
       button('Open documents').click();
     });
     await act(async () => button('Minimize to list').click());
+    expect(document.body.style.overflow).not.toBe('hidden');
     expect(document.body.style.pointerEvents).not.toBe('none');
     await act(async () => button(candidates[1].first_name).click());
+    expect(document.body.style.overflow).toBe('hidden');
     expect(document.querySelectorAll('[role="tablist"][aria-label="Open candidate profiles"] [role="tab"]')).toHaveLength(2);
     const tabs = document.querySelectorAll<HTMLButtonElement>('[role="tablist"][aria-label="Open candidate profiles"] [role="tab"]');
     await act(async () => tabs[0].click());
+    expect(document.body.style.overflow).toBe('hidden');
     const panel = document.getElementById(tabs[0].getAttribute('aria-controls')!)!;
     expect(panel.getAttribute('aria-labelledby')).toBe(tabs[0].id);
     await act(async () => tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));

@@ -25,7 +25,6 @@ import PaymentLedgerSummary from '@/components/PaymentLedgerSummary';
 import { filterPaymentLedger, PAYMENT_STATUS_LABELS, type PaymentStatusFilter } from '@/lib/payment-ledger';
 import { getCandidates, getForeignAgencies, getLocalAgencies } from '@/lib/data-store';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import LocalPaymentEvidence from '@/components/LocalPaymentEvidence';
 import { usePageMemory } from '@/hooks/use-page-memory';
 import AgencyResolutionCenter from '@/components/AgencyResolutionCenter';
 import PaymentHistoryOverview from '@/components/PaymentHistoryOverview';
@@ -52,7 +51,6 @@ const PaymentHistoryPage: React.FC = () => {
   const [from, setFrom] = usePageMemory('from', '');
   const [to, setTo] = usePageMemory('to', '');
   const [agency, setAgency] = usePageMemory('agency', params.get('agency') ?? '');
-  const [statementSource, setStatementSource] = usePageMemory<'foreign' | 'candidate'>('statement-source', params.get('source') === 'candidate' ? 'candidate' : 'foreign');
   const [tab, setTab] = usePageMemory('tab-v2', ['ledger', 'discrepancies', 'resolution'].includes(params.get('tab') ?? '') ? params.get('tab')! : 'overview');
   const [openReceipts, setOpenReceipts] = React.useState<Array<{ payment: Payment; activation: number }>>([]);
   const inspectReceipt = (payment: Payment) => setOpenReceipts(previous => previous.some(item => item.payment.id === payment.id)
@@ -64,8 +62,8 @@ const PaymentHistoryPage: React.FC = () => {
     if (['overview', 'ledger', 'discrepancies', 'resolution'].includes(params.get('tab') ?? '')) setTab(params.get('tab')!);
     if (location.hash === '#resolution') setTab('resolution');
     if (params.get('agency')) setAgency(params.get('agency')!);
-    if (params.get('source')) setStatementSource(params.get('source') === 'candidate' ? 'candidate' : 'foreign');
-  }, [params, location.hash, setAgency, setStatementSource, setTab]);
+    if (params.get('source') === 'candidate' && params.get('tab') === 'discrepancies') { setPaymentView('candidate'); setTab('ledger'); }
+  }, [params, location.hash, setAgency, setPaymentView, setTab]);
   const { data: agencies = [] } = useQuery({ queryKey: ['paymentReviewAgencies'], queryFn: api.getLocalAgencyList, enabled: canInspect && !isLocal && !isLocalStaff });
   const { data: loadedPayments = [], isLoading, isError, refetch } = useQuery<Payment[]>({
     queryKey: ['paymentHistory', userRole, userLocalAgencyId, userForeignAgencyId],
@@ -186,14 +184,13 @@ const PaymentHistoryPage: React.FC = () => {
     </CardContent></Card>
     </TabsContent>
     {canInspect && <TabsContent value="discrepancies" className="space-y-4">
-      <ToggleGroup navigation type="single" value={statementSource} onValueChange={value => { if (value) setStatementSource(value as typeof statementSource); }} aria-label="Statement payment source"><ToggleGroupItem value="foreign"><Globe2 aria-hidden="true" />Foreign → local</ToggleGroupItem><ToggleGroupItem value="candidate"><UserRound aria-hidden="true" />Candidate → local / ChechePay</ToggleGroupItem></ToggleGroup>
+      <div><h2 className="text-xl font-semibold">Foreign agency → local agency discrepancies</h2><p className="mt-1 text-sm text-muted-foreground">Candidate ChechePay payments are shown in the receipt list as pending, payment failed or payment timed out. They do not create local agency discrepancy cases.</p></div>
       {!isLocal && !isLocalStaff && <Select value={agency || 'all'} onValueChange={value => setAgency(value === 'all' ? '' : value)}><SelectTrigger aria-label="Recipient agency for statement review" className="w-full sm:w-96"><SelectValue placeholder="Select a recipient local agency" /></SelectTrigger><SelectContent><SelectItem value="all">All local agencies</SelectItem>{agencies.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select>}
-      {userRole === 'superadmin' && statementSource === 'foreign' && <AgencyPaymentReconciliation localAgencyId={reviewAgency || undefined} />}
-      {statementSource === 'candidate' && <LocalPaymentEvidence key={reviewAgency || 'all'} localAgencyId={reviewAgency || (isLocal || isLocalStaff ? userLocalAgencyId ?? undefined : undefined)} />}
+      {userRole === 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency || undefined} />}
       {reviewAgency ? <>
-        {statementSource === 'foreign' && userRole !== 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency} />}
-        <BankReconciliation key={`${reviewAgency}:${statementSource}`} agencyId={reviewAgency} paymentSource={statementSource} allowActions={canReview} payments={(statementSource === 'foreign' ? foreignPayments : candidatePayments).filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
-      </> : statementSource === 'foreign' ? <section aria-label="Foreign transfer bank differences" className="space-y-5">
+        {userRole !== 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency} />}
+        <BankReconciliation key={reviewAgency} agencyId={reviewAgency} paymentSource="foreign" allowActions={canReview} payments={foreignPayments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
+      </> : <section aria-label="Foreign transfer bank differences" className="space-y-5">
         <div><h2 className="text-xl font-semibold">Foreign transfers compared with bank records</h2><p className="text-sm text-muted-foreground">Check short payments, extra amounts and missing bank entries by receiving local agency. Contract checks above are separate from these bank differences.</p></div>
         {agencies.filter(item => foreignPayments.some(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === item.id)).map(item =>
           <section key={item.id} aria-label={`${item.name} foreign transfer checks`} className="space-y-3 rounded-2xl border p-4">
@@ -201,12 +198,12 @@ const PaymentHistoryPage: React.FC = () => {
             <BankReconciliation agencyId={item.id} paymentSource="foreign" allowActions={canReview} payments={foreignPayments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === item.id)} />
           </section>)}
         {!foreignPayments.some(payment => payment.status === 'succeeded') && <p className="text-sm text-muted-foreground">No settled foreign transfers to compare in this view.</p>}
-      </section> : <p className="text-sm text-muted-foreground">Choose a local agency to compare payments with its work contracts and uploaded bank records.</p>}
+      </section>}
     </TabsContent>}
     {userRole === 'superadmin' && <TabsContent value="resolution"><div id="resolution"><AgencyResolutionCenter /></div></TabsContent>}
     </Tabs>
-    {openReceipts.filter(item => payments.some(payment => payment.id === item.payment.id)).map(item => isForeign
-      ? <PaymentReceipt key={item.payment.id} payment={payments.find(payment => payment.id === item.payment.id)!} outbound open onOpenChange={open => { if (!open) setOpenReceipts(previous => previous.filter(other => other.payment.id !== item.payment.id)); }} />
+    {openReceipts.filter(item => payments.some(payment => payment.id === item.payment.id)).map(item => isForeign || !isForeignPayment(item.payment)
+      ? <PaymentReceipt key={item.payment.id} payment={payments.find(payment => payment.id === item.payment.id)!} outbound={isForeign} open onOpenChange={open => { if (!open) setOpenReceipts(previous => previous.filter(other => other.payment.id !== item.payment.id)); }} />
       : <PaymentReviewWindow key={item.payment.id} payment={payments.find(payment => payment.id === item.payment.id)!} payments={payments} activation={item.activation} canReview={canReview} onClose={() => setOpenReceipts(previous => previous.filter(other => other.payment.id !== item.payment.id))} />)}
   </div>;
 };

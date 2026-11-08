@@ -4,7 +4,8 @@ import CandidateRowActions from '@/components/CandidateRowActions';
 import { useCandidateGuidance } from '@/hooks/use-candidate-guidance';
 import { candidateListStatus, isCandidateListStatus, summarizeCandidateListStatuses, type CandidateListStatus } from '@/lib/candidate-list-status';
 import { useAuth } from '@/lib/auth-context';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useSearchParams } from 'react-router-dom';
+import { contractWasSent, foreignContractPayment } from '@/lib/foreign-contract-payment';
 import { Loader2 } from 'lucide-react';
 import { contractCountryOf, currencyForCountry, minimumPerCandidate } from '@/lib/currency';
 import { Building, Search, Filter, ArrowUp, ArrowDown, CheckCircle, DollarSign, ChevronLeft, ChevronRight, User } from 'lucide-react';
@@ -214,6 +215,7 @@ const AgencyDashboard: React.FC = () => {
 
   // Payment related states
   const [selectedCandidatesForPayment, setSelectedCandidatesForPayment] = useState<CandidateSummary[]>([]);
+  const [paymentParams, setPaymentParams] = useSearchParams();
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState<boolean>(false);
   const [selectedCandidateDetail, setSelectedCandidateDetail] = useState<CandidateDetail | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
@@ -227,6 +229,20 @@ const AgencyDashboard: React.FC = () => {
     queryFn: async () => (await api.searchCandidates('')).filter(c => c.foreign_agency_id === userForeignAgencyId || c.profile_shares?.some(share => share.foreign_agency_id === userForeignAgencyId)),
     enabled: !!userForeignAgencyId,
   });
+  React.useEffect(() => {
+    const candidateId = paymentParams.get('payCandidate');
+    if (!candidateId || !overviewCandidates.length) return;
+    const candidate = overviewCandidates.find(candidate => candidate.id === candidateId && candidate.foreign_agency_id === userForeignAgencyId);
+    if (!candidate || !['agency', 'foreign-agency'].includes(userRole ?? '')) {
+      toast.error('Choose a candidate assigned to your foreign agency.');
+    } else {
+      setSelectedCandidatesForPayment([candidate]);
+      setIsPaymentDialogOpen(true);
+    }
+    const next = new URLSearchParams(paymentParams);
+    next.delete('payCandidate');
+    setPaymentParams(next, { replace: true });
+  }, [paymentParams, overviewCandidates, userForeignAgencyId, userRole, setPaymentParams]);
 
   const { data: fetchedCandidates = [], isLoading, refetch } = useQuery({
     queryKey: ['agencyCandidates', currentQuery, userForeignAgencyId, sortBy, sortDirection],
@@ -582,7 +598,7 @@ const AgencyDashboard: React.FC = () => {
                         const localAgency = localAgencies.find(la => la.id === candidate.local_agency_id);
                         
                         // Only allow selection of candidates that are 'In Progress' and 'unpaid'
-                        const isSelectable = candidate.overall_status === 'In Progress' && candidate.payment_status === 'unpaid';
+                        const isSelectable = contractWasSent(candidate) && !foreignContractPayment(candidate, getPayments()).paid;
 
                         return (
                           <TableRow key={candidate.id} className={cn(isSelected && "bg-blue-50/50 dark:bg-blue-950/50")}>

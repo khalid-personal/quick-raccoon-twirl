@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getCandidates, getCandidateStages, getMedicalResults, getPaymentStatuses, initializeDataStore, saveCandidateStages, saveMedicalResults, savePaymentStatuses } from '../../data-store';
+import { getCandidates, getCandidateStages, getMedicalResults, getPaymentStatuses, getConfig, getPayments, savePayments, initializeDataStore, saveCandidateStages, saveMedicalResults, savePaymentStatuses } from '../../data-store';
 import { updateMedicalResult } from '../medical-management';
 import { updateStageStatus } from '../stage-management';
-import { ALL_STAGES } from '../../types';
+import { ALL_STAGES, type Candidate } from '../../types';
+
+const recordFee = (candidate: Candidate, stageId: number) => savePayments([...getPayments(), {
+  id: `fee-${candidate.id}-${stageId}`, stage_id: stageId, amount: getConfig().stageFees![stageId], currency: 'ETB', status: 'succeeded',
+  payer_type: 'candidate', payer_foreign_agency_id: '', payee_local_agency_id: candidate.local_agency_id!,
+  candidate_ids: [candidate.id], created_at: '2026-11-08', updated_at: '2026-11-08',
+}]);
 
 describe('medical stage and gender rules', () => {
   beforeEach(() => {
@@ -29,6 +35,7 @@ describe('medical stage and gender rules', () => {
   it('requires training completion before starting the medical stage', async () => {
     const candidate = getCandidates().find(record => record.tracking_code === 'TRK-ET-0001')!;
     const medicalStage = ALL_STAGES.find(stage => stage.slug === 'medical')!;
+    recordFee(candidate, 1);
     savePaymentStatuses([...getPaymentStatuses(), { candidateId: candidate.id, stageId: 1, isPaid: true }]);
     saveCandidateStages(getCandidateStages().map(stage => stage.candidate_id === candidate.id && stage.stage_id === 1 ? { ...stage, status: 'Completed' } : stage));
 
@@ -49,11 +56,14 @@ describe('medical stage and gender rules', () => {
       .rejects.toThrow('Registration cannot be completed until its 500 ETB stage fee is paid.');
 
     savePaymentStatuses([...getPaymentStatuses(), { candidateId: candidate.id, stageId: registrationStage.id, isPaid: true }]);
+    await expect(updateStageStatus(candidate.id, registrationStage.id, 'Completed')).rejects.toThrow('stage fee is paid');
+    recordFee(candidate, registrationStage.id);
     await expect(updateStageStatus(candidate.id, registrationStage.id, 'Completed')).resolves.toMatchObject({ status: 'Completed' });
   });
   it('can start male deployment without a pregnancy check or an undefined candidate error', async () => {
     const male = getCandidates().find(candidate => candidate.gender === 'male')!;
     const deployment = ALL_STAGES.find(stage => stage.slug === 'deployment')!;
+    ALL_STAGES.forEach(stage => recordFee(male, stage.id));
     savePaymentStatuses([
       ...getPaymentStatuses().filter(payment => payment.candidateId !== male.id),
       ...ALL_STAGES.map(stage => ({ candidateId: male.id, stageId: stage.id, isPaid: true })),

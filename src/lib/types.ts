@@ -76,6 +76,7 @@ export interface AppConfig {
   staffTaskWeights?: Record<string, number>;
   integrityScoreThresholds?: { greenMin: number; yellowMin: number };
   ministrySubmissionWindow?: { startsOn: string; endsOn: string };
+  foreignUnderpaymentRenewal?: { renewsOn: string; cycleStartsOn?: string };
 }
 
 // NEW: Staff User Interface
@@ -439,7 +440,7 @@ export interface Payment {
   stripe_payment_intent_id?: string; // Actual Stripe ID if integrated
   amount: number;
   currency: string;
-  status: 'pending' | 'succeeded' | 'failed' | 'refunded';
+  status: 'pending' | 'succeeded' | 'failed' | 'timed-out' | 'refunded';
   payer_type?: 'foreign-agency' | 'candidate'; // Foreign agency payments must be in the contract country's currency
   contract_country?: string; // Country where the work contract originates
   payer_candidate_id?: string; // Set when the candidate pays the local agency directly

@@ -5,7 +5,13 @@ import { stageFeeCovered, stageProgressBlockers } from '../stage-readiness';
 import { getActiveStageTasks } from '../staff-tasks';
 import { updateStageStatus } from '../api/stage-management';
 import { updateMedicalResult } from '../api/medical-management';
-import { ALL_STAGES, type Payment } from '../types';
+import { ALL_STAGES, type Payment, type Candidate } from '../types';
+
+const recordFees = (candidate: Candidate, stageIds: number[]) => savePayments(stageIds.map(stageId => ({
+  id: `fee-${stageId}`, stage_id: stageId, amount: getConfig().stageFees![stageId], currency: 'ETB', status: 'succeeded',
+  payer_type: 'candidate', payer_foreign_agency_id: '', payee_local_agency_id: candidate.local_agency_id!,
+  candidate_ids: [candidate.id], created_at: '2026-11-08', updated_at: '2026-11-08',
+})));
 
 beforeEach(() => { localStorage.clear(); sessionStorage.clear(); initializeDataStore(); });
 describe('ordered paid stage progression', () => {
@@ -24,7 +30,7 @@ describe('ordered paid stage progression', () => {
     expect(tasks[0]).toMatchObject({ stage: { stage_id: 1 }, action: 'Await payment' });
     expect(stageProgressBlockers(candidate, 4, 'In Progress', getCandidateStages(), getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments()).join(' ')).toContain('Training must be completed first');
   });
-  it.each(['pending', 'failed', 'refunded', 'short', 'wrong-currency', 'wrong-agency', 'shared'] as const)('does not accept a paid checkbox when %s receipts contradict it', async kind => {
+  it.each(['missing', 'pending', 'failed', 'refunded', 'short', 'wrong-currency', 'wrong-agency', 'shared'] as const)('does not accept a paid checkbox when %s receipts contradict it', async kind => {
     const candidate = setup();
     savePaymentStatuses([{ candidateId: candidate.id, stageId: 1, isPaid: true }]);
     const fee = getConfig().stageFees![1];
@@ -32,7 +38,7 @@ describe('ordered paid stage progression', () => {
       status: kind === 'pending' || kind === 'failed' || kind === 'refunded' ? kind : 'succeeded',
       payer_type: 'candidate', payer_foreign_agency_id: '', payee_local_agency_id: kind === 'wrong-agency' ? 'other-local-agency' : candidate.local_agency_id!,
       candidate_ids: kind === 'shared' ? [candidate.id, 'second-candidate'] : [candidate.id], stage_id: 1, created_at: '2026-11-08', updated_at: '2026-11-08' };
-    savePayments([payment]);
+    savePayments(kind === 'missing' ? [] : [payment]);
     expect(stageFeeCovered(candidate, 1, getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments())).toBe(false);
     await expect(updateStageStatus(candidate.id, 3, 'In Progress')).rejects.toThrow('Await payment');
   });
@@ -54,6 +60,7 @@ describe('ordered paid stage progression', () => {
   });
   it('a single passing medical exam cannot complete the stage, and full results still require medical payment', async () => {
     const candidate = setup();
+    recordFees(candidate, [1, 3]);
     saveCandidateStages(getCandidateStages().map(stage => stage.candidate_id === candidate.id && stage.stage_id !== 4 ? { ...stage, status: stage.stage_id === 2 ? 'Pending' : 'Completed' } : stage));
     savePaymentStatuses(ALL_STAGES.filter(stage => stage.id !== 2).map(stage => ({ candidateId: candidate.id, stageId: stage.id, isPaid: true })));
     await updateMedicalResult(candidate.id, 'HIV', 'Passed');
@@ -65,6 +72,7 @@ describe('ordered paid stage progression', () => {
   });
   it('cannot manually complete paid medical checks without every required exam', async () => {
     const candidate = setup();
+    recordFees(candidate, [1, 3, 2]);
     savePaymentStatuses(ALL_STAGES.map(stage => ({ candidateId: candidate.id, stageId: stage.id, isPaid: true })));
     saveCandidateStages(getCandidateStages().map(stage => stage.candidate_id === candidate.id && [1, 3].includes(stage.stage_id) ? { ...stage, status: 'Completed' } : stage));
     await expect(updateStageStatus(candidate.id, 2, 'Passed')).rejects.toThrow('Every required medical exam');

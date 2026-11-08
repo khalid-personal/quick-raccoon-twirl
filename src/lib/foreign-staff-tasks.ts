@@ -1,11 +1,12 @@
 import { ALL_STAGES, type Candidate, type CandidateStage, type Payment, type PaymentStatus, type StaffUser } from './types';
 import { stageFeeCovered, stageIsComplete } from './stage-readiness';
+import { contractWasSent, foreignContractPayment } from './foreign-contract-payment';
 
 export interface ForeignStaffTask {
   candidate: Candidate;
   stage: CandidateStage;
   stageTitle: string;
-  action: 'Awaiting payment' | 'Resolve blocker' | 'Follow up' | 'Start stage';
+  action: 'Make contract payment' | 'Awaiting payment' | 'Resolve blocker' | 'Follow up' | 'Start stage';
 }
 
 export function foreignAgencyTasks(
@@ -19,8 +20,13 @@ export function foreignAgencyTasks(
     own.set(stage.stage_id, stage);
     byCandidate.set(stage.candidate_id, own);
   }
-  return candidates.filter(candidate => candidate.foreign_agency_id === agencyId).flatMap(candidate => {
+  return candidates.filter(candidate => candidate.foreign_agency_id === agencyId).flatMap<ForeignStaffTask>(candidate => {
     const own = byCandidate.get(candidate.id);
+    if (contractWasSent(candidate) && !foreignContractPayment(candidate, payments).paid) {
+      const stage = ordered.map(meta => own?.get(meta.id)).find(item => item && !stageIsComplete(item.status))
+        ?? own?.get(ordered[ordered.length - 1].id);
+      if (stage) return [{ candidate, stage, stageTitle: 'Contract sent → foreign agency payment', action: 'Make contract payment' as const }];
+    }
     for (const meta of ordered) {
       const stage = own?.get(meta.id);
       if (!stage) return [];

@@ -16,6 +16,8 @@ import AgencyLayout from '@/components/AgencyLayout';
 import AuditorLayout from '@/components/AuditorLayout';
 import { CandidateQuickViewProvider } from '@/components/CandidateQuickViewProvider';
 import PortalWalkthrough from '@/components/PortalWalkthrough';
+import CandidateChatLauncher from '@/components/CandidateChatLauncher';
+import DemoScenarioBar from '@/components/DemoScenarioBar';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminCandidateDetail from '@/pages/AdminCandidateDetail';
 import AdminUserManagement from '@/pages/AdminUserManagement';
@@ -75,6 +77,7 @@ const CandidateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AppRoutes = () => (
   <>
+  <DemoScenarioBar />
   <Routes>
     <Route path="/" element={<Navigate to="/login" replace />} />
     <Route path="/login" element={<AuthPage />} />
@@ -131,6 +134,7 @@ const AppRoutes = () => (
     <Route path="*" element={<NotFound />} />
   </Routes>
   <PortalWalkthrough />
+  <CandidateChatLauncher />
   </>
 );
 

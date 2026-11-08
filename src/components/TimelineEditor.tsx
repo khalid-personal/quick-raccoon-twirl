@@ -11,6 +11,7 @@ import { getStatusColor, cn } from '@/lib/utils';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import StageEditorDialog from './StageEditorDialog';
 import { usePortalData } from '@/hooks/use-portal-data';
+import { stageFeeCovered } from '@/lib/stage-readiness';
 
 interface TimelineEditorProps {
   candidateDetail: CandidateDetail;
@@ -43,7 +44,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
       setParams(next, { replace: true });
     }
   };
-  const { paymentStatuses, stageFees } = usePortalData();
+  const { paymentStatuses, stageFees, payments } = usePortalData();
   const stages = [...candidateDetail.stages]
     .sort((a, b) => (ALL_STAGES.find(stage => stage.id === a.stage_id)?.ordinal ?? 0) - (ALL_STAGES.find(stage => stage.id === b.stage_id)?.ordinal ?? 0))
     .map(candidateStage => ({ candidateStage, stage: ALL_STAGES.find(stage => stage.id === candidateStage.stage_id) }))
@@ -101,7 +102,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
           const active = candidateStage.status === 'In Progress';
           const stageDocuments = candidateDetail.documents.filter(document => document.stage_id === stage.id);
           const stageFee = stageFees[stage.id] ?? stage.fee_amount ?? 0;
-          const feePaid = paymentStatuses.some(payment => payment.candidateId === candidateDetail.id && payment.stageId === stage.id && payment.isPaid);
+          const feePaid = stageFeeCovered(candidateDetail, stage.id, stageFees, paymentStatuses, payments);
           const PaymentIcon = stageFee <= 0 ? MinusCircle : feePaid ? BadgeCheck : BadgeAlert;
           const iconTone = failed ? 'bg-rose-500/10 text-rose-600 ring-rose-500/20'
             : done ? 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/20'

@@ -10,6 +10,7 @@ const statusCards = [
   { status: 'succeeded', label: 'Settled receipts', detail: 'Marked received; bank checking is separate', icon: CheckCircle2, tone: 'text-emerald-700 dark:text-emerald-300 border-emerald-500/30 bg-emerald-500/10' },
   { status: 'pending', label: 'Waiting for confirmation', detail: 'Not yet counted as money received', icon: Clock3, tone: 'text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10' },
   { status: 'failed', label: 'Failed payments', detail: 'Open the receipt to find the cause', icon: XCircle, tone: 'text-rose-700 dark:text-rose-300 border-rose-500/30 bg-rose-500/10' },
+  { status: 'timed-out', label: 'Payment timed out', detail: 'Confirmation expired; payment is not received', icon: Clock3, tone: 'text-rose-700 dark:text-rose-300 border-rose-500/30 bg-rose-500/10' },
   { status: 'refunded', label: 'Refunded payments', detail: 'Kept separate from collections', icon: RotateCcw, tone: 'text-violet-700 dark:text-violet-300 border-violet-500/30 bg-violet-500/10' },
 ] as const;
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePageMemory } from '@/hooks/use-page-memory';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
@@ -36,7 +36,6 @@ import { candidateListStatus, isCandidateListStatus, type CandidateListStatus } 
 import { getCandidateStages } from '@/lib/data-store';
 import { toast } from 'sonner';
 import CandidateStatusSummary from '@/components/CandidateStatusSummary';
-import LocalPaymentEvidence from '@/components/LocalPaymentEvidence';
 import ControlRoomHeader from '@/components/ControlRoomHeader';
 import AgencyResolutionCenter from '@/components/AgencyResolutionCenter';
 
@@ -76,6 +75,17 @@ const AdminDashboard: React.FC = () => {
   const [filterForeignAgencyId, setFilterForeignAgencyId] = usePageMemory('foreign', ALL_AGENCIES_FILTER);
   const [visualLocalAgencyId, setVisualLocalAgencyId] = usePageMemory('visual-local', ALL_AGENCIES_FILTER);
   const [activeSection, setActiveSection] = usePageMemory('section', 'overview');
+  const [params, setParams] = useSearchParams();
+  const requestedSection = params.get('section');
+  const section = ['overview', 'portfolio', 'finance', 'compliance', 'candidates'].includes(requestedSection ?? '') ? requestedSection! : activeSection;
+  const selectSection = (value: string) => {
+    setActiveSection(value);
+    if (requestedSection) {
+      const next = new URLSearchParams(params);
+      next.set('section', value);
+      setParams(next, { replace: true });
+    }
+  };
   const [isScanOpen, setIsScanOpen] = useState(false);
   
   // Sorting state
@@ -201,7 +211,7 @@ const AdminDashboard: React.FC = () => {
         <p className="mt-1 text-sm text-muted-foreground">Candidates will arrive from ELMIS with their Labor ID and assigned local agency. Manual creation is disabled. The official API connection is pending; existing records remain available. Passport upload attaches evidence to one matching existing candidate, never creates another.</p>
       </section>
 
-      {isSuperAdmin && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+      {isSuperAdmin && <div data-tour="dashboard-agency-scope" className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
         <span className="text-sm font-medium">Dashboard view</span>
         <Select value={visualLocalAgencyId} onValueChange={setVisualLocalAgencyId}>
           <SelectTrigger aria-label="Filter dashboard by local agency" className="w-64"><SelectValue placeholder="Local agency" /></SelectTrigger>
@@ -212,10 +222,10 @@ const AdminDashboard: React.FC = () => {
         </Select>
         <span className="text-xs text-muted-foreground">Applies to the agency score, totals, charts, payment issues and candidate lists across dashboard sections.</span>
       </div>}
-      <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-5">
+      <Tabs value={section} onValueChange={selectSection} className="space-y-5">
         <ControlRoomTabs />
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" data-tour="dashboard-overview" className="space-y-6">
       <DashSection title="Today’s overview" subtitle="Candidate progress, issues and assigned work" icon={LayoutDashboard} />
       <EditableGrid pageId="dash-overview" title="Overview" items={[
       { id: 'integrity', title: 'Record check score', node: !isLocalAgency && <IntegrityCard localAgencyId={visualLocalId} /> },
@@ -243,7 +253,7 @@ const AdminDashboard: React.FC = () => {
       ]} />
         </TabsContent>
 
-        <TabsContent value="portfolio" className="space-y-6">
+        <TabsContent value="portfolio" data-tour="dashboard-workforce" className="space-y-6">
       <DashSection title="Candidate portfolio" subtitle="Who is where in the journey, and who is already working" icon={Users2} />
       <EditableGrid pageId="dash-portfolio" title="Candidate portfolio" items={[
       { id: 'lifecycle', title: 'Candidate journeys', span: 6, node: <PortfolioLifecycle localAgencyId={visualLocalId} /> },
@@ -253,24 +263,23 @@ const AdminDashboard: React.FC = () => {
       ]} />
         </TabsContent>
 
-        <TabsContent value="finance" className="space-y-6">
+        <TabsContent value="finance" data-tour="dashboard-payments" className="space-y-6">
       <DashSection title="Finance" subtitle="Collections, receipts and agency settlement checks" icon={Wallet} />
-      <Button asChild variant="outline"><Link to={isLocalAgency ? '/local-agency/payments' : '/admin/payments?tab=discrepancies&source=candidate'}><Wallet className="mr-2 h-4 w-4" />View receipts and bank statements side by side</Link></Button>
+      <Button asChild variant="outline"><Link data-tour="dashboard-transfer-review" to={isLocalAgency ? '/local-agency/payments?source=foreign' : '/admin/payments?tab=discrepancies&source=foreign'}><Wallet className="mr-2 h-4 w-4" />Review foreign agency transfers</Link></Button>
       <EditableGrid pageId="dash-finance" title="Finance" items={[
       { id: 'finance', title: 'Financial overview', node: <FinancialOverview localAgencyId={visualLocalId} /> },
       ]} />
         </TabsContent>
 
-        <TabsContent value="compliance" className="space-y-6">
+        <TabsContent value="compliance" data-tour="dashboard-documents" className="space-y-6">
       <DashSection title="Contracts and compliance" subtitle="Expiring work contracts and record integrity" icon={ShieldCheck} />
       <EditableGrid pageId="dash-compliance" title="Contracts and compliance" items={[
       { id: 'foreign-payment-compliance', title: 'Foreign to local payment compliance', node: <AgencyPaymentReconciliation localAgencyId={visualLocalId} /> },
-      { id: 'local-payment-evidence', title: 'Candidate to local payment evidence', node: <LocalPaymentEvidence key={visualLocalId || 'all'} localAgencyId={visualLocalId} /> },
       { id: 'expiring', title: 'Contracts ending soon', node: <ExpiringContracts localAgencyId={visualLocalId} /> },
       ]} />
         </TabsContent>
 
-        <TabsContent value="candidates" className="space-y-6">
+        <TabsContent value="candidates" data-tour="dashboard-candidates" className="space-y-6">
       <DashSection title="Candidates" subtitle="Search, filter and open any candidate" icon={ListChecks} />
       <EditableGrid pageId="dash-candidates" title="Candidates" items={[
       { id: 'search', title: 'Semantic search', node: isSupabaseDataMode() && <CandidateSemanticSearch /> },

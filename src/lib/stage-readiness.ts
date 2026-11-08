@@ -5,7 +5,7 @@ export const stageIsComplete = (status: StageStatus): boolean => ['Passed', 'Iss
 export const requiredMedicalExams = (gender: Candidate['gender']): string[] => gender === 'male'
   ? ['HIV', 'Final Agency Medical'] : ['HIV', 'Pregnancy', 'Final Agency Medical'];
 
-export function stageFeeCovered(candidate: Candidate, stageId: number, fees: Record<number, number>, statuses: PaymentStatus[], payments: Payment[]): boolean {
+export function stageFeeCovered(candidate: Candidate, stageId: number, fees: Record<number, number>, _statuses: PaymentStatus[], payments: Payment[]): boolean {
   const fee = fees[stageId] ?? ALL_STAGES.find(stage => stage.id === stageId)?.fee_amount ?? 0;
   if (!Number.isFinite(fee) || fee < 0) return false;
   if (fee === 0) return true;
@@ -17,7 +17,7 @@ export function stageFeeCovered(candidate: Candidate, stageId: number, fees: Rec
       && payment.candidate_ids.length === 1 && Number.isFinite(payment.amount) && payment.amount > 0);
     return settled.reduce((sum, payment) => sum + payment.amount, 0) >= fee - 0.01;
   }
-  return statuses.some(payment => payment.candidateId === candidate.id && payment.stageId === stageId && payment.isPaid);
+  return false;
 }
 
 export function stageProgressBlockers(candidate: Candidate, stageId: number, status: StageStatus, stages: CandidateStage[],

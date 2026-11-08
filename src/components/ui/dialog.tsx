@@ -4,6 +4,8 @@ import { Minus, X } from "lucide-react";
 import { usePopupDock } from "@/components/popup-dock-context";
 
 import { cn } from "@/lib/utils";
+import { usePopupScrollLock } from "@/hooks/use-popup-scroll-lock";
+import { PopupResizeControl, popupCloseClassName, popupMinimizeClassName, popupWindowStyle } from "./popup-window";
 
 const WindowContext = React.createContext<{
   managed: boolean; requestedOpen: boolean; minimize: () => void; setTitle: (title: string) => void;
@@ -18,6 +20,7 @@ function Dialog({ open: controlledOpen, defaultOpen = false, onOpenChange, modal
   const [title, setTitle] = React.useState('Window');
   const requestedOpen = controlledOpen ?? internalOpen;
   const managed = !!dock && workspaceManaged;
+  usePopupScrollLock(requestedOpen && !minimized);
   const handler = React.useRef(onOpenChange);
   handler.current = onOpenChange;
   const changeOpen = React.useCallback((value: boolean) => {
@@ -66,7 +69,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { keepMounted?: boolean }
->(({ className, children, keepMounted, onInteractOutside, ...props }, ref) => {
+>(({ className, children, keepMounted, onInteractOutside, style, ...props }, ref) => {
   const window = React.useContext(WindowContext);
   const retain = keepMounted || window?.managed && window.requestedOpen;
   return <DialogPortal forceMount={retain ? true : undefined}>
@@ -81,11 +84,14 @@ const DialogContent = React.forwardRef<
         window?.managed && 'z-[55] !animate-none max-h-[calc(100dvh-7rem)] overflow-y-auto',
       )}
       {...props}
+      data-popup-window=""
+      style={{ ...style, ...popupWindowStyle }}
       onInteractOutside={event => { if (window?.managed) event.preventDefault(); onInteractOutside?.(event); }}
     >
       {children}
-      {window?.managed && <button type="button" aria-label="Minimize window" title="Minimize without discarding unsaved edits" onClick={window.minimize} className="absolute right-12 top-4 rounded-sm p-0.5 opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Minus className="h-4 w-4" /></button>}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      {window?.managed && <button type="button" aria-label="Minimize window" title="Minimize without discarding unsaved edits" onClick={window.minimize} className={cn("absolute right-12 top-4 rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", popupMinimizeClassName)}><Minus className="h-4 w-4" /></button>}
+      <PopupResizeControl />
+      <DialogPrimitive.Close className={cn("absolute right-4 top-4 rounded-sm ring-offset-background transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none", popupCloseClassName)}>
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

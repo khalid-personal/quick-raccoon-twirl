@@ -47,7 +47,7 @@ export default function ForeignStaffTasksPage() {
       </Button> : undefined} />
     <div className="grid gap-4 sm:grid-cols-3">
       <Card className="border-primary/20 bg-gradient-to-br from-primary/10 to-background"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><ListTodo className="h-4 w-4" /> Current tasks</CardTitle></CardHeader><CardContent className="text-3xl font-semibold">{data.tasks.length}</CardContent></Card>
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Awaiting payment</CardTitle></CardHeader><CardContent className="text-3xl font-semibold">{data.tasks.filter(task => task.action === 'Awaiting payment').length}</CardContent></Card>
+      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Payment follow-ups</CardTitle></CardHeader><CardContent className="text-3xl font-semibold">{data.tasks.filter(task => task.action === 'Awaiting payment' || task.action === 'Make contract payment').length}</CardContent></Card>
       <Card><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Users className="h-4 w-4" /> {data.canManage ? 'Need an owner' : 'Assigned to you'}</CardTitle></CardHeader><CardContent className="text-3xl font-semibold">{data.canManage ? unassigned : data.tasks.length}</CardContent></Card>
     </div>
     {data.canManage && !data.staff.length && <p className="text-sm text-muted-foreground">Approve agency staff accounts before assigning work.</p>}
@@ -61,12 +61,13 @@ export default function ForeignStaffTasksPage() {
           <div className="flex items-start gap-3">
             <CandidateAvatar candidate={task.candidate} className="h-12 w-12" />
             <div className="min-w-0 flex-1"><h2 className="font-semibold">{task.candidate.first_name} {task.candidate.last_name}</h2><p className="font-mono text-xs text-muted-foreground">{task.candidate.tracking_code}</p></div>
-            <Badge variant={task.action === 'Awaiting payment' || task.action === 'Resolve blocker' ? 'secondary' : 'outline'}>{task.action}</Badge>
+            <Badge variant={task.action === 'Awaiting payment' || task.action === 'Make contract payment' || task.action === 'Resolve blocker' ? 'secondary' : 'outline'}>{task.action}</Badge>
           </div>
           <div><p className="text-xs uppercase tracking-wide text-muted-foreground">Current stage</p><p className="font-medium">{task.stageTitle}</p></div>
+          {task.action === 'Make contract payment' && <p className="rounded-xl bg-amber-500/10 p-3 text-sm">Your agency sent the contract. Make the foreign-to-local payment for this candidate next. A missing or pending receipt is not payment received; candidate stage fees are separate.</p>}
           <div className="flex flex-wrap items-end justify-between gap-3">
             {data.canManage ? <div className="min-w-48"><p className="mb-1 text-xs text-muted-foreground">Assigned to</p><Select value={names.has(task.stage.foreign_assigned_staff_id ?? '') ? task.stage.foreign_assigned_staff_id : undefined} onValueChange={staffId => assign.mutate({ candidateId: task.candidate.id, stageId: task.stage.stage_id, staffId })} disabled={assign.isPending || !data.staff.length}><SelectTrigger aria-label={`Assign ${task.candidate.first_name} ${task.candidate.last_name}`}><SelectValue placeholder="Unassigned" /></SelectTrigger><SelectContent>{data.staff.map(person => <SelectItem key={person.id} value={person.id}>{names.get(person.id)}</SelectItem>)}</SelectContent></Select></div> : <span className="text-sm text-muted-foreground">Assigned to you</span>}
-            <Button asChild variant="outline" size="sm"><Link to={`/agency/candidate/${task.candidate.id}`}>Open candidate <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+            <Button asChild variant="outline" size="sm"><Link to={`/agency/candidate/${task.candidate.id}${task.action === 'Make contract payment' ? '?tab=payments' : ''}`}>{task.action === 'Make contract payment' ? 'Open payment' : 'Open candidate'} <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
           </div>
         </CardContent>
       </Card>)}

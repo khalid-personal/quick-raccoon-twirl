@@ -7,6 +7,12 @@ import { Progress } from '@/components/ui/progress';
 import { ALL_STAGES, type CandidateDetail } from '@/lib/types';
 import { usePortalData } from '@/hooks/use-portal-data';
 import { cn } from '@/lib/utils';
+import { stageFeeCovered } from '@/lib/stage-readiness';
+import { contractWasSent, foreignContractPayment } from '@/lib/foreign-contract-payment';
+import { useAuth } from '@/lib/auth-context';
+import { Link } from 'react-router-dom';
+import { Button } from './ui/button';
+import { PAYMENT_STATUS_LABELS } from '@/lib/payment-ledger';
 
 interface CandidatePaymentsProps {
   candidateDetail: CandidateDetail;
@@ -16,14 +22,16 @@ const formatEtb = (amount: number) => `ETB ${Math.round(amount).toLocaleString()
 
 const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }) => {
   const { payments, paymentStatuses, stageFees } = usePortalData();
+  const { userRole } = useAuth();
+  const contractPayment = foreignContractPayment(candidateDetail, payments);
   const stageRows = useMemo(() => ALL_STAGES.map(stage => {
-    const paid = paymentStatuses.some(status => status.candidateId === candidateDetail.id && status.stageId === stage.id && status.isPaid);
+    const paid = stageFeeCovered(candidateDetail, stage.id, stageFees, paymentStatuses, payments);
     return {
       stage,
       fee: stageFees[stage.id] ?? stage.fee_amount ?? 0,
       paid,
     };
-  }), [candidateDetail.id, paymentStatuses, stageFees]);
+  }), [candidateDetail, paymentStatuses, stageFees, payments]);
   const totalDue = stageRows.reduce((total, stage) => total + stage.fee, 0);
   const totalPaid = stageRows.filter(stage => stage.paid).reduce((total, stage) => total + stage.fee, 0);
   const unpaid = Math.max(0, totalDue - totalPaid);
@@ -36,14 +44,17 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
     totals[payment.currency] = (totals[payment.currency] ?? 0) + payment.amount;
     return totals;
   }, {});
-  const isPaid = candidateDetail.payment_status === 'paid' || (totalDue > 0 && totalPaid >= totalDue);
+  const isPaid = totalPaid >= totalDue;
 
   return (
     <div className="space-y-5">
+      {contractWasSent(candidateDetail) && <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5"><h2 className="font-semibold">Contract sent → foreign agency payment</h2><p className="mt-2 text-sm">{contractPayment.detail}</p>
+        {!contractPayment.paid && ['agency', 'foreign-agency'].includes(userRole ?? '') && <Button asChild className="mt-3"><Link to={`/agency?payCandidate=${encodeURIComponent(candidateDetail.id)}`}>Make payment for this candidate</Link></Button>}
+        <p className="mt-2 text-xs text-muted-foreground">The linked foreign agency is responsible for this transfer. Candidate stage fees below are separate.</p></section>}
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25 shadow-sm">
         <CandidateCheckpoint eyebrow="Fees and payments" title="Candidate payment overview" description="See the fees for each application stage. The payment history below also includes agency payments covering this candidate." icon={Wallet} metric={`${stageRows.filter(stage => stage.paid).length} / ${stageRows.length}`} metricLabel="Stages with fees paid" actions={
             <Badge variant={isPaid ? 'default' : candidateDetail.payment_status === 'payment_failed' ? 'destructive' : 'outline'} className="capitalize">
-              {candidateDetail.payment_status.replace('_', ' ')}
+              {isPaid ? 'Paid' : 'Awaiting receipt'}
             </Badge>
         } />
         <CardContent className="space-y-5 p-5">
@@ -51,12 +62,12 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage fees paid</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatEtb(totalPaid)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Fees marked paid in the candidate’s record</p>
+              <p className="mt-1 text-xs text-muted-foreground">Stage fees covered by successful recorded receipts</p>
             </div>
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage fees remaining</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatEtb(unpaid)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Total fees minus those marked paid</p>
+              <p className="mt-1 text-xs text-muted-foreground">Total fees minus receipt-covered stage fees</p>
             </div>
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stages with fees paid</p>
@@ -101,7 +112,7 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
             <div className="space-y-2">
               {transactions.map(payment => (
                 <div key={payment.id} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center">
-                  <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', payment.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-600' : payment.status === 'failed' ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600')}>
+                  <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', payment.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-600' : payment.status === 'failed' || payment.status === 'timed-out' ? 'bg-rose-500/10 text-rose-600' : 'bg-amber-500/10 text-amber-600')}>
                     {payment.status === 'succeeded' ? <CheckCircle2 className="h-4 w-4" /> : payment.status === 'pending' ? <Clock3 className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -109,12 +120,12 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
                     <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3 w-3" />{new Date(payment.created_at).toLocaleDateString()}</p>
                   </div>
                   <p className="font-semibold tabular-nums">{payment.amount.toLocaleString()} {payment.currency}</p>
-                  <Badge variant={payment.status === 'succeeded' ? 'default' : payment.status === 'failed' ? 'destructive' : 'outline'} className="capitalize">{payment.status}</Badge>
+                  <Badge variant={payment.status === 'succeeded' ? 'default' : payment.status === 'failed' || payment.status === 'timed-out' ? 'destructive' : 'outline'}>{PAYMENT_STATUS_LABELS[payment.status]}</Badge>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">A stage marked paid and a confirmed payment are separate records. Check the payment receipt when you need proof that money was received.</p>
+          <p className="text-xs text-muted-foreground">No successful covering receipt means unpaid. A paid checkbox alone is not proof that money was received.</p>
         </CardContent>
       </Card>
     </div>

@@ -29,7 +29,7 @@ const IntegrityDemoScenarios: React.FC = () => {
   };
   return <section className="mt-4 space-y-3 border-t pt-4" aria-label="DEMO integrity scenarios">
     <h3 className="text-sm font-semibold">Practice with demo records</h3>
-    <p className="text-sm text-muted-foreground">Choose one of six examples to practice finding and fixing problems. Each keeps the same 435 candidates and tracking codes, but changes their progress and made-up payment proof. You can still add and edit candidates. The score comes from the usual checks.</p>
+    <p className="text-sm text-muted-foreground">Choose one of six examples to practice finding and fixing problems. Each keeps the same 435 candidates and tracking codes, but changes their progress and made-up payment proof. Manual candidate creation is disabled; existing support details remain editable. The score comes from the usual checks.</p>
     <p className="text-sm text-muted-foreground">Registration → Training → Medical → Deployment. Fees are paid before a step is passed. Deployment waits for official ministry clearance; a pretend review cannot unlock it.</p>
     {!allowed && <p className="text-sm">Sign in as a superadmin and enter DEMO mode to change the practice example.</p>}
     <div className="grid gap-2 sm:grid-cols-2">
@@ -46,7 +46,7 @@ const IntegrityDemoScenarios: React.FC = () => {
     <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmed} disabled={!allowed || applying}
       onChange={event => setConfirmed(event.target.checked)} className="mt-1" />
       I understand this replaces the generated demo progress, payments and made-up proof, but keeps candidate names, tracking codes and records I added myself.
-      The original list stays at 435; new candidates are kept as additions. Real records, uploaded real files and sign-in accounts are not changed. I must remove uploaded statements myself before switching examples.
+      The original list stays at 435; legacy additional candidates are retained. Real records, uploaded real files and sign-in accounts are not changed. I must remove uploaded statements myself before switching examples.
     </label>
     <div className="flex flex-wrap gap-2">
       <Button disabled={!allowed || applying || !confirmed || !reason.trim()} onClick={() => apply(false)}>{applying ? 'Updating demo records…' : `Apply DEMO ${INTEGRITY_DEMO_SCENARIOS.find(scenario => scenario.id === selected)?.label}`}</Button>

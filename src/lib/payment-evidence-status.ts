@@ -5,7 +5,7 @@ import type { BankStatement, ReconciliationCaseEvent } from './bank-statement-st
 
 export type EvidenceReviewStatus = 'settled' | 'pending' | 'failed';
 export const evidenceReviewStatus = (payment?: Payment, match?: PaymentMatch): EvidenceReviewStatus => {
-  if (payment?.status === 'failed' || payment?.status === 'refunded') return 'failed';
+  if (payment?.status === 'failed' || payment?.status === 'timed-out' || payment?.status === 'refunded') return 'failed';
   return payment?.status === 'succeeded' && match?.status === 'matched' ? 'settled' : 'pending';
 };
 export const matchPaymentEvidence = (payment: Payment, payments: Payment[], statement: BankStatement | null): PaymentMatch | undefined =>

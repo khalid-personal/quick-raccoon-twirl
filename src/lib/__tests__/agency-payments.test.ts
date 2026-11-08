@@ -3,6 +3,7 @@ import { generateDemoDataset } from '../demo-dataset';
 import { analyzeAgencyPayments } from '../agency-payments';
 import { minimumPerCandidate } from '../currency';
 import { buildWhatsAppUrl, getExpiringContracts, whatsappDigits } from '../contract-expiry';
+import type { Payment } from '../types';
 
 const NOW = new Date('2026-07-19T12:00:00Z').getTime();
 const data = generateDemoDataset(NOW, 'priority');
@@ -54,6 +55,17 @@ describe('foreign to local agency payment reconciliation', () => {
       NOW,
     );
     expect(result.rows[0]).toMatchObject({ issue: 'short', received: minimum.amount - 1, expectedMin: minimum.amount });
+  });
+  it('counts valid split receipts even when an unrelated wrong-payer receipt appears first', () => {
+    const candidate = { ...data.candidates[0], foreign_agency_id: 'foreign', local_agency_id: 'local', work_contract_record: undefined,
+      external_status: { work_contract: true, destination_country: 'Saudi Arabia' } };
+    const minimum = minimumPerCandidate('Saudi Arabia')!;
+    const payment: Payment = { id: 'p', payer_type: 'foreign-agency', payer_foreign_agency_id: 'foreign', payee_local_agency_id: 'local',
+      candidate_ids: [candidate.id], amount: minimum.amount / 2, currency: minimum.currency, status: 'succeeded', created_at: '2026-07-19', updated_at: '2026-07-19' };
+    const receipts = [{ ...payment, id: 'wrong', payer_foreign_agency_id: 'other' }, payment, { ...payment, id: 'p2' }];
+    expect(analyzeAgencyPayments([candidate], receipts, [], NOW).rows[0]).toMatchObject({ issue: 'paid', received: minimum.amount, payment: { id: 'p' } });
+    expect(analyzeAgencyPayments([candidate], [{ ...payment, status: 'timed-out' }], [], NOW).rows[0]).toMatchObject({ issue: 'failed', received: 0 });
+    expect(analyzeAgencyPayments([candidate], [{ ...payment, candidate_ids: [candidate.id, candidate.id] }], [], NOW).rows[0].issue).toBe('failed');
   });
 });
 

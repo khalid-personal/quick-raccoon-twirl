@@ -1,4 +1,5 @@
 import { isForeignPayment } from '../currency';
+import { stageFeeCovered } from '../stage-readiness';
 import { actorDisplayName } from '../demo-identities';
 import { ALL_STAGES, ExecutiveMetrics, CandidateStage, CandidateStatusBucket } from '../types';
 import {
@@ -141,7 +142,7 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         const fee = fees[stage.id] ?? stage.fee_amount;
         if (fee === undefined) return;
         candidates.forEach(c => {
-            const paid = paidSet.some(p => p.candidateId === c.id && p.stageId === stage.id && p.isPaid);
+            const paid = stageFeeCovered(c, stage.id, fees, paidSet, getPayments());
             const started = (stagesByCandidate.get(c.id) ?? []).some(s => s.stage_id === stage.id && s.status !== 'Pending');
             // A fee is only due once the candidate has reached that stage.
             if (started || paid) feesDue += fee;

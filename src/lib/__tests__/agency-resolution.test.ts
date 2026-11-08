@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getApprovalLogs, getConfig, getCandidates, saveCandidates, saveLocalAgencies, saveForeignAgencies, savePayments, saveConfig, saveCandidateStages, savePaymentStatuses } from '../data-store';
+import { getApprovalLogs, getConfig, saveCandidates, saveLocalAgencies, saveForeignAgencies, savePayments, saveConfig } from '../data-store';
 import { saveBankStatement } from '../bank-statement-store';
 import { agencyReviewEvidence, verifyAgencyUnderpayment, agencyIsSuspended, amountDiscrepancies, appealAgencyCase, autoResolveVerifiedAgencyCases, decideAgencyCase, escalateAmountDiscrepancy, getAgencyResolutionCases, requireAgencyOperations } from '../agency-resolution';
+import { foreignUnderpaymentStatus, setForeignUnderpaymentRenewal } from '../foreign-underpayment-policy';
 import { generateDemoDataset } from '../demo-dataset';
-import { createCandidate, updateCandidateDetails } from '../api/candidate-crud';
 import { initiatePayment } from '../api/payment-processing';
 import { sendProfileToForeignAgency } from '../api/tracking-queries';
 import type { Payment } from '../types';
@@ -14,220 +14,142 @@ const admin = { id: 'superadmin', email: 'superadmin@example.test', role: 'super
 const local = { id: 'local-admin', email: 'local@example.test', role: 'local-agency', localAgencyId: 'local' };
 const foreign = { id: 'foreign-admin', email: 'foreign@example.test', role: 'foreign-agency', foreignAgencyId: 'foreign' };
 const demo = generateDemoDataset(Date.parse('2026-11-07'));
-const candidate = { ...demo.candidates[0], local_agency_id: 'local', foreign_agency_id: 'foreign', external_status: { ...demo.candidates[0].external_status, work_contract: false, destination_country: 'Saudi Arabia' } };
-const payment: Payment = { id: 'p', amount: 100, currency: 'ETB', provider_reference: 'REF', payer_type: 'candidate', candidate_ids: [candidate.id], payer_foreign_agency_id: '', payee_local_agency_id: 'local', status: 'succeeded', created_at: '2026-11-07', updated_at: '2026-11-07' };
-const statement = (amount: number, reference = 'REF', currency = 'ETB') => ({ name: 'statement.csv', uploadedAt: '2026-11-07', lines: [{ amount, reference, currency, date: '2026-11-07', description: 'Credit' }] });
+const candidate = { ...demo.candidates[0], local_agency_id: 'local', foreign_agency_id: 'foreign', work_contract_record: undefined, external_status: { ...demo.candidates[0].external_status, work_contract: true, destination_country: 'Saudi Arabia' } };
+const minimum = minimumPerCandidate('Saudi Arabia')!;
+const payment: Payment = { id: 'p', amount: minimum.amount, currency: minimum.currency, provider_reference: 'REF', payer_type: 'foreign-agency', candidate_ids: [candidate.id], payer_foreign_agency_id: 'foreign', payee_local_agency_id: 'local', status: 'succeeded', created_at: '2026-11-07', updated_at: '2026-11-07' };
+const statement = (amount = payment.amount * .8, reference = 'REF', currency = payment.currency, description = `Credit for ${candidate.tracking_code}`) =>
+  ({ name: 'statement.csv', uploadedAt: '2026-11-07', lines: [{ amount, reference, currency, date: '2026-11-07', description }] });
+const status = () => foreignUnderpaymentStatus('foreign', getAgencyResolutionCases(), getConfig());
+const verify = async (id = 'bank:p') => {
+  const issue = amountDiscrepancies().find(item => item.id === id)!;
+  return verifyAgencyUnderpayment(id, agencyReviewEvidence(issue).snapshot, 'Checked candidate tracking code, credit and reference', '2026-11-08', admin);
+};
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); sessionStorage.setItem('dawm_demo_session', '1');
   saveCandidates([candidate]); saveLocalAgencies([{ id: 'local', name: 'Local agency', created_at: '2026-11-07' }]);
   saveForeignAgencies([{ id: 'foreign', name: 'Foreign agency', created_at: '2026-11-07' }]);
-  savePayments([payment]); saveBankStatement('local', statement(80), 'candidate');
+  savePayments([payment]); saveBankStatement('local', statement(), 'foreign');
 });
-describe('agency resolution and operational restrictions', () => {
-  const namedBankCredit = () => {
-    saveBankStatement('local', { ...statement(80), lines: [{ ...statement(80).lines[0], description: `Candidate ${candidate.tracking_code}` }] }, 'candidate');
-  };
-  it('applies an audited automatic portal pause only after an exact candidate-linked bank shortage is confirmed', async () => {
-    namedBankCredit();
-    const issue = amountDiscrepancies().find(item => item.id === 'bank:p')!;
-    const evidence = agencyReviewEvidence(issue);
-    expect(evidence.canAutoPause).toBe(true);
-    const record = await verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Checked candidate tracking code, credit and reference', '2026-11-08', admin);
-    expect(record).toMatchObject({ state: 'suspended', holdActive: true });
-    expect(record.events.map(event => event.action)).toEqual(['verified-underpayment-pause']);
-    expect(agencyIsSuspended('local', 'local')).toBe(true);
+describe('foreign agency resolution and ministry underpayment chances', () => {
+  it('uses one chance only after exact candidate-linked evidence is verified, without suspending on the first warning', async () => {
+    const record = await verify();
+    expect(record).toMatchObject({ state: 'escalated', holdActive: false });
+    expect(record.events.map(event => event.action)).toEqual(['verified-underpayment-warning']);
+    expect(status()).toMatchObject({ used: 1, remaining: 2 });
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(false);
+    expect(agencyIsSuspended('local', 'local')).toBe(false);
     expect(getApprovalLogs().some(log => log.description.includes(candidate.tracking_code) && log.description.includes('reference REF'))).toBe(true);
-    await appealAgencyCase(record.id, 'Please review our bank fee explanation', '', local);
-    expect(getAgencyResolutionCases()[0]).toMatchObject({ state: 'appealed', holdActive: true });
-    saveBankStatement('local', statement(100), 'candidate');
-    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(0);
-    await decideAgencyCase(record.id, 'reinstate', 'Explanation checked and the portal restriction removed', admin);
-    expect(getAgencyResolutionCases()[0]).toMatchObject({ state: 'resolved', holdActive: false });
+    await expect(verify()).rejects.toThrow('already used');
+    await decideAgencyCase(record.id, 'resolve', 'Explanation accepted and payment followed up', admin);
+    await expect(verify()).rejects.toThrow('already used');
+    expect(status().remaining).toBe(2);
   });
-  it('does not treat a bank reference alone as candidate identification', async () => {
-    const issue = amountDiscrepancies()[0];
-    expect(agencyReviewEvidence(issue).canAutoPause).toBe(false);
-    await expect(verifyAgencyUnderpayment(issue.id, agencyReviewEvidence(issue).snapshot, 'Reference reviewed but candidate not in bank credit', '2026-11-08', admin)).rejects.toThrow('incomplete');
-    expect(getAgencyResolutionCases()).toHaveLength(0);
+  it('pauses on the third distinct verified transfer and blocks new foreign settlement and profile sharing', async () => {
+    const payments = [payment, { ...payment, id: 'p2', provider_reference: 'REF2' }, { ...payment, id: 'p3', provider_reference: 'REF3' }];
+    savePayments(payments);
+    saveBankStatement('local', { ...statement(), lines: payments.map(item => ({ ...statement().lines[0], reference: item.provider_reference! })) }, 'foreign');
+    await verify('bank:p');
+    expect(status().remaining).toBe(2);
+    await verify('bank:p2');
+    expect(status().remaining).toBe(1);
+    const third = await verify('bank:p3');
+    expect(third).toMatchObject({ state: 'suspended', holdActive: true });
+    expect(status().remaining).toBe(0);
+    expect(() => requireAgencyOperations('foreign', 'foreign')).toThrow('suspended');
+    expect(() => requireAgencyOperations('local', 'local')).not.toThrow();
+    await expect(initiatePayment('foreign', [candidate.id], admin.id, admin.email)).rejects.toThrow('suspended');
+    await expect(sendProfileToForeignAgency(candidate.id, candidate.tracking_code, 'foreign', admin.id, admin.email)).rejects.toThrow('suspended');
   });
-  it('requires superadmin confirmation and rejects candidate fee debt as an automatic agency pause', async () => {
-    namedBankCredit();
+  it('lets the ministry pause sooner and release after an appeal without replenishing the two remaining chances', async () => {
+    const record = await verify();
+    await decideAgencyCase(record.id, 'suspend', 'Ministry pauses new activity pending explanation', admin);
+    expect(status().remaining).toBe(2);
+    await expect(appealAgencyCase(record.id, 'We have the original bank proof', '', local)).rejects.toThrow('Only this agency');
+    await expect(appealAgencyCase(record.id, 'We have the original bank proof', 'javascript:alert(1)', foreign)).rejects.toThrow('HTTPS');
+    await appealAgencyCase(record.id, 'Bank fees explain this transfer shortage', 'https://example.test/evidence.pdf', foreign);
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
+    await expect(decideAgencyCase(record.id, 'resolve', 'All proof was reviewed and corrected', admin)).rejects.toThrow('Reinstate');
+    await decideAgencyCase(record.id, 'reject-appeal', 'Proof does not explain the linked shortage', admin);
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
+    await decideAgencyCase(record.id, 'reinstate', 'Bank confirmation reviewed; release explicitly approved', admin);
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(false);
+    expect(status().remaining).toBe(2);
+    expect(getAgencyResolutionCases()[0].events.every(event => !!event.auditId)).toBe(true);
+  });
+  it('renews chances at the ministry date without clearing an active pause', async () => {
+    const record = await verify();
+    await decideAgencyCase(record.id, 'suspend', 'Ministry early pause for further review', admin);
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 86400000);
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Addis_Ababa', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tomorrow);
+    await setForeignUnderpaymentRenewal(date, admin, now);
+    expect(status().remaining).toBe(2);
+    expect(foreignUnderpaymentStatus('foreign', getAgencyResolutionCases(), getConfig(), new Date(`${date}T00:00:00+03:00`)).remaining).toBe(3);
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
+  });
+  it.each(['shared', 'duplicate-payment', 'duplicate-bank', 'wrong-agency', 'unsafe-file', 'currency', 'pending', 'overpaid', 'wrong-candidate'] as const)('does not consume a chance for %s evidence', async kind => {
     const issue = amountDiscrepancies()[0], evidence = agencyReviewEvidence(issue);
-    await expect(verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Agency staff attempted a verification pause', '2026-11-08', local)).rejects.toThrow('superadmin');
-    saveConfig({ ...getConfig(), stageFees: { 1: 200 } });
-    savePayments([{ ...payment, stage_id: 1 }]);
-    const feeIssue = amountDiscrepancies().find(item => item.basis === 'stage-fee')!;
-    expect(feeIssue).toBeDefined();
-    expect(agencyReviewEvidence(feeIssue).canAutoPause).toBe(false);
-    await expect(verifyAgencyUnderpayment(feeIssue.id, agencyReviewEvidence(feeIssue).snapshot, 'Candidate fee remains below the required amount', '2026-11-08', admin)).rejects.toThrow('incomplete');
-    expect(getAgencyResolutionCases()).toHaveLength(0);
-  });
-  it.each(['shared', 'duplicate-payment', 'duplicate-bank', 'wrong-agency', 'unsafe-file', 'currency', 'pending', 'overpaid', 'wrong-candidate'] as const)('blocks automatic pausing for %s evidence', async kind => {
-    namedBankCredit();
-    const issue = amountDiscrepancies()[0];
-    const evidence = agencyReviewEvidence(issue);
     if (kind === 'shared') savePayments([{ ...payment, candidate_ids: [candidate.id, 'second'] }]);
     if (kind === 'duplicate-payment') savePayments([payment, { ...payment, id: 'second' }]);
-    if (kind === 'duplicate-bank') saveBankStatement('local', { ...statement(80), lines: [{ ...statement(80).lines[0], description: candidate.tracking_code }, { ...statement(80).lines[0], description: candidate.tracking_code }] }, 'candidate');
-    if (kind === 'wrong-agency') saveCandidates([{ ...candidate, local_agency_id: 'different' }]);
-    if (kind === 'unsafe-file') saveBankStatement('local', { ...statement(80), scan_report: { status: 'review', findings: ['Inspect file'], scanned_at: '2026-11-07' }, lines: [{ ...statement(80).lines[0], description: candidate.tracking_code }] }, 'candidate');
-    if (kind === 'currency') saveBankStatement('local', statement(80, 'REF', 'USD'), 'candidate');
+    if (kind === 'duplicate-bank') saveBankStatement('local', { ...statement(), lines: [statement().lines[0], statement().lines[0]] }, 'foreign');
+    if (kind === 'wrong-agency') saveCandidates([{ ...candidate, foreign_agency_id: 'different' }]);
+    if (kind === 'unsafe-file') saveBankStatement('local', { ...statement(), scan_report: { status: 'review', findings: ['Inspect file'], scanned_at: '2026-11-07' } }, 'foreign');
+    if (kind === 'currency') saveBankStatement('local', statement(undefined, 'REF', 'USD'), 'foreign');
     if (kind === 'pending') savePayments([{ ...payment, status: 'pending' }]);
-    if (kind === 'overpaid') saveBankStatement('local', statement(120), 'candidate');
-    if (kind === 'wrong-candidate') saveBankStatement('local', { ...statement(80), lines: [{ ...statement(80).lines[0], description: 'TRK-SOMEONE-ELSE' }] }, 'candidate');
+    if (kind === 'overpaid') saveBankStatement('local', statement(payment.amount * 1.2), 'foreign');
+    if (kind === 'wrong-candidate') saveBankStatement('local', statement(undefined, 'REF', payment.currency, 'TRK-SOMEONE-ELSE'), 'foreign');
     expect(agencyReviewEvidence(issue).canAutoPause).toBe(false);
     await expect(verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Attempting verification of changed evidence', '2026-11-08', admin)).rejects.toThrow();
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
+    expect(status().remaining).toBe(3);
   });
-  it('rejects candidate identity changes during verification and concurrent duplicate pauses', async () => {
-    namedBankCredit();
-    const issue = amountDiscrepancies()[0], evidence = agencyReviewEvidence(issue);
-    const attempt = verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Verify exact bank and candidate linkage', '2026-11-08', admin);
+  it('rejects concurrent duplicate confirmations and stale candidate evidence', async () => {
+    const attempt = verify();
     saveCandidates([{ ...candidate, tracking_code: 'CHANGED-TRACKING' }]);
     await expect(attempt).rejects.toThrow('changed');
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
     saveCandidates([candidate]);
-    const results = await Promise.allSettled([verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Reviewer one verified the bank credit', '2026-11-08', admin), verifyAgencyUnderpayment(issue.id, evidence.snapshot, 'Reviewer two verified the bank credit', '2026-11-08', admin)]);
+    const results = await Promise.allSettled([verify(), verify()]);
     expect(results.map(result => result.status)).toEqual(['fulfilled', 'rejected']);
-    expect(getAgencyResolutionCases()).toHaveLength(1);
+    expect(status()).toMatchObject({ used: 1, remaining: 2 });
   });
-  it('automatically audits and clears corrected cases only after required stage and bank checks pass', async () => {
-    saveConfig({ ...getConfig(), stageFees: { 1: 100 } });
-    savePayments([{ ...payment, stage_id: 1 }]);
-    saveCandidateStages([{ ...demo.stages.find(stage => stage.stage_id === 1)!, candidate_id: candidate.id, status: 'Completed' }]);
-    savePaymentStatuses([{ candidateId: candidate.id, stageId: 1, isPaid: true }]);
-    const record = await escalateAmountDiscrepancy('bank:p', 'Review bank shortage', '2026-11-08', admin);
-    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(0);
-    saveBankStatement('local', statement(100), 'candidate');
-    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(1);
-    expect(getAgencyResolutionCases().find(item => item.id === record.id)).toMatchObject({ state: 'resolved', holdActive: false });
-    expect(getApprovalLogs().some(log => log.description.includes('Automatic green clearance'))).toBe(true);
-    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(0);
-  });
-  it('never automatically lifts an agency suspension when corrected proof is supplied', async () => {
-    saveConfig({ ...getConfig(), stageFees: { 1: 100 } }); savePayments([{ ...payment, stage_id: 1 }]);
-    saveCandidateStages([{ ...demo.stages.find(stage => stage.stage_id === 1)!, candidate_id: candidate.id, status: 'Completed' }]);
-    savePaymentStatuses([{ candidateId: candidate.id, stageId: 1, isPaid: true }]);
-    const record = await escalateAmountDiscrepancy('bank:p', 'Review bank shortage', '2026-11-08', admin);
-    await decideAgencyCase(record.id, 'suspend', 'Pause new business until appeal review', admin);
-    saveBankStatement('local', statement(100), 'candidate');
-    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(0);
-    expect(agencyIsSuspended('local', 'local')).toBe(true);
-    expect(getAgencyResolutionCases()[0].state).toBe('suspended');
-  });
-  it('surfaces malformed restriction storage rather than returning an all-clear state', () => {
-    localStorage.setItem('demo:dawm-agency-resolution', JSON.stringify([{ id: 'invalid', issue: {}, events: [] }]));
-    expect(() => requireAgencyOperations('local', 'local')).toThrow('invalid');
-  });
-  it('rejects concurrent duplicate escalations and stale decisions without losing the applied history', async () => {
-    const results = await Promise.allSettled([escalateAmountDiscrepancy('bank:p', 'Review bank shortage', '2026-11-08', admin), escalateAmountDiscrepancy('bank:p', 'Another reviewer checking', '2026-11-08', admin)]);
-    expect(results.map(result => result.status)).toEqual(['fulfilled', 'rejected']);
-    expect(getAgencyResolutionCases()).toHaveLength(1);
-    const record = getAgencyResolutionCases()[0];
-    const decisions = await Promise.allSettled([decideAgencyCase(record.id, 'suspend', 'Pause new business for review', admin), decideAgencyCase(record.id, 'request-follow-up', 'Request further bank evidence', admin)]);
-    expect(decisions.map(result => result.status)).toEqual(['fulfilled', 'rejected']);
-    expect(getAgencyResolutionCases()[0].events.map(event => event.action)).toEqual(['escalated', 'suspend']);
-  });
-  it('rejects evidence changes while an audit request is still pending', async () => {
-    const record = await escalateAmountDiscrepancy('bank:p', 'Review bank shortage', '2026-11-08', admin);
-    const decision = decideAgencyCase(record.id, 'suspend', 'Pause new business for review', admin);
-    saveBankStatement('local', statement(100), 'candidate');
-    await expect(decision).rejects.toThrow('changed');
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
-  });
-  it('detects foreign contract amount gaps and enforces foreign holds separately', async () => {
-    const minimum = minimumPerCandidate('Saudi Arabia')!;
-    saveCandidates([{ ...candidate, external_status: { ...candidate.external_status, work_contract: true } }]);
-    const foreignPayment = { ...payment, amount: minimum.amount / 2, currency: minimum.currency, payer_type: 'foreign-agency' as const, payer_foreign_agency_id: 'foreign' };
-    savePayments([foreignPayment]);
-    expect(amountDiscrepancies().find(issue => issue.id === 'contract:p')).toMatchObject({ kind: 'underpayment', agencyType: 'foreign', basis: 'contract' });
-    savePayments([{ ...foreignPayment, amount: minimum.amount * 2 }]);
-    expect(amountDiscrepancies().find(issue => issue.id === 'contract:p')?.kind).toBe('overpayment');
-    const record = await escalateAmountDiscrepancy('contract:p', 'Review the excess contract allocation', '2026-11-08', admin);
-    await decideAgencyCase(record.id, 'suspend', 'Pause new assignments during review', admin);
-    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
-    await expect(sendProfileToForeignAgency(candidate.id, candidate.tracking_code, 'foreign', admin.id, admin.email)).rejects.toThrow('suspended');
-    await expect(initiatePayment('foreign', [candidate.id], admin.id, admin.email)).rejects.toThrow('suspended');
-    await appealAgencyCase(record.id, 'A contract addendum explains the additional services', '', foreign);
-    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
-  });
-  it('detects confirmed short/over reference matches, not pending, currency or ambiguous reference matches', () => {
-    expect(amountDiscrepancies()[0]).toMatchObject({ kind: 'underpayment', agencyType: 'local', agencyId: 'local', basis: 'bank' });
-    saveBankStatement('local', statement(120), 'candidate');
-    expect(amountDiscrepancies()[0].kind).toBe('overpayment');
-    saveBankStatement('local', statement(80, 'OTHER'), 'candidate');
-    expect(amountDiscrepancies()).toEqual([]);
-    saveBankStatement('local', statement(80, 'REF', 'USD'), 'candidate');
-    expect(amountDiscrepancies()).toEqual([]);
-    saveBankStatement('local', statement(80), 'candidate'); savePayments([{ ...payment, status: 'pending' }]);
-    expect(amountDiscrepancies()).toEqual([]);
-  });
-  it('enforces reason, deadline and superadmin permissions; escalation does not automatically suspend', async () => {
+  it('requires role, reason and valid deadline; escalation alone consumes no chances', async () => {
     await expect(escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', local)).rejects.toThrow('superadmin');
     await expect(escalateAmountDiscrepancy('bank:p', 'short', '2026-11-08', admin)).rejects.toThrow('10 characters');
     await expect(escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-02-30', admin)).rejects.toThrow('valid');
     const record = await escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', admin);
-    expect(record).toMatchObject({ state: 'escalated', holdActive: false });
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
+    expect(record.holdActive).toBe(false);
+    expect(status().remaining).toBe(3);
     await expect(escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', admin)).rejects.toThrow('already');
-    expect(getApprovalLogs().some(log => log.description.includes('Snapshot:'))).toBe(true);
+    saveBankStatement('local', statement(payment.amount), 'foreign');
+    await expect(decideAgencyCase(record.id, 'suspend', 'Suspend despite corrected bank evidence', admin)).rejects.toThrow('changed');
+    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(1);
   });
-  it('keeps suspension active during appeals, rejects other agencies and restores only through explicit audited reinstatement', async () => {
-    const record = await escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', admin);
-    await decideAgencyCase(record.id, 'suspend', 'Restrict new business pending evidence review', admin);
-    expect(() => requireAgencyOperations('local', 'local')).toThrow('suspended');
-    await expect(appealAgencyCase(record.id, 'We have the original bank proof', '', foreign)).rejects.toThrow('Only this agency');
-    await expect(appealAgencyCase(record.id, 'We have the original bank proof', 'javascript:alert(1)', local)).rejects.toThrow('HTTPS');
-    await appealAgencyCase(record.id, 'Explain fee withheld by bank', 'https://example.test/evidence.pdf', local);
-    expect(getAgencyResolutionCases()[0]).toMatchObject({ state: 'appealed', holdActive: true });
-    await expect(decideAgencyCase(record.id, 'resolve', 'All proof was reviewed and corrected', admin)).rejects.toThrow('Reinstate');
-    await expect(decideAgencyCase(record.id, 'reinstate', 'All proof was reviewed and corrected', local)).rejects.toThrow('superadmin');
-    await decideAgencyCase(record.id, 'reject-appeal', 'Proof does not explain the reference-linked shortage', admin);
-    expect(agencyIsSuspended('local', 'local')).toBe(true);
-    await appealAgencyCase(record.id, 'Second appeal with bank confirmation', '', local);
-    await decideAgencyCase(record.id, 'reinstate', 'Bank confirmation reviewed; fee explains difference', admin);
+  it('never clears a pause automatically, even when all corrected evidence matches', async () => {
+    const record = await verify();
+    await decideAgencyCase(record.id, 'suspend', 'Ministry early pause for review', admin);
+    saveBankStatement('local', statement(payment.amount), 'foreign');
+    expect(await autoResolveVerifiedAgencyCases(admin)).toBe(0);
+    expect(agencyIsSuspended('foreign', 'foreign')).toBe(true);
+  });
+  it('keeps contract estimates separate from bank verification and candidate ChechePay statuses', async () => {
+    savePayments([{ ...payment, amount: minimum.amount / 2 }]);
+    const contract = amountDiscrepancies().find(issue => issue.id === 'contract:p')!;
+    expect(contract).toMatchObject({ kind: 'underpayment', agencyType: 'foreign', basis: 'contract' });
+    expect(agencyReviewEvidence(contract).canAutoPause).toBe(false);
+    const record = await escalateAmountDiscrepancy(contract.id, 'Review contract minimum allocation', '2026-11-08', admin);
+    await expect(decideAgencyCase(record.id, 'suspend', 'Pause solely for the estimated minimum', admin)).rejects.toThrow('Contract estimates');
+    expect(status().remaining).toBe(3);
+    saveConfig({ ...getConfig(), stageFees: { 1: 200 } });
+    savePayments([{ ...payment, payer_type: 'candidate', payer_foreign_agency_id: '', stage_id: 1, amount: 100, currency: 'ETB' }]);
+    saveBankStatement('local', statement(80, 'REF', 'ETB'), 'candidate');
+    expect(amountDiscrepancies()).toEqual([]);
     expect(agencyIsSuspended('local', 'local')).toBe(false);
-    expect(getAgencyResolutionCases()[0].state).toBe('resolved');
-    expect(getAgencyResolutionCases()[0].events.map(event => event.action)).toEqual(['escalated', 'suspend', 'appeal', 'reject-appeal', 'appeal', 'reinstate']);
-    expect(getAgencyResolutionCases()[0].events.every(event => !!event.auditId)).toBe(true);
   });
-  it('prevents suspension from stale or corrected evidence and preserves other cases when one is lifted', async () => {
-    const first = await escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', admin);
-    saveBankStatement('local', statement(100), 'candidate');
-    await expect(decideAgencyCase(first.id, 'suspend', 'Check the discrepancy before decisions', admin)).rejects.toThrow('changed');
-    saveBankStatement('local', statement(80), 'candidate');
-    await decideAgencyCase(first.id, 'suspend', 'Review short bank credit and source', admin);
-    savePayments([payment, { ...payment, id: 'p2', provider_reference: 'REF2' }]);
-    saveBankStatement('local', { ...statement(80), lines: [...statement(80).lines, { ...statement(70).lines[0], reference: 'REF2' }] }, 'candidate');
-    const second = await escalateAmountDiscrepancy('bank:p2', 'Second credit has missing amount', '2026-11-08', admin);
-    await decideAgencyCase(second.id, 'suspend', 'Second case also requires operations pause', admin);
-    await decideAgencyCase(first.id, 'reinstate', 'First case explanation accepted', admin);
-    expect(agencyIsSuspended('local', 'local')).toBe(true);
-  });
-  it('restricts new business while allowing candidate support updates and keeps demo/live cases separate', async () => {
-    const record = await escalateAmountDiscrepancy('bank:p', 'Check bank credit', '2026-11-08', admin);
-    await decideAgencyCase(record.id, 'suspend', 'Pause new business pending review', admin);
-    await expect(createCandidate(candidate, admin.id, admin.email)).rejects.toThrow('suspended');
-    await expect(initiatePayment('foreign', [candidate.id], admin.id, admin.email)).rejects.toThrow('suspended');
-    await expect(sendProfileToForeignAgency(candidate.id, candidate.tracking_code, 'foreign', admin.id, admin.email)).rejects.toThrow('suspended');
-    await expect(updateCandidateDetails(candidate.id, { phone_number: 'updated-support-contact' }, admin.id, admin.email)).resolves.toMatchObject({ phone_number: 'updated-support-contact' });
-    saveConfig({ ...getConfig(), localAgencies: [{ id: 'other', name: 'Other', created_at: '2026-11-07' }] });
-    await expect(updateCandidateDetails(candidate.id, { local_agency_id: 'other' }, admin.id, admin.email)).rejects.toThrow('suspended');
-    expect(getCandidates()[0].local_agency_id).toBe('local');
+  it('surfaces malformed restriction storage and keeps live and practice cases separate', async () => {
+    await verify();
     sessionStorage.removeItem('dawm_demo_session');
     expect(getAgencyResolutionCases()).toEqual([]);
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
-  });
-  it('escalates candidate fee gaps for follow-up without permitting suspension based on candidate debt alone', async () => {
-    savePayments([{ ...payment, stage_id: 1, amount: 80 }]);
-    saveBankStatement('local', statement(80), 'candidate');
-    saveConfig({ ...getConfig(), stageFees: { 1: 100 } });
-    const issue = amountDiscrepancies().find(issue => issue.basis === 'stage-fee')!;
-    expect(issue.kind).toBe('underpayment');
-    const record = await escalateAmountDiscrepancy(issue.id, 'Follow up with candidate fee evidence', '2026-11-08', admin);
-    await expect(decideAgencyCase(record.id, 'suspend', 'Suspend for candidate balance', admin)).rejects.toThrow('Candidate fee debt alone');
-    await decideAgencyCase(record.id, 'request-follow-up', 'Ask candidate and agency for outstanding fee explanation', admin);
-    expect(agencyIsSuspended('local', 'local')).toBe(false);
+    sessionStorage.setItem('dawm_demo_session', '1');
+    localStorage.setItem('demo:dawm-agency-resolution', JSON.stringify([{ id: 'invalid', issue: {}, events: [] }]));
+    expect(() => requireAgencyOperations('foreign', 'foreign')).toThrow('invalid');
   });
 });

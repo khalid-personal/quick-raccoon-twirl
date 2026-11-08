@@ -1,6 +1,5 @@
 import { isDemoMode } from './demo-mode';
 import { getCandidates, getCandidateStages, getLocalAgencies, getForeignAgencies, getPayments, getConfig } from './data-store';
-import { localFeeRows } from './local-payment-evidence';
 import { analyzeAgencyPayments } from './agency-payments';
 import { isForeignPayment } from './currency';
 import { loadBankStatement } from './bank-statement-store';
@@ -8,6 +7,7 @@ import { paymentReferences, paymentsWithReusedReferences, reconcile, type BankLi
 import { recordApprovalLog } from './api/log-management';
 import { currentVerifiedPaymentIds } from './payment-review-clearance';
 import type { Candidate, Payment } from './types';
+import { foreignUnderpaymentStatus } from './foreign-underpayment-policy';
 
 export interface ResolutionActor { id: string; email: string; role: string; localAgencyId?: string | null; foreignAgencyId?: string | null; }
 export interface AmountDiscrepancy {
@@ -24,6 +24,7 @@ const decisionLabels: Record<string, string> = {
   escalated: 'Follow-up opened',
   suspend: 'New agency activity paused',
   'verified-underpayment-pause': 'Candidate-linked shortfall verified; agency paused',
+  'verified-underpayment-warning': 'Verified underpayment; chance used and payment follow-up opened',
   'request-follow-up': 'More information requested',
   appeal: 'Agency explanation or appeal received',
   'reject-appeal': 'Appeal declined',
@@ -53,8 +54,8 @@ export function agencyReviewEvidence(issue: AmountDiscrepancy): AgencyReviewEvid
   const line = matchingLines.length === 1 ? matchingLines[0] : undefined;
   const current = amountDiscrepancies().find(item => item.id === issue.id);
   const practice = isDemoMode() || statement?.synthetic === true || payment?.demo_evidence?.synthetic === true;
-  const candidateLinked = !!candidate && !!payment && candidate.local_agency_id === payment.payee_local_agency_id
-    && (issue.source === 'candidate' || candidate.foreign_agency_id === payment.payer_foreign_agency_id)
+  const candidateLinked = issue.source === 'foreign' && issue.agencyType === 'foreign' && !!candidate && !!payment && candidate.local_agency_id === payment.payee_local_agency_id
+    && candidate.foreign_agency_id === payment.payer_foreign_agency_id && issue.agencyId === payment.payer_foreign_agency_id
     && !!candidate.tracking_code && !!line
     && line.description.toLowerCase().split(/[\s,;|()[\]]+/).includes(candidate.tracking_code.toLowerCase())
     && candidates.filter(item => !!item.tracking_code && line.description.toLowerCase().split(/[\s,;|()[\]]+/).includes(item.tracking_code.toLowerCase())).length === 1;
@@ -65,7 +66,7 @@ export function agencyReviewEvidence(issue: AmountDiscrepancy): AgencyReviewEvid
     { title: 'Confirmed bank shortfall', passed: issue.basis === 'bank' && issue.kind === 'underpayment' && !!payment && !!line
       && Number.isFinite(payment.amount) && Number.isFinite(line.amount) && payment.amount > 0 && line.amount > 0
       && !!line.currency && line.currency.toUpperCase() === payment.currency.toUpperCase() && Math.round((payment.amount - line.amount) * 100) > 0,
-      detail: 'The bank credit is below the recorded payment in the same currency. Contract estimates and candidate fee debt alone do not qualify.' },
+      detail: 'The foreign transfer bank credit is below the recorded payment in the same currency. Contract estimates and candidate ChechePay payments do not consume chances.' },
     { title: 'Usable bank file', passed: !!statement && (!statement.scan_report || statement.scan_report.status === 'clear'), detail: 'A file flagged for closer inspection or unsafe content cannot trigger an automatic pause. File checks cannot prove that the bank issued this file.' },
   ];
   return { candidate, payment, line, statementName: statement?.name, practice, checks,
@@ -85,15 +86,23 @@ export async function verifyAgencyUnderpayment(issueId: string, evidenceSnapshot
   if (evidence.snapshot !== evidenceSnapshot) throw new Error('Candidate or bank evidence changed. Review the current checks before confirming.');
   const existing = getAgencyResolutionCases().find(record => record.issue.id === issueId && record.state !== 'resolved');
   if (existing && (existing.holdActive || existing.state === 'appealed' || existing.issue.snapshot !== issue.snapshot)) throw new Error('This case requires review of its current decision or appeal; it cannot be automatically paused again.');
-  const description = `${evidence.practice ? 'Practice evidence only. ' : ''}Verified underpayment portal pause requested: ${evidence.candidate?.first_name} ${evidence.candidate?.last_name}, ${evidence.candidate?.tracking_code}; reference ${evidence.line?.reference}; recorded ${evidence.payment?.amount}, bank credit ${evidence.line?.amount} ${evidence.line?.currency}. Agency ${agencyCaseName(issue)}. Reason: ${reason.trim()}. Reply by ${dueDate}. No legal finding or provider freeze. Snapshot: ${evidence.snapshot}`;
+  const config = getConfig();
+  const chances = foreignUnderpaymentStatus(issue.agencyId, getAgencyResolutionCases(), config);
+  if (chances.countedPayments.has(issue.paymentId)) throw new Error('This transfer already used a chance in the current ministry cycle. Follow up on its existing case.');
+  if (agencyIsSuspended('foreign', issue.agencyId)) throw new Error('This foreign agency is already paused. Review its active case before recording another chance.');
+  const pause = chances.remaining <= 1;
+  const description = `${evidence.practice ? 'Practice evidence only. ' : ''}Verified foreign underpayment: ${evidence.candidate?.first_name} ${evidence.candidate?.last_name}, ${evidence.candidate?.tracking_code}; reference ${evidence.line?.reference}; recorded ${evidence.payment?.amount}, bank credit ${evidence.line?.amount} ${evidence.line?.currency}. Agency ${agencyCaseName(issue)}. Chance ${chances.used + 1} of 3; ${pause ? 'new operations paused' : `${chances.remaining - 1} chances remain; payment follow-up required`}. Reason: ${reason.trim()}. Reply by ${dueDate}. No legal finding or provider freeze. Snapshot: ${evidence.snapshot}`;
   const audit = await recordApprovalLog(actor.id, actor.email, 'Payment', issue.paymentId, 'Updated', description);
   const latest = getAgencyResolutionCases().find(record => record.issue.id === issueId && record.state !== 'resolved');
   if (latest?.events.at(-1)?.id !== existing?.events.at(-1)?.id || agencyReviewEvidence(issue).snapshot !== evidenceSnapshot) throw new Error('This case or its evidence changed during verification. Reload before continuing.');
+  if (JSON.stringify(getConfig().foreignUnderpaymentRenewal) !== JSON.stringify(config.foreignUnderpaymentRenewal)
+    || foreignUnderpaymentStatus(issue.agencyId, getAgencyResolutionCases(), getConfig()).used !== chances.used
+    || agencyIsSuspended('foreign', issue.agencyId)) throw new Error('The agency chances or ministry policy changed during verification. Reload before continuing.');
   const at = new Date().toISOString();
   const record: AgencyResolutionCase = {
     ...(existing ?? { id: crypto.randomUUID(), issue, createdAt: at, events: [] }),
-    state: 'suspended', holdActive: true, dueDate, updatedAt: at,
-    events: [...(existing?.events ?? []), { id: crypto.randomUUID(), action: 'verified-underpayment-pause', reason: description.split(' Snapshot:')[0], actorId: actor.id, actor: actor.email, at, auditId: audit.id }],
+    state: pause ? 'suspended' : 'escalated', holdActive: pause, dueDate, updatedAt: at,
+    events: [...(existing?.events ?? []), { id: crypto.randomUUID(), action: pause ? 'verified-underpayment-pause' : 'verified-underpayment-warning', reason: description.split(' Snapshot:')[0], actorId: actor.id, actor: actor.email, at, auditId: audit.id }],
   };
   saveCases(existing ? getAgencyResolutionCases().map(item => item.id === existing.id ? record : item) : [...getAgencyResolutionCases(), record]);
   return record;
@@ -133,14 +142,14 @@ export function amountDiscrepancies(): AmountDiscrepancy[] {
   const candidates = getCandidates();
   const issues: AmountDiscrepancy[] = [];
   getLocalAgencies().forEach(agency => {
-    (['foreign', 'candidate'] as const).forEach(source => {
+    (['foreign'] as const).forEach(source => {
       const statement = loadBankStatement(agency.id, source);
       if (!statement) return;
       reconcile(payments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === agency.id && isForeignPayment(payment) === (source === 'foreign')), statement.lines).matches.forEach(match => {
-        if ((match.status !== 'short' && match.status !== 'over') || match.matchBasis !== 'reference' || match.currencyMismatch) return;
+        if ((match.status !== 'short' && match.status !== 'over') || match.matchBasis !== 'reference' || match.currencyMismatch || !match.payment.payer_foreign_agency_id) return;
         issues.push({ id: `bank:${match.payment.id}`, caseId: match.payment.id, paymentId: match.payment.id, recipientId: agency.id, source,
-          agencyId: agency.id, agencyType: 'local', kind: match.status === 'short' ? 'underpayment' : 'overpayment', basis: 'bank',
-          explanation: `${match.explanation} Recipient agency is the review subject, not a proven cause.`,
+          agencyId: match.payment.payer_foreign_agency_id, agencyType: 'foreign', kind: match.status === 'short' ? 'underpayment' : 'overpayment', basis: 'bank',
+          explanation: `${match.explanation} Follow up with the sending foreign agency; the receiving local agency is not the review subject.`,
           snapshot: JSON.stringify({ payment: match.payment, line: match.line }) });
       });
     });
@@ -153,15 +162,6 @@ export function amountDiscrepancies(): AmountDiscrepancy[] {
       kind: row.issue === 'short' ? 'underpayment' : 'overpayment', basis: 'contract',
       explanation: `${row.message} Contract-minimum allocation is a rule estimate; review actual allocations and legitimate excess before deciding responsibility.`,
       snapshot: JSON.stringify({ payment: row.payment, expected: row.expectedMin, currency: row.currency, candidates: row.payment.candidate_ids.map(id => candidates.find(candidate => candidate.id === id)?.external_status) }) });
-  });
-  localFeeRows(candidates, getCandidateStages(), payments, getConfig().stageFees ?? {}).forEach(row => {
-    if (row.status !== 'short' && row.status !== 'over' || row.received <= 0) return;
-    const payment = row.payments.find(payment => payment.status === 'succeeded');
-    if (!payment || !row.candidate.local_agency_id) return;
-    issues.push({ id: `fee:${row.candidate.id}:${row.stageId}`, caseId: payment.id, paymentId: payment.id, recipientId: row.candidate.local_agency_id, source: 'candidate',
-      agencyId: row.candidate.local_agency_id, agencyType: 'local', kind: row.status === 'short' ? 'underpayment' : 'overpayment', basis: 'stage-fee',
-      explanation: `${row.stageTitle}: ${row.received} ETB settled against ${row.expected} ETB required. The local agency should follow up, but candidate fee debt alone cannot justify an agency suspension.`,
-      snapshot: JSON.stringify({ payments: row.payments, expected: row.expected, stage: row.stageId }) });
   });
   return issues;
 }
@@ -195,10 +195,11 @@ export async function decideAgencyCase(id: string, action: 'suspend' | 'request-
   const record = getAgencyResolutionCases().find(record => record.id === id);
   if (!record || record.state === 'resolved') throw new Error('Open resolution case not found.');
   if (action === 'suspend') {
-    if (record.issue.basis === 'stage-fee') throw new Error('Candidate fee debt alone cannot suspend an agency. Request a follow-up; investigate agency bank or contract evidence separately.');
+    if (record.issue.source !== 'foreign' || record.issue.agencyType !== 'foreign') throw new Error('Candidate ChechePay payment status cannot suspend a local agency.');
     const current = amountDiscrepancies().find(issue => issue.id === record.issue.id);
     if (!current || current.snapshot !== record.issue.snapshot) throw new Error('Payment evidence changed. Resolve this case and investigate the current discrepancy before suspending.');
     if (record.holdActive) throw new Error('This case already has an active suspension.');
+    if (record.issue.kind === 'underpayment' && !agencyReviewEvidence(record.issue).canAutoPause) throw new Error('Verify the candidate-linked bank shortfall before a ministry underpayment pause. Contract estimates do not consume chances.');
   }
   if (action === 'reject-appeal' && record.state !== 'appealed') throw new Error('There is no appeal awaiting decision.');
   if (action === 'reinstate' && !record.holdActive) throw new Error('There is no active suspension for this case.');

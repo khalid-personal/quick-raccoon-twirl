@@ -8,6 +8,7 @@ const statusOptions = [
   { key: 'succeeded', label: PAYMENT_STATUS_LABELS.succeeded, icon: CheckCircle2, tone: 'text-emerald-600', bar: 'bg-emerald-500' },
   { key: 'pending', label: PAYMENT_STATUS_LABELS.pending, icon: Clock3, tone: 'text-amber-600', bar: 'bg-amber-500' },
   { key: 'failed', label: PAYMENT_STATUS_LABELS.failed, icon: TriangleAlert, tone: 'text-rose-600', bar: 'bg-rose-500' },
+  { key: 'timed-out', label: PAYMENT_STATUS_LABELS['timed-out'], icon: Clock3, tone: 'text-rose-600', bar: 'bg-rose-400' },
   { key: 'refunded', label: PAYMENT_STATUS_LABELS.refunded, icon: ArrowDownLeft, tone: 'text-muted-foreground', bar: 'bg-slate-400' },
 ] satisfies Array<{ key: PaymentStatusFilter; label: string; icon: typeof ListFilter; tone: string; bar: string }>;
 
@@ -26,7 +27,7 @@ export default function PaymentLedgerSummary({ payments, source = 'all', status,
         <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
           {statusOptions.filter(item => item.key !== 'all').map(item => <span key={item.key} className={item.bar} style={{ width: `${count(item.key) / Math.max(payments.length, 1) * 100}%` }} />)}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {statusOptions.map(item => <button key={item.key} type="button" aria-pressed={status === item.key}
             onClick={() => onStatusChange(status === item.key ? 'all' : item.key)}
             className={cn('min-w-0 rounded-lg border p-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', status === item.key && 'border-primary bg-primary/5')}>

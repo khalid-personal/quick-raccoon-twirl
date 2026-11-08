@@ -3,6 +3,7 @@ import type { AgencyResolutionCase, AmountDiscrepancy } from './agency-resolutio
 import { analyzeIntegrity, applyOverrides, scopeIntegrityFindings, type IntegrityInput, type Severity } from './integrity';
 import { getActiveStageTasks } from './staff-tasks';
 import type { IntegrityOverride, StaffUser } from './types';
+import { contractWasSent, foreignContractPayment } from './foreign-contract-payment';
 
 export interface PortalTask {
   id: string;
@@ -105,6 +106,17 @@ export function buildPortalTasks(principal: ApiPrincipal, input: IntegrityInput,
       .forEach(candidate => tasks.push({ id: `contract:${candidate.id}`, title: `${principal.role === 'local-agency' ? 'Check contract receipt' : 'Review contract preparation'}: ${candidate.first_name} ${candidate.last_name}`,
         detail: `${candidate.tracking_code} · ${principal.role === 'local-agency' ? 'Open the shared contract, check the candidate and acknowledge receipt only after it arrives.' : 'Review the introduction and current stage before coordinating a contract. Local-stage and payment gates still apply.'}`,
         path: `${profileBase}/${candidate.id}?tab=contract`, category: 'Contract follow-up', severity: 'low' }));
+  }
+  if (!['candidate', 'viewer', 'auditor'].includes(principal.role)) {
+    candidates.filter(contractWasSent).forEach(candidate => {
+      const payment = foreignContractPayment(candidate, input.payments);
+      if (payment.paid) return;
+      const agency = staff.find(person => ['agency', 'foreign-agency'].includes(person.role) && person.foreign_agency_id === candidate.foreign_agency_id);
+      tasks.push({ id: `contract-payment:${candidate.id}`, title: `${isForeign ? 'Make contract payment' : 'Follow up with the foreign agency'}: ${candidate.first_name} ${candidate.last_name}`,
+        detail: `${candidate.tracking_code} · ${payment.detail} Responsible foreign agency: ${agency?.email ?? candidate.foreign_agency_id ?? 'Not assigned; correct the agency assignment first'}. This is not a candidate stage-fee request.`,
+        path: isForeign ? `/agency/candidate/${candidate.id}?tab=payments` : `${profileBase}/${candidate.id}?tab=contract`,
+        category: 'Payment check', severity: 'high' });
+    });
   }
   const rank: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   return tasks.sort((a, b) => rank[a.severity] - rank[b.severity] || (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999') || a.id.localeCompare(b.id));

@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import WidgetShell from './WidgetShell';
+import { foreignUnderpaymentCycle, setForeignUnderpaymentRenewal } from '@/lib/foreign-underpayment-policy';
 
 function initialCalendar() {
   try {
@@ -26,6 +27,17 @@ export default function MinistrySubmissionSettings() {
   const [saved, setSaved] = useState(initial.configured);
   const [error, setError] = useState(initial.error);
   const [busy, setBusy] = useState(false);
+  const [renewalDate, setRenewalDate] = useState(() => getConfig().foreignUnderpaymentRenewal?.renewsOn ?? '');
+  const [renewalBusy, setRenewalBusy] = useState(false);
+  const saveRenewal = async () => {
+    setRenewalBusy(true);
+    try {
+      await setForeignUnderpaymentRenewal(renewalDate, { id: auth.viewAs?.userId ?? auth.user?.id ?? '', email: auth.user?.email ?? '', role: auth.userRole ?? '' });
+      foreignUnderpaymentCycle(getConfig());
+      toast.success('Ministry renewal date saved. Active agency pauses are unchanged.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save the renewal date.'); }
+    finally { setRenewalBusy(false); }
+  };
   const save = async () => {
     setBusy(true);
     try {
@@ -40,5 +52,12 @@ export default function MinistrySubmissionSettings() {
     <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="submission-start">Submission opens</Label><Input id="submission-start" type="date" value={start} max={end || undefined} onChange={e => { setStart(e.target.value); setSaved(false); }} /></div><div><Label htmlFor="submission-end">Every candidate submission due</Label><Input id="submission-end" type="date" min={start > evidenceToday() ? start : evidenceToday()} value={end} onChange={e => { setEnd(e.target.value); setSaved(false); }} /></div></div>
     {end && end < evidenceToday() && <p role="alert" className="text-sm text-destructive">This window has expired. Set a new deadline; the previous deadline is not extended automatically.</p>}
     <Button disabled={busy} onClick={() => void save()}><Save className="mr-2 h-4 w-4" />{busy ? 'Saving…' : 'Save submission calendar · audit logged'}</Button>
+    <section aria-label="Foreign underpayment renewal calendar" className="space-y-3 border-t pt-4">
+      <h3 className="font-semibold">Foreign agency underpayment chances</h3>
+      <p className="text-sm text-muted-foreground">Three distinct, candidate-linked bank underpayments per cycle. The first two require follow-up; the third pauses new operations. All foreign agencies receive three renewed chances at midnight Ethiopia time on this date. Renewal never lifts an active pause. A ministry release keeps used chances: after one confirmed underpayment, two remain.</p>
+      <Label htmlFor="underpayment-renewal">Ministry renewal date</Label>
+      <Input id="underpayment-renewal" type="date" min={evidenceToday()} value={renewalDate} onChange={event => setRenewalDate(event.target.value)} />
+      <Button disabled={renewalBusy || !renewalDate} onClick={() => void saveRenewal()}><Save className="mr-2 h-4 w-4" />{renewalBusy ? 'Saving…' : 'Save chance renewal date · audit logged'}</Button>
+    </section>
   </WidgetShell>;
 }

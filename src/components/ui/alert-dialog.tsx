@@ -3,6 +3,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { PopupResizeControl, popupCloseClassName, popupWindowStyle } from "./popup-window";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -28,7 +29,7 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
+>(({ className, children, style, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
@@ -38,7 +39,9 @@ const AlertDialogContent = React.forwardRef<
         className,
       )}
       {...props}
-    />
+      data-popup-window=""
+      style={{ ...style, ...popupWindowStyle }}
+    >{children}<PopupResizeControl /></AlertDialogPrimitive.Content>
   </AlertDialogPortal>
 ));
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
@@ -117,6 +120,7 @@ const AlertDialogCancel = React.forwardRef<
     className={cn(
       buttonVariants({ variant: "outline" }),
       "mt-2 sm:mt-0",
+      popupCloseClassName,
       className,
     )}
     {...props}

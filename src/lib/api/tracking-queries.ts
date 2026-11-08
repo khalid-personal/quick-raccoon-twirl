@@ -3,7 +3,8 @@ import {
     ALL_STAGES,
     StageStatus,
 } from '../types';
-import { getCandidates, saveCandidates, getCandidateStages, getMedicalResults, getDocuments, getPaymentStatuses, getCocFacilities, getForeignAgencies, getLocalAgencies, getConfig } from '../data-store'; // Import new getters
+import { getCandidates, saveCandidates, getCandidateStages, getMedicalResults, getDocuments, getPaymentStatuses, getPayments, getCocFacilities, getForeignAgencies, getLocalAgencies, getConfig } from '../data-store'; // Import new getters
+import { stageFeeCovered } from '../stage-readiness';
 import { normalizePartnerships, recordProfileShare } from '../agency-partnerships';
 import { calculateProgress } from '../utils-data';
 import { getStageId } from './utils';
@@ -43,7 +44,7 @@ export const getPublicTrackingData = async (trackingCode: string): Promise<Publi
             const is_medical_stage = stage.slug === 'medical';
 
             // Determine payment status
-            const is_fee_paid = paymentStatuses.some(ps => ps.candidateId === candidate.id && ps.stageId === stage.id && ps.isPaid);
+            const is_fee_paid = stageFeeCovered(candidate, stage.id, stageFees, paymentStatuses, getPayments());
 
             if (is_medical_stage) {
                 // Summarize medical results for public view (Rule: only show Pass/Fail/Pending)

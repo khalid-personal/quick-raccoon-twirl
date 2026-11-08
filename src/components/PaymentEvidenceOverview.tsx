@@ -36,7 +36,7 @@ export default function PaymentEvidenceOverview({ evidence, statementName }: { e
     : !line ? 'Ask for a deposit slip or upload the correct bank file. No matching entry here does not prove the money was never paid.'
       : !comparable ? 'Confirm the original currency. These amounts must not be subtracted or converted to claim a match.'
         : !referenceConfirmed ? 'Check the deposit reference and payer before linking this bank row to the payment.'
-          : difference !== 0 ? 'Ask the local agency to explain the difference and supply supporting proof.'
+          : difference !== 0 ? 'Ask the sending foreign agency to explain the difference and supply supporting proof.'
             : 'Check the source details before closing this case.';
   const bankRatio = comparable && payment.amount > 0 ? line.amount / payment.amount * 100 : undefined;
   const checks = [

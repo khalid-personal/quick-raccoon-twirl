@@ -8,7 +8,8 @@ import {
     PaymentAnalytics,
     TimeFilter,
 } from '../types';
-import { getCandidates, getCandidateStages, getPaymentStatuses, getLocalAgencies, getForeignAgencies, getCocFacilities, getConfig } from '../data-store'; // Import new getters
+import { getCandidates, getCandidateStages, getPaymentStatuses, getPayments, getLocalAgencies, getForeignAgencies, getCocFacilities, getConfig } from '../data-store'; // Import new getters
+import { stageFeeCovered } from '../stage-readiness';
 import { calculateProgress, calculateOverallStatus, getFilterStartDate } from '../utils-data';
 import { getStageId } from './utils';
 
@@ -168,9 +169,7 @@ export const searchCandidates = async (
         const progress_percent = calculateProgress(candidateStages);
         const overall_status = calculateOverallStatus(candidateStages);
         
-        const is_medical_paid = paymentStatuses.some(ps =>
-            ps.candidateId === candidate.id && ps.stageId === medicalStage?.id && ps.isPaid
-        );
+        const is_medical_paid = !!medicalStage && stageFeeCovered(candidate, medicalStage.id, getConfig().stageFees ?? {}, paymentStatuses, getPayments());
 
         const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
         const localAgency = candidate.local_agency_id ? localAgencies.find(la => la.id === candidate.local_agency_id) : undefined;
@@ -181,7 +180,7 @@ export const searchCandidates = async (
             progress_percent,
             overall_status,
             is_medical_paid,
-            paid_stage_ids: paymentStatuses.filter(status => status.candidateId === candidate.id && status.isPaid).map(status => status.stageId),
+            paid_stage_ids: ALL_STAGES.filter(stage => stageFeeCovered(candidate, stage.id, getConfig().stageFees ?? {}, paymentStatuses, getPayments())).map(stage => stage.id),
             foreign_agency_name: foreignAgency?.name,
             local_agency_name: localAgency?.name,
             coc_facility_name: cocFacility?.name,
@@ -435,9 +434,7 @@ export const getPaymentAnalytics = async (
         stagesWithFees.forEach(stage => {
             const feeAmount = stage.fee_amount!;
             
-            const isPaid = paymentStatuses.some(ps => 
-                ps.candidateId === candidate.id && ps.stageId === stage.id && ps.isPaid
-            );
+            const isPaid = stageFeeCovered(candidate, stage.id, getConfig().stageFees ?? {}, paymentStatuses, getPayments());
             
             const analytics = stageAnalyticsMap.get(stage.id)!;
             

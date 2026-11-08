@@ -47,7 +47,9 @@ it('groups warnings by affected record, honors exceptions and does not mutate wo
   const findings = analyzeIntegrity(input);
   const overrides = findings.map(finding => ({ id: finding.id, finding_id: finding.id, rule: finding.rule, severity: finding.severity,
     title: finding.title, reason: 'Authorized review', overridden_by_id: 'super', overridden_by_email: 'super@test.test', overridden_at: '2026-11-08' }));
-  expect(buildPortalTasks(principal('admin'), input, [], overrides, [])).toEqual([]);
+  const remaining = buildPortalTasks(principal('admin'), input, [], overrides, []);
+  expect(remaining.every(task => task.id.startsWith('contract-payment:'))).toBe(true);
+  expect(remaining.length).toBeGreaterThan(0);
   expect(input).toEqual(before);
 });
 it('keeps multiple foreign-to-local short and extra payment entries in reviewer tasks but not foreign or candidate queues', () => {
@@ -62,13 +64,13 @@ it('keeps multiple foreign-to-local short and extra payment entries in reviewer 
     source: 'foreign', agencyType: 'local', agencyId: payment.payee_local_agency_id, kind: index ? 'overpayment' : 'underpayment',
     basis: 'bank', explanation: index ? 'Bank received more than recorded.' : 'Bank received less than recorded.', snapshot: '',
   }));
-  const tasks = buildPortalTasks(principal('superadmin'), { ...input, payments }, [], [], [], differences).filter(task => task.category === 'Payment check');
+  const tasks = buildPortalTasks(principal('superadmin'), { ...input, payments }, [], [], [], differences).filter(task => task.category === 'Payment check' && !task.id.startsWith('contract-payment:'));
   expect(tasks).toHaveLength(2);
   expect(tasks.map(task => task.detail).join(' ')).toContain('BANK-SHORT');
   expect(tasks.map(task => task.detail).join(' ')).toContain('BANK-EXTRA');
-  expect(buildPortalTasks(principal('local-agency'), { ...input, payments }, [], [], [], differences).filter(task => task.category === 'Payment check')).toHaveLength(1);
+  expect(buildPortalTasks(principal('local-agency'), { ...input, payments }, [], [], [], differences).filter(task => task.category === 'Payment check' && !task.id.startsWith('contract-payment:'))).toHaveLength(1);
   for (const role of ['candidate', 'foreign-agency', 'foreign-agency-staff', 'viewer'] as const) {
-    expect(buildPortalTasks(principal(role), { ...input, payments }, [], [], [], differences).some(task => task.category === 'Payment check')).toBe(false);
+    expect(buildPortalTasks(principal(role), { ...input, payments }, [], [], [], differences).some(task => task.category === 'Payment check' && !task.id.startsWith('contract-payment:'))).toBe(false);
   }
   expect(() => buildPortalTasks({ ...principal('local-agency'), localAgencyId: null }, input, [], [], [])).toThrow('agency assignment');
 });
