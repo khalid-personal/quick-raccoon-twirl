@@ -70,7 +70,7 @@ export const getCandidates = (): Candidate[] => (JSON.parse(dataStorage.getItem(
 const readCandidateStages = (): CandidateStage[] => JSON.parse(dataStorage.getItem(LS_CANDIDATE_STAGES) || '[]');
 const normalizeAndPersistCandidateStages = (stages: CandidateStage[]): CandidateStage[] => {
   const withCanonicalStages = normalizeCandidateStages(stages, getCandidates());
-  const paidStages = revertUnpaidCompletedStages(withCanonicalStages, getPaymentStatuses(), getConfig().stageFees ?? {});
+  const paidStages = revertUnpaidCompletedStages(withCanonicalStages, getPaymentStatuses(), getConfig().stageFees ?? {}, undefined, { candidates: getCandidates(), payments: getPayments() });
   const normalized = enforceStageContinuity(paidStages);
   const statuses = new Map(normalized.map(stage => [stage.id, stage.status]));
   const changed = withCanonicalStages.filter(stage => statuses.get(stage.id) !== stage.status);

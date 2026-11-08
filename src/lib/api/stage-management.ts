@@ -1,7 +1,7 @@
 import { CandidateStage, StageStatus, ALL_STAGES } from '../types';
-import { getCandidateStages, saveCandidateStages, getMedicalResults, getCandidates, saveCandidates, getPaymentStatuses, getConfig } from '../data-store';
+import { getCandidateStages, saveCandidateStages, getMedicalResults, getCandidates, saveCandidates, getPaymentStatuses, getConfig, getPayments } from '../data-store';
 import { departureBlockers } from '../departure-readiness';
-import { getStageId } from './utils';
+import { requiredMedicalExams, stageProgressBlockers } from '../stage-readiness';
 
 // PATCH /api/admin/candidate/:id/status
 export const updateStageStatus = async (
@@ -25,21 +25,14 @@ export const updateStageStatus = async (
     if (!candidate) throw new Error('Candidate not found.');
 
     const stageSlug = ALL_STAGES.find(s => s.id === stageId)?.slug;
-    const targetStage = ALL_STAGES.find(stage => stage.id === stageId);
-    if (['Passed', 'Issued', 'Completed'].includes(status) && targetStage) {
-        const stageFee = getConfig().stageFees?.[stageId] ?? targetStage.fee_amount ?? 0;
-        const isStagePaid = getPaymentStatuses().some(payment =>
-            payment.candidateId === candidateId && payment.stageId === stageId && payment.isPaid,
-        );
-        if (stageFee > 0 && !isStagePaid) {
-            throw new Error(`${targetStage.title} cannot be completed until its ${stageFee.toLocaleString()} ETB stage fee is paid.`);
+    const blockers = stageProgressBlockers(candidate, stageId, status, allStages, getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments());
+    if (blockers.length) throw new Error(blockers.join(' '));
+    if (stageSlug === 'medical' && ['Passed', 'Issued', 'Completed'].includes(status)) {
+        const required = requiredMedicalExams(candidate.gender);
+        const results = getMedicalResults().filter(result => result.candidate_id === candidateId);
+        if (!required.every(exam => results.some(result => result.exam_type === exam && result.status === 'Passed'))) {
+            throw new Error('Every required medical exam must have a saved passing result before completing Medical Check.');
         }
-    }
-    const activating = status !== 'Pending';
-    if (activating && targetStage && targetStage.ordinal > 1) {
-        const unfinished = ALL_STAGES.filter(stage => stage.ordinal < targetStage.ordinal).find(stage =>
-            !allStages.some(record => record.candidate_id === candidateId && record.stage_id === stage.id && ['Passed', 'Issued', 'Completed'].includes(record.status)));
-        if (unfinished) throw new Error(`${unfinished.title} must be completed first.`);
     }
 
     if (stageSlug === 'deployment' && ['Passed', 'Issued', 'Completed'].includes(status)) {
@@ -69,6 +62,7 @@ export const updateStageStatus = async (
 
     allStages[candidateStageIndex] = updatedStage;
     saveCandidateStages(allStages);
+    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
     return updatedStage;
 };
 

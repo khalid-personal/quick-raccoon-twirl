@@ -6,20 +6,21 @@ import { minimumPerCandidate, isForeignPayment } from './currency';
 import { reconcile, type MatchStatus } from './bank-reconciliation';
 import { loadBankStatement, loadReconciliationEvents, saveBankStatement, type BankStatement, type PaymentStatementSource, type ReconciliationCaseEvent } from './bank-statement-store';
 import { getApprovalLogs, getCandidates, getCandidateStages, getConfig, getDocuments, getMedicalResults, getPayments, getPaymentStatuses, saveApprovalLogs, saveCandidates, saveCandidateStages, saveConfig, saveDocuments, saveMedicalResults, savePayments, savePaymentStatuses } from './data-store';
-import { ALL_STAGES, type Candidate, type UserRole } from './types';
+import { ALL_STAGES, type Candidate, type CandidateStage, type UserRole } from './types';
 import { withDemoPaymentEvidence, withDemoStatementOriginal } from './demo-payment-evidence';
 import { assignUnassignedStageTasks } from './staff-tasks';
 import { amountDiscrepancies, escalateAmountDiscrepancy, getAgencyResolutionCases } from './agency-resolution';
 import { demoAgencyManager, paymentCandidateSummary } from './demo-identities';
 import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_DOCUMENTS, LS_MEDICAL_RESULTS, LS_PAYMENTS, LS_PAYMENT_STATUS, LS_APPROVAL_LOGS } from './data-keys';
+import { stageProgressBlockers } from './stage-readiness';
 
 export const INTEGRITY_DEMO_SCENARIOS = [
-  { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Several files have problems. Some bank slips show too little, too much, or no proof. Deployment is waiting.' },
+  { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Most candidates are at registration, often unpaid. Some bank slips show too little, too much, or no proof. Later stages must wait.' },
   { id: 'low-medium', label: 'Low→Medium', risky: 5, start: 12, explanation: 'Many files were fixed. Some still need help. The folder is getting better, but it is not ready yet.' },
-  { id: 'medium', label: 'Medium', risky: 4, start: 4, explanation: 'Most files look good. Some still have wrong payment details and a long wait.' },
+  { id: 'medium', label: 'Medium', risky: 4, start: 4, explanation: 'Candidates are spread across registration, training, medical checks and deployment preparation. Some still have wrong payment details and a long wait.' },
   { id: 'medium-high', label: 'Medium→High', risky: 1, start: 4, explanation: 'Most flagged files were fixed. A few still need help. Most receipts now match the bank slips.' },
   { id: 'high-medium', label: 'High→Medium', risky: 3, start: 0, explanation: 'Some files developed problems. A once-clean folder now needs another check.' },
-  { id: 'high', label: 'High', risky: 0, start: 0, explanation: 'Every receipt matches a pretend bank slip. Fees are paid. Deployment still waits for real ministry clearance.' },
+  { id: 'high', label: 'High', risky: 0, start: 0, explanation: 'More candidates are preparing for deployment, but some are still at earlier stages. Recorded receipts match pretend bank slips. Unpaid stages and real ministry clearance still block completion.' },
 ] as const;
 export type IntegrityDemoScenarioId = typeof INTEGRITY_DEMO_SCENARIOS[number]['id'];
 export interface DemoScenarioActor { id: string; email: string; role: UserRole | null; authenticated: boolean }
@@ -60,7 +61,7 @@ const measure = (data: Pick<DemoDataset, 'candidates' | 'stages' | 'medicals' | 
 
 // No score or finding is injected: only synthetic candidate, receipt and bank records change.
 export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFees: Record<number, number>,
-  thresholds?: { greenMin: number; yellowMin: number }, now = Date.now(), roster?: Candidate[]): IntegrityDemoDataset => {
+  thresholds?: { greenMin: number; yellowMin: number }, now = Date.now(), roster?: Candidate[], savedStages?: CandidateStage[]): IntegrityDemoDataset => {
   const scenario = INTEGRITY_DEMO_SCENARIOS.find(item => item.id === id);
   if (!scenario) throw new Error('Choose a listed DEMO scenario.');
   if (ALL_STAGES.some(stage => !Number.isFinite(stageFees[stage.id]) || stageFees[stage.id] <= 0)) {
@@ -68,84 +69,112 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
   }
   const stamp = (days: number) => new Date(now - days * DAY).toISOString();
   const base = generateDemoDataset(now, 'high-performing');
+  const assignments = new Map((savedStages ?? base.stages).map(stage => [`${stage.candidate_id}:${stage.stage_id}`, stage]));
   if (roster) base.candidates = base.candidates.map(candidate => roster.find(saved => saved.id === candidate.id) ?? candidate);
   const startingRisk = Math.round(scenario.start * COUNT / 120);
   const targetRisk = Math.round(scenario.risky * COUNT / 120);
   const caseLabel = (index: number, risky: number) => index < risky
     ? (index >= startingRisk ? 'DEMO regressing: new problems need help.' : 'DEMO still needs help.')
     : (index < startingRisk ? 'DEMO improving: payment details and bank proof repaired.' : 'DEMO checked: evidence matches.');
+  const boundaries: Record<IntegrityDemoScenarioId, number[]> = {
+    low: [60, 82, 95], 'low-medium': [42, 72, 90], medium: [25, 55, 82],
+    'medium-high': [15, 38, 68], 'high-medium': [18, 43, 73], high: [8, 22, 45],
+  };
+  // Stable roster positions spread even the flagged files across the ordered pipeline.
+  const currentOrder = (index: number) => boundaries[id].filter(limit => (index * 37) % 100 >= limit).length;
+  const currentPaid = (index: number, risky: number) => index < risky ? index % 2 !== 0 : index % 3 !== 0;
   const make = (risky: number) => {
     const data: DemoDataset = JSON.parse(JSON.stringify(base));
     data.candidates = data.candidates.slice(0, COUNT).map((candidate, index) => ({
       ...candidate, created_at: stamp(200),
       elmis: { status: index < risky ? 'mismatch' as const : 'verified' as const, checked_at: stamp(10), mode: 'sandbox' as const,
         registration_id: `DEMO-ELMIS-${index + 1}`, mismatches: index < risky ? ['DEMO: pretend registration details differ'] : [] },
-      visa: { status: 'validated' as const, visa_number: `DEMO-VISA-${index + 1}`, mode: 'sandbox' as const,
+      visa: currentOrder(index) === 3 ? { status: 'validated' as const, visa_number: `DEMO-VISA-${index + 1}`, mode: 'sandbox' as const,
         source: 'lookup' as const, expiry_date: new Date(now + 180 * DAY).toISOString().slice(0, 10),
-        checked_at: stamp(10), sponsor_name: `DEMO Employer ${index + 1}`, occupation: candidate.occupation },
+        checked_at: stamp(10), sponsor_name: `DEMO Employer ${index + 1}`, occupation: candidate.occupation } : undefined,
       arrival: undefined, flight: undefined, employment_history: undefined,
       contract_start_date: undefined, contract_end_date: undefined, expected_return_date: undefined, actual_return_date: undefined,
-      return_status: 'not-planned' as const, payment_status: index < risky && index % 2 === 0 ? 'pending_payment' as const : 'paid' as const,
-      external_status: { ...candidate.external_status, work_contract: true, visa: true, updated_at: stamp(10) },
+      return_status: 'not-planned' as const, payment_status: currentPaid(index, risky) ? 'paid' as const : 'pending_payment' as const,
+      external_status: { ...candidate.external_status, work_contract: currentOrder(index) >= 1, visa: currentOrder(index) === 3, updated_at: stamp(10) },
       employer: { company: `DEMO Employer ${index + 1}`, contact_name: `DEMO Sponsor ${index + 1}`,
         phone: `+966500${String(index + 1).padStart(6, '0')}`, email: `demo-${index + 1}@employer.example.test`,
         address: `DEMO ${candidate.external_status?.destination_city}` },
-      work_contract_record: { status: 'received' as const, sent_at: stamp(30), received_at: stamp(29),
+      work_contract_record: { status: currentOrder(index) >= 1 ? 'received' as const : 'not-sent' as const,
+        sent_at: currentOrder(index) >= 1 ? stamp(30) : undefined, received_at: currentOrder(index) >= 1 ? stamp(29) : undefined,
         note: `DEMO synthetic contract. ${caseLabel(index, risky)} ${scenario.explanation}` },
-      clearance: { local_ready_at: stamp(10),
-        enjaz: { status: 'completed' as const, mode: 'sandbox' as const, reference: `DEMO-ENJAZ-${index + 1}`, updated_at: stamp(10) },
-        tasheer: { status: 'completed' as const, mode: 'sandbox' as const, reference: `DEMO-TASHEER-${index + 1}`, updated_at: stamp(10) },
+      clearance: { local_ready_at: currentOrder(index) === 3 ? stamp(10) : undefined,
+        enjaz: { status: currentOrder(index) === 3 ? 'completed' as const : 'pending' as const, mode: 'sandbox' as const, updated_at: stamp(10) },
+        tasheer: { status: currentOrder(index) === 3 ? 'completed' as const : 'pending' as const, mode: 'sandbox' as const, updated_at: stamp(10) },
         labour_ministry: { status: 'pending' as const, mode: 'sandbox' as const, simulated: true,
         message: 'DEMO ONLY: pretend review pending. This is NOT official ministry clearance and cannot unlock deployment.' } },
     }));
     data.stages = data.candidates.flatMap((candidate, index) => ALL_STAGES.map((stage, order) => ({
-      assigned_staff_id: base.stages.find(saved => saved.candidate_id === candidate.id && saved.stage_id === stage.id)?.assigned_staff_id,
+      assigned_staff_id: assignments.get(`${candidate.id}:${stage.id}`)?.assigned_staff_id,
+      foreign_assigned_staff_id: assignments.get(`${candidate.id}:${stage.id}`)?.foreign_assigned_staff_id,
       id: base.stages.find(saved => saved.candidate_id === candidate.id && saved.stage_id === stage.id)?.id ?? `demo-integrity-stage-${index}-${stage.id}`, candidate_id: candidate.id, stage_id: stage.id,
-      status: stage.id === 4 ? 'In Progress' as const : 'Completed' as const,
-      date: stage.id === 4 ? undefined : stamp(180 - order * 30),
-      updated_at: stamp(index < risky && stage.id === 4 ? 150 : 10),
-      follow_up_due_at: stage.id === 4 ? stamp(index < risky ? 2 : -1) : undefined,
+      status: order < currentOrder(index) ? 'Completed' as const : order > currentOrder(index) ? 'Pending' as const
+        : index < risky ? 'In Progress' as const
+        : stage.id === 2 && index % 11 === 0 && currentPaid(index, risky) ? 'Failed' as const
+        : currentPaid(index, risky) ? 'In Progress' as const : 'Pending' as const,
+      date: order < currentOrder(index) ? stamp(180 - order * 30) : undefined,
+      updated_at: stamp(index < risky && order === currentOrder(index) ? 150 : 10),
+      follow_up_due_at: order === currentOrder(index) ? stamp(index < risky ? 2 : -1) : undefined,
       notes: `DEMO ${stage.title}. ${index < risky ? 'Review evidence.' : 'Evidence checked.'} No official clearance.`,
     })));
     data.stages = assignUnassignedStageTasks(data.candidates, data.stages, data.staffUsers);
-    data.medicals = data.candidates.map(candidate => ({ id: `demo-integrity-medical-${candidate.id}`, candidate_id: candidate.id,
-      exam_type: 'Final Agency Medical', status: 'Passed', exam_date: stamp(120).slice(0, 10), notes: 'DEMO synthetic passing result, not a real examination.' }));
-    data.documents = data.candidates.flatMap(candidate => [
+    data.medicals = data.candidates.flatMap((candidate, index) => {
+      if (currentOrder(index) < 2) return [];
+      const failed = data.stages.some(stage => stage.candidate_id === candidate.id && stage.stage_id === 2 && stage.status === 'Failed');
+      return (candidate.gender === 'male' ? ['HIV', 'Final Agency Medical'] : ['HIV', 'Pregnancy', 'Final Agency Medical']).map(exam => ({
+        id: `demo-integrity-medical-${candidate.id}-${exam}`, candidate_id: candidate.id,
+        exam_type: exam, status: currentOrder(index) === 3 ? 'Passed' as const
+          : failed && exam === 'Final Agency Medical' ? 'Failed' as const : 'Pending' as const,
+        exam_date: currentOrder(index) === 3 || (failed && exam === 'Final Agency Medical') ? stamp(120).slice(0, 10) : undefined,
+        notes: 'DEMO synthetic examination status, not a real examination.',
+      }));
+    });
+    data.documents = data.candidates.flatMap((candidate, index) => [
       { id: `demo-integrity-contract-${candidate.id}`, candidate_id: candidate.id, stage_id: 3, doc_kind: 'work_contract' as const,
         file_name: 'DEMO synthetic work contract.txt', file_type: 'text/plain', storage_key: `demo-integrity/${candidate.id}/contract`,
         uploaded_at: stamp(29), public_url: `data:text/plain,${encodeURIComponent(`DEMO ONLY. Synthetic work contract for ${candidate.first_name} ${candidate.last_name}. Employer: ${candidate.employer?.company}. Destination: ${candidate.external_status?.destination_country}. Not legally valid.`)}` },
       { id: `demo-integrity-visa-${candidate.id}`, candidate_id: candidate.id, stage_id: 4, doc_kind: 'visa' as const,
         file_name: 'DEMO synthetic visa.txt', file_type: 'text/plain', storage_key: `demo-integrity/${candidate.id}/visa`,
         uploaded_at: stamp(10), public_url: `data:text/plain,${encodeURIComponent(`DEMO ONLY. Synthetic visa ${candidate.visa?.visa_number}. This is not an official visa or permission to travel.`)}` },
-    ]);
+    ].filter(document => document.stage_id === 3 ? currentOrder(index) >= 1 : currentOrder(index) === 3));
     data.payments = data.candidates.flatMap((candidate, index) => {
       const fees = ALL_STAGES.map((stage, order) => ({
         id: `demo-integrity-payment-${index}-${stage.id}`, stage_id: stage.id, provider: 'manual' as const,
-        provider_reference: index < risky && stage.id === 2 ? '' : `DEMO-BANK-${index}-${stage.id}`,
+        provider_reference: index < risky && order === currentOrder(index) ? '' : `DEMO-BANK-${index}-${stage.id}`,
         receipt_number: `DEMO-RECEIPT-${index}-${stage.id}`, payer_type: 'candidate' as const,
         payer_candidate_id: candidate.id, payer_foreign_agency_id: '', payee_local_agency_id: candidate.local_agency_id!,
-        candidate_ids: [candidate.id], amount: stageFees[stage.id] * (index < risky && stage.id === 4 ? (index % 2 ? 1.5 : 0.5) : 1),
+        candidate_ids: [candidate.id], amount: stageFees[stage.id] * (index < risky && order === currentOrder(index) ? (index % 2 ? 1.5 : 0.5) : 1),
         currency: 'ETB', status: 'succeeded' as const, created_at: stamp(181 - order * 30), updated_at: stamp(10),
         payer_display_name: `${candidate.first_name} ${candidate.last_name}`,
-      }));
+      })).filter((payment, order) => order < currentOrder(index) || (order === currentOrder(index) && (index < risky || currentPaid(index, risky))));
       const minimum = minimumPerCandidate(candidate.external_status?.destination_country);
       if (!minimum) throw new Error(`Choose a supported contract destination for ${candidate.tracking_code} before generating demo foreign receipts.`);
-      return [...fees, { id: `demo-integrity-foreign-${index}`, provider: 'manual' as const,
+      return [...fees, ...(currentOrder(index) >= 2 ? [{ id: `demo-integrity-foreign-${index}`, provider: 'manual' as const,
         provider_reference: `DEMO-FOREIGN-BANK-${index}`, receipt_number: `DEMO-FOREIGN-RECEIPT-${index}`,
         payer_type: 'foreign-agency' as const, contract_country: candidate.external_status?.destination_country,
         payer_foreign_agency_id: candidate.foreign_agency_id!, payee_local_agency_id: candidate.local_agency_id!,
         candidate_ids: [candidate.id], ...minimum, status: 'succeeded' as const, created_at: stamp(28), updated_at: stamp(10),
-        payer_display_name: data.foreignAgencies.find(agency => agency.id === candidate.foreign_agency_id)?.name ?? 'Recorded foreign agency' }];
+        payer_display_name: data.foreignAgencies.find(agency => agency.id === candidate.foreign_agency_id)?.name ?? 'Recorded foreign agency' }] : [])];
     });
     data.payments = data.payments.map(payment => withDemoPaymentEvidence({
       ...payment,
       initiated_by: { id: payment.payer_candidate_id ?? demoAgencyManager(payment.payer_foreign_agency_id)!.id },
       recorded_by: { id: demoAgencyManager(payment.payee_local_agency_id)!.id },
     }, data.candidates));
-    data.paymentStatuses = data.candidates.flatMap((candidate, index) => ALL_STAGES.map(stage => ({
-      candidateId: candidate.id, stageId: stage.id, isPaid: !(index < risky && index % 2 === 0 && stage.id === 4),
+    data.paymentStatuses = data.candidates.flatMap((candidate, index) => ALL_STAGES.map((stage, order) => ({
+      candidateId: candidate.id, stageId: stage.id, isPaid: order < currentOrder(index) || (order === currentOrder(index) && currentPaid(index, risky)),
     })));
-    data.candidates.forEach((candidate, index) => { candidate.last_payment_id = `demo-integrity-payment-${index}-4`; });
+    data.candidates.forEach(candidate => {
+      candidate.last_payment_id = data.payments.filter(payment => payment.payer_candidate_id === candidate.id).at(-1)?.id;
+      data.stages.filter(stage => stage.candidate_id === candidate.id).forEach(stage => {
+        const blockers = stageProgressBlockers(candidate, stage.stage_id, stage.status, data.stages, stageFees, data.paymentStatuses, data.payments);
+        if (blockers.length) throw new Error(`Invalid DEMO stage sequence: ${blockers.join(' ')}`);
+      });
+    });
     data.logs = [];
     const riskyIds = new Set(data.candidates.slice(0, risky).map(candidate => candidate.id));
     const evidence: ScenarioEvidence[] = data.localAgencies.flatMap(agency => (['candidate', 'foreign'] as const).map(source => {
@@ -154,7 +183,7 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
         covered_candidate_ids: data.candidates.filter(c => c.local_agency_id === agency.id).map(c => c.id),
         lines: payments.flatMap(payment => {
           const index = data.candidates.findIndex(candidate => candidate.id === payment.candidate_ids[0]);
-          const bad = riskyIds.has(payment.candidate_ids[0]) && payment.stage_id === 4;
+          const bad = riskyIds.has(payment.candidate_ids[0]) && payment.stage_id === ALL_STAGES[currentOrder(index)].id;
           if (bad && index % 3 === 2) return [];
           return [{ date: payment.created_at.slice(0, 10), description: `Practice / synthetic credit for ${paymentCandidateSummary(payment, data.candidates)}; ${agency.name}; not real bank proof`,
             reference: payment.provider_reference || payment.receipt_number!, currency: payment.currency,
@@ -218,7 +247,7 @@ export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, ac
   const now = Date.now();
   const before = measureStoredIntegrityDemo(now);
   const config = getConfig();
-  const data = buildIntegrityDemoScenario(id, config.stageFees ?? {}, config.integrityScoreThresholds, now, getCandidates());
+  const data = buildIntegrityDemoScenario(id, config.stageFees ?? {}, config.integrityScoreThresholds, now, getCandidates(), getCandidateStages());
   const ids = new Set(data.candidates.map(candidate => candidate.id));
   const extraCandidates = getCandidates().filter(candidate => !ids.has(candidate.id) && !candidate.id.startsWith('demo-integrity-candidate-'));
   const extraIds = new Set(extraCandidates.map(candidate => candidate.id));

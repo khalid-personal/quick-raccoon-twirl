@@ -13,6 +13,7 @@ import StageDocumentUploader from './StageDocumentUploader';
 import { getStatusColor, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge'; // Added Badge import
 import { usePortalData } from '@/hooks/use-portal-data';
+import { requiredMedicalExams, stageProgressBlockers } from '@/lib/stage-readiness';
 
 interface StageEditorDialogProps {
   candidateDetail: CandidateDetail;
@@ -38,12 +39,13 @@ const StageEditorDialog: React.FC<StageEditorDialogProps> = ({
   const [referenceId, setReferenceId] = useState(candidateStage.reference_id || '');
   const prefix = React.useId();
   const fieldId = (name: string) => `${prefix}-${name}`;
-  const { paymentStatuses, stageFees } = usePortalData();
-  const stageFee = stageFees[stage.id] ?? stage.fee_amount ?? 0;
-  const stageFeePaid = paymentStatuses.some(payment =>
-    payment.candidateId === candidateDetail.id && payment.stageId === stage.id && payment.isPaid,
-  );
-  const completionLocked = stageFee > 0 && !stageFeePaid;
+  const { paymentStatuses, stageFees, payments, stages } = usePortalData();
+  const progressBlockers = stageProgressBlockers(candidateDetail, stage.id, 'In Progress', stages, stageFees, paymentStatuses, payments);
+  const completionBlockers = stageProgressBlockers(candidateDetail, stage.id, 'Completed', stages, stageFees, paymentStatuses, payments);
+  if (stage.slug === 'medical' && !requiredMedicalExams(candidateDetail.gender).every(exam => candidateDetail.medical_results.some(result => result.exam_type === exam && result.status === 'Passed'))) {
+    completionBlockers.push('Every required medical exam must have a saved passing result before completing Medical Check.');
+  }
+  const completionLocked = completionBlockers.length > 0;
 
   // Check if any field has been modified
   const isModified = status !== candidateStage.status ||
@@ -85,13 +87,13 @@ const StageEditorDialog: React.FC<StageEditorDialogProps> = ({
             Current Status: {candidateStage.status}
           </Badge>
         </div>
-        <DialogDescription>Review {stage.title.toLowerCase()}, attach its evidence, and update progress. Required stage fees must be paid before completion.</DialogDescription>
+        <DialogDescription>Review {stage.title.toLowerCase()}, attach its evidence, and update progress. Earlier stages must be completed and paid before advancing. This stage’s fee is required before completion.</DialogDescription>
       </DialogHeader>
       
       <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
         {completionLocked && <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200" role="status">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p><span className="font-semibold">{stageFee.toLocaleString()} ETB stage fee is unpaid.</span> This stage cannot be marked Passed, Issued, or Completed until payment is recorded. You can still update its progress and documents.</p>
+          <div>{completionBlockers.map(blocker => <p key={blocker}>{blocker}</p>)}<p className="mt-2">Documents and notes can still be collected without advancing the stage.</p></div>
         </div>}
         {/* Section 1: Status and Details */}
         <div className="space-y-4">
@@ -111,7 +113,7 @@ const StageEditorDialog: React.FC<StageEditorDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {statusOptions.map(optStatus => (
-                    <SelectItem key={optStatus} value={optStatus} disabled={completionLocked && ['Passed', 'Issued', 'Completed'].includes(optStatus) && optStatus !== candidateStage.status}>
+                    <SelectItem key={optStatus} value={optStatus} disabled={optStatus !== 'Pending' && (['Passed', 'Issued', 'Completed'].includes(optStatus) ? completionLocked : progressBlockers.length > 0) && optStatus !== candidateStage.status}>
                       {optStatus}
                     </SelectItem>
                   ))}

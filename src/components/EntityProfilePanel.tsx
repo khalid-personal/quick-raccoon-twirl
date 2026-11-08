@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2, CheckCircle2, ChevronRight, Clock3, Globe2, GraduationCap, Loader2, Mail, MapPin, Phone, ShieldCheck, Users, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
-import { getApprovalLogs, getCandidates, getCandidateStages, getCocFacilities, getConfig, getForeignAgencies, getLocalAgencies, getPayments } from '@/lib/data-store';
+import { getApprovalLogs, getCandidates, getCandidateStages, getCocFacilities, getConfig, getForeignAgencies, getLocalAgencies, getPayments, getPaymentStatuses } from '@/lib/data-store';
 import { canInspectStaff, canInspectStaffDirectory } from '@/lib/entity-profile-access';
 import { getActiveStageTasks } from '@/lib/staff-tasks';
 import { calculateOverallStatus } from '@/lib/utils-data';
@@ -21,6 +21,7 @@ import LastOnline from './LastOnline';
 import PaymentLedgerSummary from './PaymentLedgerSummary';
 import PaymentEvidenceReview from './PaymentEvidenceReview';
 import AgencyResolutionCenter from './AgencyResolutionCenter';
+import ActivityRecord from './ActivityRecord';
 
 export type EntityKind = 'local-agency' | 'foreign-agency' | 'coc' | 'staff' | 'staff-directory';
 interface Props {
@@ -75,7 +76,9 @@ function ProfileContent({ kind, entityId, section, onSectionChange, onOpenEntity
   if (kind !== 'staff-directory' && !staff && !entity) return <p role="alert" className="p-8">This profile is unavailable or outside your access. Close this tab to return.</p>;
   const isAdmin = viewer.role === 'superadmin' || viewer.role === 'admin';
   const assigned = data.candidates.filter(candidate => kind === 'staff'
-    ? (candidate.assigned_staff_id === entityId || data.stages.some(stage => stage.candidate_id === candidate.id && stage.assigned_staff_id === entityId))
+    ? (staff?.role === 'foreign-agency-staff'
+      ? candidate.foreign_agency_id === staff.foreign_agency_id && data.stages.some(stage => stage.candidate_id === candidate.id && stage.foreign_assigned_staff_id === entityId)
+      : candidate.assigned_staff_id === entityId || data.stages.some(stage => stage.candidate_id === candidate.id && stage.assigned_staff_id === entityId))
       && (isAdmin || viewer.role === 'local-agency' && candidate.local_agency_id === viewer.localAgencyId
         || viewer.role === 'staff' && viewer.id === entityId && (!viewer.localAgencyId || candidate.local_agency_id === viewer.localAgencyId)
         || ['agency', 'foreign-agency', 'foreign-agency-staff'].includes(viewer.role ?? '') && !!viewer.foreignAgencyId && (candidate.foreign_agency_id === viewer.foreignAgencyId || candidate.profile_shares?.some(share => share.foreign_agency_id === viewer.foreignAgencyId)))
@@ -83,7 +86,7 @@ function ProfileContent({ kind, entityId, section, onSectionChange, onOpenEntity
       : kind === 'foreign-agency' ? candidate.foreign_agency_id === entityId || candidate.profile_shares?.some(share => share.foreign_agency_id === entityId)
         : candidate.coc_facility_id === entityId);
   const ownUsers = kind === 'staff-directory' ? users : users.filter(user => kind === 'local-agency' ? user.local_agency_id === entityId : kind === 'foreign-agency' ? user.foreign_agency_id === entityId : user.id === entityId);
-  const tasks = getActiveStageTasks(assigned, data.stages).filter(task => kind !== 'staff' || task.stage.assigned_staff_id === entityId);
+  const tasks = getActiveStageTasks(assigned, data.stages, undefined, { fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: data.payments }).filter(task => kind !== 'staff' || (staff?.role === 'foreign-agency-staff' ? task.stage.foreign_assigned_staff_id : task.stage.assigned_staff_id) === entityId);
   const payments = data.payments.filter(payment => kind === 'local-agency' ? payment.payee_local_agency_id === entityId : kind === 'foreign-agency' && isForeignPayment(payment) && payment.payer_foreign_agency_id === entityId);
   const partnerships = data.partnerships.filter(partner => kind === 'local-agency' ? partner.local_agency_id === entityId : kind === 'foreign-agency' && partner.foreign_agency_id === entityId);
   const candidateIds = new Set(assigned.map(candidate => candidate.id));
@@ -125,7 +128,7 @@ function ProfileContent({ kind, entityId, section, onSectionChange, onOpenEntity
       <TabsContent value="staff" forceMount className="data-[state=inactive]:hidden">{staffList}</TabsContent>
       <TabsContent value="tasks" forceMount className="space-y-3 data-[state=inactive]:hidden">{tasks.map(task => <article key={task.stage.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"><div><p className="font-semibold">{task.candidate.first_name} {task.candidate.last_name}</p><p className="text-sm text-muted-foreground">{task.stageTitle} · {task.action} · Due {new Date(task.dueAt).toLocaleDateString()}</p></div><Badge variant={task.overdue ? 'destructive' : 'outline'}>{task.overdue ? 'Overdue' : 'Scheduled'}</Badge><Button variant="outline" onClick={() => onOpenCandidate(task.candidate.id, { tab: 'timeline', stageId: task.stage.stage_id })}>Open exact stage</Button></article>)}{!tasks.length && <p>No active assigned stage follow-ups.</p>}</TabsContent>
       <TabsContent value="finance" forceMount className="space-y-4 data-[state=inactive]:hidden"><PaymentLedgerSummary payments={payments} status={paymentStatus} onStatusChange={setPaymentStatus} /><p className="text-sm text-muted-foreground">Original amounts below. Select a receipt for evidence and who initiated it.</p>{payments.filter(payment => paymentStatus === 'all' || payment.status === paymentStatus).sort((a,b) => b.created_at.localeCompare(a.created_at)).map(payment => <button key={payment.id} className="flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left hover:bg-primary/5" onClick={() => setReceipt(payment)}><Wallet className="h-5 w-5 shrink-0 text-primary" /><span className="min-w-0 flex-1"><span className="block font-semibold">{payment.amount.toLocaleString()} {payment.currency}</span><span className="block truncate text-xs text-muted-foreground">{payment.receipt_number ?? payment.provider_reference ?? payment.id}</span></span><Badge variant="outline">{payment.status}</Badge><ChevronRight className="h-4 w-4" /></button>)}{!payments.length && <p>No recorded payments for this agency.</p>}</TabsContent>
-      <TabsContent value="activity" forceMount className="space-y-3 data-[state=inactive]:hidden">{logs.slice(0,100).map(log => <article key={log.id} className="rounded-2xl border-l-4 border-primary bg-muted/30 p-4"><div className="flex flex-wrap justify-between gap-2"><Badge variant="outline">{log.action} · {log.target_type}</Badge><time className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</time></div><p className="mt-2 break-words text-sm">{log.description}</p><p className="mt-2 text-xs text-muted-foreground">By {log.actor_email}</p></article>)}{!logs.length && <p>No related audit records.</p>}{logs.length>100&&<p className="text-sm text-muted-foreground">Showing the latest 100 audit events.</p>}</TabsContent>
+      <TabsContent value="activity" forceMount className="space-y-3 data-[state=inactive]:hidden">{logs.slice(0,100).map(log => <ActivityRecord key={log.id} activity={log} />)}{!logs.length && <p>No related audit records.</p>}{logs.length>100&&<p className="text-sm text-muted-foreground">Showing the latest 100 audit events.</p>}</TabsContent>
       <TabsContent value="review" forceMount className="data-[state=inactive]:hidden">{(kind === 'local-agency' || kind === 'foreign-agency') && <AgencyResolutionCenter agencyScope={{ type: kind === 'local-agency' ? 'local' : 'foreign', id: entityId }} />}</TabsContent>
     </Tabs>}
     <PaymentEvidenceReview agencyId={receipt?.payee_local_agency_id ?? ''} evidence={receipt ? { caseId: receipt.id, payment: receipt } : null} statementName="Agency-linked payment evidence" onClose={() => setReceipt(null)} />

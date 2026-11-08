@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ChechePayBrand from './ChechePayBrand';
 
-export default function PaymentReceipt({ payment, open, onOpenChange }: { payment: Payment | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+export default function PaymentReceipt({ payment, open, onOpenChange, outbound = false }: { payment: Payment | null; open: boolean; onOpenChange: (open: boolean) => void; outbound?: boolean }) {
   const receiptRef = useRef<HTMLDivElement>(null);
   if (!payment) return null;
   const candidate = getCandidates().find(record => record.id === payment.payer_candidate_id);
@@ -22,7 +22,7 @@ export default function PaymentReceipt({ payment, open, onOpenChange }: { paymen
     output.document.close(); output.focus(); output.print();
   };
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="chechepay-theme max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-    <DialogHeader><DialogTitle>Payment receipt</DialogTitle><DialogDescription>Portal receipt generated from the saved transaction record. It is not a ChechePay-issued PDF or proof of a matching bank deposit.</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>Payment receipt</DialogTitle><DialogDescription>{outbound ? 'Your outbound transfer receipt, generated from the saved transaction record.' : 'Portal receipt generated from the saved transaction record. It is not a ChechePay-issued PDF or proof of a matching bank deposit.'}</DialogDescription></DialogHeader>
     <div ref={receiptRef} className="space-y-4">
       {payment.provider === 'chechepay' && <ChechePayBrand label="Portal receipt · payment provider" />}
       <h2 className="text-xl font-semibold">{payment.provider === 'chechepay' ? 'ChechePay payment confirmation' : payment.provider === 'mock' ? 'Demo payment receipt' : 'Recorded payment receipt'}</h2>
@@ -39,8 +39,8 @@ export default function PaymentReceipt({ payment, open, onOpenChange }: { paymen
         <div><dt className="text-muted-foreground">Processor reference</dt><dd>{confirmation.processor_reference || 'Not returned by provider'}</dd></div>
         <div><dt className="text-muted-foreground">Confirmed amount / status</dt><dd>{confirmation.amount.toLocaleString()} {confirmation.currency} · {confirmation.status}</dd></div>
         <div><dt className="text-muted-foreground">Server verified at</dt><dd>{new Date(confirmation.verified_at).toLocaleString()}</dd></div>
-      </dl></section> : <p className="text-sm text-muted-foreground">No full provider confirmation snapshot is stored for this record. Do not treat this portal receipt as provider-issued evidence.</p>}
-      <p className="text-xs text-muted-foreground">Bank settlement must be checked independently against the receiving account statement.</p>
+      </dl></section> : <p className="text-sm text-muted-foreground">{outbound ? 'This receipt records the transfer details saved in the portal.' : 'No full provider confirmation snapshot is stored for this record. Do not treat this portal receipt as provider-issued evidence.'}</p>}
+      {!outbound && <p className="text-xs text-muted-foreground">Bank settlement must be checked independently against the receiving account statement.</p>}
     </div>
     <Button variant="outline" onClick={print}><Printer className="mr-2 h-4 w-4" />Print receipt</Button>
   </DialogContent></Dialog>;

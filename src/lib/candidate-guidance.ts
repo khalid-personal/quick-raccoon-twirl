@@ -18,7 +18,7 @@ export const buildCandidateGuidance = (input: IntegrityInput, overrides: Integri
     entry.findings.push(finding);
     entry.score += SEVERITY_WEIGHT[finding.severity];
   });
-  getActiveStageTasks(input.candidates, input.stages, input.now).forEach(task => {
+  getActiveStageTasks(input.candidates, input.stages, input.now, { fees: input.stageFees ?? {}, statuses: input.paymentStatuses, payments: input.payments }).forEach(task => {
     const entry = result.get(task.candidate.id);
     if (entry) entry.task = task;
   });

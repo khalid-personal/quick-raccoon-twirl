@@ -13,6 +13,21 @@ const payment = (over: Partial<Payment>): Payment => ({
 const base = { candidates: [], stages: [], payments: [], paymentStatuses: [], medicals: [], logs: [] };
 
 describe('analyzeIntegrity', () => {
+  it('compares payment sizes within the same stage instead of treating a normal deployment fee as an outlier', () => {
+    const payments = [1, 2, 3, 4, 5].map(index => payment({ id: `reg-${index}`, payer_type: 'candidate', currency: 'ETB', stage_id: 1, amount: 500 }));
+    payments.push(payment({ id: 'deployment', payer_type: 'candidate', currency: 'ETB', stage_id: 4, amount: 6000 }));
+    expect(analyzeIntegrity({ ...base, payments }).some(finding => finding.rule === 'payment-outlier')).toBe(false);
+    payments.push(payment({ id: 'large-registration', payer_type: 'candidate', currency: 'ETB', stage_id: 1, amount: 10000 }));
+    expect(analyzeIntegrity({ ...base, payments }).find(finding => finding.rule === 'payment-outlier')?.paymentId).toBe('large-registration');
+  });
+
+  it('does not confuse completed training with a passed medical stage when exams failed', () => {
+    const input = { ...base, candidates: [candidate({})], stages: [stage('c1', 3, 'Completed'), stage('c1', 2, 'Failed')],
+      medicals: [{ id: 'exam', candidate_id: 'c1', exam_type: 'Final Agency Medical', status: 'Failed' as const }] };
+    expect(analyzeIntegrity(input).some(finding => finding.rule === 'medical-stage-failed-results')).toBe(false);
+    input.stages[1].status = 'Passed';
+    expect(analyzeIntegrity(input).some(finding => finding.rule === 'medical-stage-failed-results')).toBe(true);
+  });
   it('flags duplicate passports and underage candidates', () => {
     const findings = analyzeIntegrity({
       ...base,

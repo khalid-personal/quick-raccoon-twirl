@@ -19,6 +19,7 @@ import DashboardExplorer from './DashboardExplorer';
 import type { DashboardSelection } from '@/lib/dashboard-drilldown';
 import { CandidateWorkspaceLink } from './CandidateQuickViewProvider';
 import { ALL_STAGES } from '@/lib/types';
+import ActivityRecord from './ActivityRecord';
 
 const COLORS = {
   blue: '#2563eb',
@@ -329,17 +330,9 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
 
       <Card className="overflow-hidden border-sky-500/25">
         <CardHeader className="border-b bg-gradient-to-r from-sky-500/10 to-transparent pb-4"><CardTitle className="flex items-center text-xl"><span className="mr-3 rounded-xl bg-sky-500/15 p-2 text-sky-700 dark:text-sky-300"><Activity className="h-6 w-6" /></span>Recent Activity</CardTitle><CardDescription>Recorded actions, their authors and dates.</CardDescription></CardHeader>
-        <CardContent className="space-y-0 pt-5">
+        <CardContent className="space-y-4 pt-5">
           {m.activity.length === 0 && <Empty text="No recorded activity yet" />}
-          {m.activity.map(a => (
-            <div key={a.id} className="relative ml-3 border-l-2 border-sky-500/20 pb-5 pl-7 text-sm last:pb-0">
-              <span aria-hidden="true" className="absolute -left-[7px] top-2 h-3 w-3 rounded-full border-2 border-card bg-sky-500" />
-              <div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300">{a.action}</Badge><span className="text-xs text-muted-foreground">{a.actor} · {new Date(a.timestamp).toLocaleDateString()}</span></div>
-              <div className="mt-2 rounded-xl bg-muted/30 p-3">
-                <p className="break-words leading-relaxed">{a.description}</p>
-              </div>
-            </div>
-          ))}
+          {m.activity.map(activity => <ActivityRecord key={activity.id} activity={activity} />)}
         </CardContent>
       </Card>
     </div>

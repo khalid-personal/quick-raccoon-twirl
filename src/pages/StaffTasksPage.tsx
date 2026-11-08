@@ -14,7 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PageHeader from '@/components/page/PageHeader';
-import { getCandidateStages, getCandidates, getConfig, getLocalAgencies, getStaffUsers } from '@/lib/data-store';
+import { getCandidateStages, getCandidates, getConfig, getLocalAgencies, getStaffUsers, getPayments, getPaymentStatuses } from '@/lib/data-store';
 import { useAuth } from '@/lib/auth-context';
 import { ALL_STAGES, type CandidateStage, type StaffUser } from '@/lib/types';
 import { getActiveStageTasks } from '@/lib/staff-tasks';
@@ -41,7 +41,8 @@ const StaffTasksPage: React.FC = () => {
     queryKey: ['staff-workboard'],
     queryFn: async () => {
       await prepareStaffTasks(canManage);
-      return { candidates: getCandidates(), stages: getCandidateStages(), staff: getStaffUsers(), locals: getLocalAgencies(), weights: getConfig().staffTaskWeights ?? {} };
+      return { candidates: getCandidates(), stages: getCandidateStages(), staff: getStaffUsers(), locals: getLocalAgencies(), weights: getConfig().staffTaskWeights ?? {},
+        paymentContext: { fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: getPayments() } };
     },
     refetchInterval: 30000,
   });
@@ -56,7 +57,7 @@ const StaffTasksPage: React.FC = () => {
   const stages = useMemo(() => (data?.stages ?? []).filter(stage => scopedIds.has(stage.candidate_id)), [data?.stages, scopedIds]);
   const allStaff = (data?.staff ?? []).filter(person => person.role === 'staff' && person.is_approved);
   const staff = allStaff.filter(person => localFilter === 'all' || person.local_agency_id === localFilter);
-  const tasks = useMemo(() => getActiveStageTasks(candidates, stages), [candidates, stages]);
+  const tasks = useMemo(() => getActiveStageTasks(candidates, stages, Date.now(), data?.paymentContext), [candidates, stages, data?.paymentContext]);
   const mine = tasks.filter(task => task.stage.assigned_staff_id === effectiveUserId);
   const visibleTasks = (isManager ? tasks : mine).filter(task => {
     if (!isManager || assigneeFilter === 'all') return true;

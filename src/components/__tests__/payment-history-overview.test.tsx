@@ -94,11 +94,39 @@ describe('payment history finance-first view', () => {
     expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Payment issues');
     expect(container.textContent).toContain('Resolution inbox');
   });
-  it('uses the foreign agency API scope and never offers superadmin resolution controls', async () => {
-    mocks.auth.userRole = 'foreign-agency';
-    await render('/agency/payments');
+  it.each(['agency', 'foreign-agency', 'foreign-agency-staff'])('uses the %s outbound scope without audit or candidate collections', async role => {
+    mocks.auth.userRole = role;
+    // Deliberately return an overbroad API result to exercise the UI boundary too.
+    mocks.foreign.mockResolvedValue([...payments, { ...base, id: 'outsider', payer_foreign_agency_id: 'other', amount: 999, currency: 'SAR' }, { ...base, id: 'own-sar', amount: 500, currency: 'SAR' }]);
+    await render('/agency/payments?source=candidate&agency=other-local&tab=discrepancies#resolution');
     expect(mocks.foreign).toHaveBeenCalledWith('foreign');
+    expect(container.querySelector('h1')?.textContent).toBe('Money sent');
+    expect(container.textContent).toContain('100.00 USD · 500.00 SAR');
+    expect(container.textContent).not.toContain('999');
     expect(container.textContent).not.toContain('300 ETB');
-    expect([...container.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(['Finance overview', 'Payments list']);
+    expect(container.textContent).not.toContain('Candidate fee collections');
+    expect(container.textContent).not.toContain('Money received');
+    expect(container.textContent).not.toContain('estimated USD');
+    expect(container.textContent).not.toContain('Bank records');
+    expect(container.textContent).not.toContain('Payment issues');
+    expect(container.textContent).not.toContain('Resolution inbox');
+    expect([...container.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(['Money sent overview', 'Receipts']);
+    const settled = [...container.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'View settled receipts')!;
+    await act(async () => settled.click());
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(container.querySelector('tbody')?.textContent).not.toContain('300 ETB');
+    expect(container.querySelector('tbody')?.querySelectorAll('button')).toHaveLength(2);
+    await act(async () => container.querySelector<HTMLButtonElement>('tbody button')!.click());
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Print receipt');
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('bank');
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Inspect');
+  });
+  it('retains admin bank review navigation without granting superadmin issue actions', async () => {
+    mocks.auth.userRole = 'admin';
+    await render();
+    expect(container.textContent).toContain('Money received');
+    expect(container.textContent).toContain('300 ETB');
+    expect([...container.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(['Finance overview', 'Payments list', 'Bank records & checks']);
+    expect(container.textContent).not.toContain('Resolution inbox');
   });
 });

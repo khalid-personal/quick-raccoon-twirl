@@ -40,6 +40,7 @@ import TrackingPage from '@/pages/TrackingPage';
 import ChechePayReturnPage from '@/pages/ChechePayReturnPage';
 import ViewerDashboard from '@/pages/ViewerDashboard';
 import StaffTasksPage from '@/pages/StaffTasksPage';
+import ForeignStaffTasksPage from '@/pages/ForeignStaffTasksPage';
 import StakeholderGuide from '@/pages/StakeholderGuide';
 import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -108,6 +109,7 @@ const AppRoutes = () => (
     <Route path="/local-agency/attendance" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><AdminAttendance /></LocalAgencyLayout></ProtectedRoute>} />
     <Route path="/local-agency/candidate/:candidateId" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><AdminCandidateDetail /></LocalAgencyLayout></ProtectedRoute>} />
     <Route path="/agency" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyDashboard /></AgencyLayout></ProtectedRoute>} />
+    <Route path="/agency/tasks" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><ForeignStaffTasksPage /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/introductions" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyCandidateIntroductions /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/training-map" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AdminTrainingMap /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/clearance" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyClearanceTracker /></AgencyLayout></ProtectedRoute>} />

@@ -1,4 +1,5 @@
 import { isForeignPayment } from '../currency';
+import { actorDisplayName } from '../demo-identities';
 import { ALL_STAGES, ExecutiveMetrics, CandidateStage, CandidateStatusBucket } from '../types';
 import {
     getCandidates, getCandidateStages, getPayments, getMedicalResults, getDocuments,
@@ -170,7 +171,7 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
     const activity = getApprovalLogs().filter(log => ids.has(log.target_id) || log.target_type !== 'Candidate')
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 6)
-        .map(l => ({ id: l.id, timestamp: l.timestamp, actor: l.actor_email, description: l.description, action: l.action }));
+        .map(l => ({ id: l.id, timestamp: l.timestamp, actor: actorDisplayName(l.actor_id, l.actor_email, candidates), description: l.description, action: l.action, target_id: l.target_id }));
 
     return {
         generatedAt: new Date().toISOString(),

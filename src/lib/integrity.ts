@@ -174,7 +174,7 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
       add({ key: s.stage_id, rule: 'stale-stage', severity: 'low', candidateId: c.id, title: 'Stage stuck in progress', detail: `${nameOf(c)}: "${stageTitle(s.stage_id)}" has not been updated for over 120 days.` });
     });
 
-    const trainingId = ALL_STAGES[2]?.id;
+    const trainingId = ALL_STAGES.find(stage => stage.slug === 'training')?.id;
     if (trainingId && !c.coc_facility_id && candidateStages.some(s => s.stage_id === trainingId && (DONE.has(s.status) || s.status === 'In Progress'))) {
       add({ rule: 'training-no-center', severity: 'medium', candidateId: c.id, title: 'Training without a CoC center', detail: `${nameOf(c)} is in or past CoC training but no CoC training center is assigned.` });
     }
@@ -226,7 +226,7 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
       if (time(m.exam_date) > now + DAY) add({ key: m.id, rule: 'medical-future-date', severity: 'high', candidateId: c.id, title: 'Medical dated in the future', detail: `${nameOf(c)}: ${m.exam_type} is dated ${m.exam_date?.slice(0, 10)}.` });
       if (m.status === 'Pending' && now - time(m.exam_date) > 60 * DAY) add({ key: m.id, rule: 'medical-stale', severity: 'low', candidateId: c.id, title: 'Medical pending for over 60 days', detail: `${nameOf(c)}: ${m.exam_type} has been pending since ${m.exam_date?.slice(0, 10)}.` });
     });
-    const medicalStage = stageRecord(ALL_STAGES[1]?.id);
+    const medicalStage = stageRecord(ALL_STAGES.find(stage => stage.slug === 'medical')!.id);
     if (medicalStage && DONE.has(medicalStage.status) && results.some(m => m.status === 'Failed') && !results.some(m => m.status === 'Passed')) {
       add({ rule: 'medical-stage-failed-results', severity: 'critical', candidateId: c.id, title: 'Medical stage passed despite failed results', detail: `${nameOf(c)}: the Medical Check stage is passed but every recorded exam failed.` });
     }
@@ -311,9 +311,10 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
     }
   });
 
+  const amountGroup = (payment: Payment) => `${payment.currency.toUpperCase()}:${isForeignPayment(payment) ? 'foreign' : `candidate:${payment.stage_id ?? 'unassigned'}`}`;
   const amountsByCurrency = new Map<string, number[]>();
   payments.filter(p => p.status === 'succeeded').forEach(p => {
-    const currency = p.currency.toUpperCase();
+    const currency = amountGroup(p);
     amountsByCurrency.set(currency, [...(amountsByCurrency.get(currency) ?? []), p.amount]);
   });
   const typicalByCurrency = new Map(
@@ -326,9 +327,9 @@ export const analyzeIntegrity = (input: IntegrityInput): Finding[] => {
     if (p.status === 'succeeded' && p.candidate_ids.length === 0) {
       add({ rule: 'payment-no-candidate', severity: 'high', paymentId: p.id, title: 'Payment not linked to a candidate', detail: `Payment of ${p.amount} ${p.currency} succeeded but covers no candidate.` });
     }
-    const typical = typicalByCurrency.get(p.currency.toUpperCase()) ?? 0;
+    const typical = typicalByCurrency.get(amountGroup(p)) ?? 0;
     if (typical > 0 && p.status === 'succeeded' && p.amount > typical * 3) {
-      add({ rule: 'payment-outlier', severity: 'medium', paymentId: p.id, title: 'Unusually large payment', detail: `${p.amount} ${p.currency} is more than 3x the typical payment (${typical}).` });
+      add({ rule: 'payment-outlier', severity: 'medium', paymentId: p.id, title: 'Unusually large payment', detail: `${p.amount} ${p.currency} is more than 3x the typical payment for this payment flow and stage (${typical}).` });
     }
     if (p.provider === 'manual' && p.status === 'succeeded' && p.amount % 1000 === 0 && p.amount >= 10000 && !p.receipt_number) {
       add({ rule: 'round-manual-payment', severity: 'low', paymentId: p.id, title: 'Large round-number offline payment', detail: `${p.amount} ${p.currency} was recorded offline with no receipt number.` });

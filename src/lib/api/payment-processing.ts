@@ -4,7 +4,8 @@ import { getPayments, savePayments, savePaymentsLocal, getCandidates, saveCandid
 import { recordApprovalLog } from './log-management';
 import { supabase } from '../supabase';
 import { isDemoMode } from '../demo-mode';
-import { contractCountryOf, minimumPerCandidate } from '../currency';
+import { contractCountryOf, minimumPerCandidate, isForeignPayment } from '../currency';
+import { getApiPrincipal, isForeignAgencyRole } from './auth';
 import { requireAgencyOperations } from '../agency-resolution';
 import { resolveActorIdentity } from '../demo-identities';
 
@@ -128,13 +129,27 @@ export const initiatePayment = async (
     return { checkoutUrl, paymentId: newPayment.id };
 };
 
-export const getAllPayments = async (): Promise<Payment[]> => getPayments();
+const readablePayments = async (): Promise<Payment[]> => {
+    const principal = await getApiPrincipal();
+    if (isForeignAgencyRole(principal.role)) {
+        return getPayments().filter(payment => !!principal.foreignAgencyId && isForeignPayment(payment)
+            && payment.payer_foreign_agency_id === principal.foreignAgencyId)
+            .map(({ demo_evidence: _evidence, ...payment }) => payment);
+    }
+    if (principal.role === 'local-agency' || principal.role === 'staff' && principal.localAgencyId) {
+        return getPayments().filter(payment => !!principal.localAgencyId && payment.payee_local_agency_id === principal.localAgencyId);
+    }
+    if (['admin', 'superadmin', 'staff'].includes(principal.role)) return getPayments();
+    throw new Error('This account cannot read the agency payment ledger.');
+};
+
+export const getAllPayments = async (): Promise<Payment[]> => readablePayments();
 
 export const getPaymentsByForeignAgency = async (agencyId: string): Promise<Payment[]> =>
-    getPayments().filter(payment => payment.payer_foreign_agency_id === agencyId);
+    (await readablePayments()).filter(payment => isForeignPayment(payment) && payment.payer_foreign_agency_id === agencyId);
 
 export const getPaymentsByLocalAgency = async (agencyId: string): Promise<Payment[]> =>
-    getPayments().filter(payment => payment.payee_local_agency_id === agencyId);
+    (await readablePayments()).filter(payment => payment.payee_local_agency_id === agencyId);
 
 interface RecordStagePaymentInput {
     id?: string;

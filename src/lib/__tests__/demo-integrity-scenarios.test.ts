@@ -12,6 +12,7 @@ import { createCandidate, updateCandidateDetails } from '../api/candidate-crud';
 import { getPayments } from '../data-store';
 import { agencyIsSuspended, amountDiscrepancies, decideAgencyCase, getAgencyResolutionCases } from '../agency-resolution';
 import { loadBankStatement, saveBankStatement } from '../bank-statement-store';
+import { stageFeeCovered, stageProgressBlockers } from '../stage-readiness';
 
 const now = new Date('2026-11-07T12:00:00Z').getTime();
 const fees = { 1: 500, 3: 2200, 2: 2000, 4: 6000 };
@@ -24,6 +25,14 @@ beforeEach(() => {
 });
 
 describe('DEMO integrity scenario data, not score overrides', () => {
+  it('preserves independent local and foreign staff assignments when rebuilding scenarios', () => {
+    const base = generateDemoDataset(now, 'high-performing');
+    const stage = { ...base.stages[0], assigned_staff_id: 'demo-usr-l4-s1', foreign_assigned_staff_id: 'foreign-staff-assignment' };
+    const rebuilt = buildIntegrityDemoScenario('medium', fees, undefined, now, base.candidates, [stage]);
+    expect(rebuilt.stages.find(item => item.candidate_id === stage.candidate_id && item.stage_id === stage.stage_id))
+      .toMatchObject({ assigned_staff_id: stage.assigned_staff_id, foreign_assigned_staff_id: 'foreign-staff-assignment' });
+  });
+
   it('calculates six distinct practice folders using the real rules and default thresholds', () => {
     const measurements = INTEGRITY_DEMO_SCENARIOS.map(scenario => {
       const data = buildIntegrityDemoScenario(scenario.id, fees, undefined, now);
@@ -39,11 +48,11 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(findings.filter(f => f.rule === 'manual-no-reference')).toHaveLength(risky);
       expect(data.measured.bank.short + data.measured.bank.over + data.measured.bank.missing).toBe(risky);
       expect(data.measured.candidates).toBe(435);
-      expect(data.documents).toHaveLength(870);
+      expect(data.documents.length).toBeGreaterThan(0);
       expect(data.documents.every(document => document.file_name.startsWith('DEMO') && document.public_url?.startsWith('data:text/plain,'))).toBe(true);
       expect(data.candidates.filter(candidate => candidate.work_contract_record?.note?.includes('DEMO improving:'))).toHaveLength(Math.max(0, starting - risky));
       expect(data.candidates.filter(candidate => candidate.work_contract_record?.note?.includes('DEMO regressing:'))).toHaveLength(Math.max(0, risky - starting));
-      expect(data.payments).toHaveLength(2175);
+      expect(data.payments.length).toBeGreaterThan(0);
       expect(data.paymentStatuses).toHaveLength(1740);
       expect(data.stages).toHaveLength(1740);
       expect(data.candidates.map(candidate => [candidate.id, candidate.first_name, candidate.last_name, candidate.tracking_code, candidate.passport_number]))
@@ -61,26 +70,60 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       data.candidates.forEach(candidate => {
         const stages = data.stages.filter(stage => stage.candidate_id === candidate.id);
         expect(stages.map(stage => stage.stage_id)).toEqual(ALL_STAGES.map(stage => stage.id));
-        expect(stages.map(stage => stage.status)).toEqual(['Completed', 'Completed', 'Completed', 'In Progress']);
+        const current = stages.findIndex(stage => stage.status !== 'Completed');
+        expect(current).toBeGreaterThanOrEqual(0);
+        expect(stages.slice(current + 1).every(stage => stage.status === 'Pending')).toBe(true);
+        stages.forEach(stage => expect(stageProgressBlockers(candidate, stage.stage_id, stage.status, data.stages, fees, data.paymentStatuses, data.payments)).toEqual([]));
+        data.payments.filter(payment => payment.payer_candidate_id === candidate.id).forEach(payment => {
+          expect(ALL_STAGES.findIndex(stage => stage.id === payment.stage_id)).toBeLessThanOrEqual(current);
+        });
+        data.paymentStatuses.filter(status => status.candidateId === candidate.id).forEach(status => {
+          expect(status.isPaid).toBe(stageFeeCovered(candidate, status.stageId, fees, data.paymentStatuses, data.payments));
+        });
+        if (!stageFeeCovered(candidate, stages[current].stage_id, fees, data.paymentStatuses, data.payments)) {
+          expect(stageProgressBlockers(candidate, stages[current].stage_id, 'Completed', data.stages, fees, data.paymentStatuses, data.payments).length).toBeGreaterThan(0);
+        }
+        const medicals = data.medicals.filter(medical => medical.candidate_id === candidate.id);
+        expect(medicals.every(medical => medical.status === 'Passed')).toBe(current === 3 || current < 2);
+        if (current < 2) expect(medicals).toHaveLength(0);
+        if (current >= 2) expect(medicals.map(medical => medical.exam_type)).toEqual(candidate.gender === 'male'
+          ? ['HIV', 'Final Agency Medical'] : ['HIV', 'Pregnancy', 'Final Agency Medical']);
+        expect(candidate.visa?.status === 'validated').toBe(current === 3);
+        expect(data.documents.filter(document => document.candidate_id === candidate.id).map(document => document.doc_kind))
+          .toEqual(current === 0 ? [] : current === 3 ? ['work_contract', 'visa'] : ['work_contract']);
+        expect(data.payments.filter(payment => isForeignPayment(payment) && payment.candidate_ids.includes(candidate.id))).toHaveLength(current >= 2 ? 1 : 0);
+        if (candidate.last_payment_id) expect(data.payments.some(payment => payment.id === candidate.last_payment_id)).toBe(true);
         stages.filter(stage => stage.status === 'Completed').forEach(stage => {
           const payment = data.payments.find(payment => payment.stage_id === stage.stage_id && payment.candidate_ids.includes(candidate.id))!;
           expect(payment.amount).toBe(fees[stage.stage_id as keyof typeof fees]);
           expect(data.paymentStatuses.find(status => status.candidateId === candidate.id && status.stageId === stage.stage_id)?.isPaid).toBe(true);
         });
       });
-      return { id: scenario.id, start: data.starting.score, score: data.measured.score, level: data.measured.level, bank: data.measured.bank };
+      const histogram = ALL_STAGES.map(stage => data.candidates.filter(candidate =>
+        data.stages.find(record => record.candidate_id === candidate.id && record.status !== 'Completed')?.stage_id === stage.id).length);
+      const unpaidRegistration = data.candidates.filter(candidate => !stageFeeCovered(candidate, 1, fees, data.paymentStatuses, data.payments)).length;
+      return { id: scenario.id, start: data.starting.score, score: data.measured.score, level: data.measured.level,
+        bank: data.measured.bank, payments: data.payments.length, documents: data.documents.length, histogram, unpaidRegistration };
     });
     console.log('DEMO achieved measurements', JSON.stringify(measurements));
     expect(measurements.map(item => item.level)).toEqual(['red', 'yellow', 'yellow', 'green', 'yellow', 'green']);
     expect(new Set(measurements.map(item => item.score)).size).toBe(6);
-    expect(measurements.map(item => item.score)).toEqual([34, 64, 69, 91, 76, 100]);
+    expect(measurements.map(item => item.score)).toEqual([36, 66, 71, 91, 78, 100]);
     expect(measurements[1].start).toBeLessThan(measurements[1].score);
     expect(measurements[3].start).toBeLessThan(measurements[3].score);
     expect(measurements[4].start).toBeGreaterThan(measurements[4].score);
     expect(measurements[0].bank.short).toBeGreaterThan(0);
     expect(measurements[0].bank.over).toBeGreaterThan(0);
     expect(measurements[0].bank.missing).toBeGreaterThan(0);
-    expect(measurements[5].bank.matched).toBe(2175);
+    expect(measurements[5].bank.matched).toBe(measurements[5].payments);
+    expect(new Set(measurements.map(item => JSON.stringify(item.histogram))).size).toBe(6);
+    expect(measurements.every(item => item.histogram.every(count => count > 0) && item.histogram.reduce((sum, count) => sum + count, 0) === 435)).toBe(true);
+    expect(measurements[0].histogram[0]).toBeGreaterThan(measurements[2].histogram[0]);
+    expect(measurements[2].histogram[0]).toBeGreaterThan(measurements[5].histogram[0]);
+    expect(measurements[0].unpaidRegistration).toBeGreaterThan(measurements[2].unpaidRegistration);
+    expect(measurements[2].unpaidRegistration).toBeGreaterThan(measurements[5].unpaidRegistration);
+    expect(measurements[5].histogram[3]).toBeGreaterThan(measurements[2].histogram[3]);
+    expect(measurements[2].histogram[3]).toBeGreaterThan(measurements[0].histogram[3]);
   }, 30_000);
 
   it('uses configured thresholds unchanged and refuses free or invalid stages', () => {
@@ -142,7 +185,10 @@ it('keeps identity edits, tracking codes and user-created candidates editable ac
     expect(getCandidates()).toHaveLength(436);
     expect(getCandidates().find(candidate => candidate.id === first.id)).toMatchObject({ first_name: 'EditedName', tracking_code: 'TRK-EDITED' });
     expect(getCandidates().find(candidate => candidate.id === created.id)).toMatchObject({ first_name: 'NewName', tracking_code: 'TRK-NEW-DEMO' });
-    expect(getPayments().find(payment => payment.candidate_ids.includes(first.id))?.demo_evidence?.identities[0].tracking_code).toBe('TRK-EDITED');
+    getPayments().filter(payment => payment.candidate_ids.includes(first.id)).forEach(payment =>
+      expect(payment.demo_evidence?.identities[0].tracking_code).toBe('TRK-EDITED'));
+    const current = getCandidates().find(candidate => candidate.id === first.id)!;
+    expect(current.last_payment_id ? getPayments().some(payment => payment.id === current.last_payment_id) : true).toBe(true);
   }
   await updateCandidateDetails(created.id, { last_name: 'EditableAfterSwitch' }, actor.id, actor.email);
   expect(getCandidates().find(candidate => candidate.id === created.id)?.last_name).toBe('EditableAfterSwitch');
@@ -177,8 +223,8 @@ it.each(INTEGRITY_DEMO_SCENARIOS)('applies $id to the actual payment and agency 
       const index = INTEGRITY_DEMO_SCENARIOS.findIndex(item => item.id === scenario.id);
       // The existing priority roster has identity/contact warnings. Scenario
       // switching preserves these rather than secretly fixing passport edits.
-      expect(result.after.score).toBeLessThanOrEqual([34, 64, 69, 91, 76, 100][index]);
-      expect(result.after.score).toBeGreaterThanOrEqual([34, 64, 69, 91, 76, 100][index] - 5);
+      expect(result.after.score).toBeLessThanOrEqual([36, 66, 71, 91, 78, 100][index]);
+      expect(result.after.score).toBeGreaterThanOrEqual([36, 66, 71, 91, 78, 100][index] - 5);
       expect(result.after.flaggedPayments).toBe([44, 18, 15, 4, 11, 0][index]);
       expect(open).toHaveLength([2, 2, 1, 1, 1, 0][index]);
       if (scenario.id !== 'high') {

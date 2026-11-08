@@ -1,5 +1,6 @@
 import { ALL_STAGES } from './types';
-import type { Candidate, CandidateStage, StaffUser } from './types';
+import type { Candidate, CandidateStage, Payment, PaymentStatus, StaffUser } from './types';
+import { stageFeeCovered } from './stage-readiness';
 
 const DONE = new Set(['Passed', 'Issued', 'Completed']);
 const DAY_MS = 86_400_000;
@@ -8,12 +9,13 @@ export interface StaffTask {
   candidate: Candidate;
   stage: CandidateStage;
   stageTitle: string;
-  action: 'Start stage' | 'Follow up' | 'Resolve blocker';
+  action: 'Start stage' | 'Follow up' | 'Resolve blocker' | 'Await payment';
   dueAt: string;
   overdue: boolean;
 }
 
-export const getActiveStageTasks = (candidates: Candidate[], stages: CandidateStage[], now = Date.now()): StaffTask[] => {
+export interface StageTaskPaymentContext { fees: Record<number, number>; statuses: PaymentStatus[]; payments: Payment[] }
+export const getActiveStageTasks = (candidates: Candidate[], stages: CandidateStage[], now = Date.now(), paymentContext?: StageTaskPaymentContext): StaffTask[] => {
   const stageByCandidate = new Map<string, Map<number, CandidateStage>>();
   stages.forEach(stage => {
     const own = stageByCandidate.get(stage.candidate_id) ?? new Map<number, CandidateStage>();
@@ -24,14 +26,14 @@ export const getActiveStageTasks = (candidates: Candidate[], stages: CandidateSt
   return candidates.flatMap(candidate => {
     const own = stageByCandidate.get(candidate.id);
     if (!own) return [];
-    const active = ALL_STAGES.map(meta => ({ meta, stage: own.get(meta.id) }))
-      .find(item => item.stage && !DONE.has(item.stage.status));
+    const active = [...ALL_STAGES].sort((a, b) => a.ordinal - b.ordinal).map(meta => ({ meta, stage: own.get(meta.id) }))
+      .find(item => item.stage && (!DONE.has(item.stage.status) || paymentContext && !stageFeeCovered(candidate, item.meta.id, paymentContext.fees, paymentContext.statuses, paymentContext.payments)));
     if (!active?.stage) return [];
 
     const dueAt = active.stage.follow_up_due_at
       ?? new Date(new Date(active.stage.updated_at || candidate.updated_at).getTime() + DAY_MS).toISOString();
     const dueTime = new Date(dueAt).getTime();
-    const action: StaffTask['action'] = active.stage.status === 'Failed'
+    const action: StaffTask['action'] = paymentContext && !stageFeeCovered(candidate, active.meta.id, paymentContext.fees, paymentContext.statuses, paymentContext.payments) ? 'Await payment' : active.stage.status === 'Failed'
       ? 'Resolve blocker'
       : active.stage.status === 'In Progress' ? 'Follow up' : 'Start stage';
 
@@ -48,12 +50,13 @@ export const assignUnassignedStageTasks = (
   candidateStages: CandidateStage[],
   users: StaffUser[],
   weights: Record<string, number> = {},
+  paymentContext?: StageTaskPaymentContext,
 ): CandidateStage[] => {
   const staff = eligibleStaff(users);
   if (!staff.length) return candidateStages;
 
   const validIds = new Set(staff.map(user => user.id));
-  const tasks = getActiveStageTasks(candidates, candidateStages);
+  const tasks = getActiveStageTasks(candidates, candidateStages, Date.now(), paymentContext);
   const taskStageIds = new Set(tasks.map(task => task.stage.id));
   const loads = new Map(staff.map(user => [user.id, 0]));
   candidateStages.forEach(stage => {
@@ -101,9 +104,10 @@ export const rebalanceStageTasks = (
   candidateStages: CandidateStage[],
   users: StaffUser[],
   weights: Record<string, number> = {},
+  paymentContext?: StageTaskPaymentContext,
 ): CandidateStage[] => {
-  const tasks = getActiveStageTasks(candidates, candidateStages);
+  const tasks = getActiveStageTasks(candidates, candidateStages, Date.now(), paymentContext);
   const taskIds = new Set(tasks.map(task => task.stage.id));
   const cleared = candidateStages.map(stage => taskIds.has(stage.id) ? { ...stage, assigned_staff_id: undefined } : stage);
-  return assignUnassignedStageTasks(candidates, cleared, users, weights);
+  return assignUnassignedStageTasks(candidates, cleared, users, weights, paymentContext);
 };

@@ -21,6 +21,7 @@ import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CandidateAvatar from '@/components/CandidateAvatar';
+import ActivityRecord from '@/components/ActivityRecord';
 import IntegrityScore from '@/components/IntegrityScore';
 import { useCandidateWorkspace } from '@/components/CandidateQuickViewProvider';
 import AgencyResolutionCenter from '@/components/AgencyResolutionCenter';
@@ -358,7 +359,7 @@ const AdminIntegrity: React.FC = () => {
                           <TableCell className="text-sm">{l.actor_email}</TableCell>
                           <TableCell><Badge variant="secondary">{l.action}</Badge></TableCell>
                           <TableCell className="text-sm">{l.target_type}</TableCell>
-                          <TableCell className="max-w-[420px] text-sm text-muted-foreground">{l.description}</TableCell>
+                          <TableCell className="min-w-[340px] max-w-[620px]"><ActivityRecord activity={l} /></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -149,6 +149,7 @@ export interface CandidateStage {
   updated_at: string;
   reference_id?: string; // Added field for Labor ID, Visa Number, etc.
   assigned_staff_id?: string;
+  foreign_assigned_staff_id?: string;
   follow_up_due_at?: string;
   follow_up_note?: string;
 }
@@ -547,7 +548,7 @@ export interface ExecutiveMetrics {
     byLocalAgency: NamedCount[];
     needsAttention: Array<{ id: string; name: string; trackingCode: string; stageTitle: string; daysInStage: number; reason: string }>;
     needsAttentionTotal: number;
-    activity: Array<{ id: string; timestamp: string; actor: string; description: string; action: string }>;
+    activity: Array<{ id: string; timestamp: string; actor: string; description: string; action: string; target_id?: string }>;
 }
 
 // NEW: Data structure for Payment Analytics

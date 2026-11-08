@@ -1,4 +1,4 @@
-import { getApprovalLogs, getCandidateStages, getCandidates, getConfig, getStaffUsers, saveCandidateStages, saveConfig } from '../data-store';
+import { getCandidateStages, getCandidates, getConfig, getStaffUsers, saveCandidateStages, saveConfig, getPayments, getPaymentStatuses } from '../data-store';
 import type { AppConfig, CandidateStage } from '../types';
 import { assignUnassignedStageTasks, getActiveStageTasks, rebalanceStageTasks } from '../staff-tasks';
 import { recordApprovalLog } from './log-management';
@@ -14,10 +14,11 @@ const saveStageAssignments = (next: CandidateStage[]) => {
     window.dispatchEvent(new CustomEvent('supabase-data-changed'));
   }
 };
+const paymentContext = () => ({ fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: getPayments() });
 
 export const prepareStaffTasks = async (autoAssign = false): Promise<void> => {
   if (!autoAssign) return;
-  const next = assignUnassignedStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), getConfig().staffTaskWeights);
+  const next = assignUnassignedStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), getConfig().staffTaskWeights, paymentContext());
   saveStageAssignments(next);
 };
 
@@ -38,10 +39,10 @@ export const rebalanceStaffTasks = async (
   actor: { id: string; email: string; role: string },
 ): Promise<number> => {
   if (actor.role !== 'superadmin') throw new Error('Only a superadmin can rebalance staff tasks.');
-  const next = rebalanceStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), weights);
+  const next = rebalanceStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), weights, paymentContext());
   saveStageAssignments(next);
   await recordApprovalLog(actor.id, actor.email, 'Config', 'staff-task-distribution', 'Updated', 'Rebalanced active candidate stage tasks across approved staff.');
-  return getActiveStageTasks(getCandidates(), next).filter(task => task.stage.assigned_staff_id).length;
+  return getActiveStageTasks(getCandidates(), next, Date.now(), paymentContext()).filter(task => task.stage.assigned_staff_id).length;
 };
 
 export const autoBalanceStaffTasks = async (actor: { id: string; email: string; role: string }): Promise<{ assigned: number; unassigned: number; changed: number }> => {
@@ -52,8 +53,8 @@ export const autoBalanceStaffTasks = async (actor: { id: string; email: string; 
   if (!staff.length) throw new Error('There are no approved staff accounts to assign work to.');
   const saved = getConfig().staffTaskWeights ?? {};
   const weights = Object.fromEntries(staff.map(user => [user.id, saved[user.id] === 0 ? 0 : 1]));
-  const next = rebalanceStageTasks(candidates, before, staff, weights);
-  const tasks = getActiveStageTasks(candidates, next);
+  const next = rebalanceStageTasks(candidates, before, staff, weights, paymentContext());
+  const tasks = getActiveStageTasks(candidates, next, Date.now(), paymentContext());
   const prior = new Map(before.map(stage => [stage.id, stage.assigned_staff_id]));
   const assigned = tasks.filter(task => task.stage.assigned_staff_id).length;
   const changed = tasks.filter(task => prior.get(task.stage.id) !== task.stage.assigned_staff_id).length;
@@ -80,6 +81,9 @@ export const assignCandidateStageTask = async (
   if (index < 0) throw new Error('Candidate stage not found.');
   const owner = users.find(user => user.id === staffId)!;
   const candidate = getCandidates().find(candidate => candidate.id === candidateId);
+  if (!candidate || !getActiveStageTasks([candidate], stages, Date.now(), paymentContext()).some(task => task.stage.stage_id === stageId)) {
+    throw new Error('Assign the candidate’s current required stage. Earlier unpaid or unfinished stages must be handled first.');
+  }
   if (owner.local_agency_id && owner.local_agency_id !== candidate?.local_agency_id) throw new Error('Choose staff from the candidate’s own local agency or an internal staff account.');
   stages[index] = { ...stages[index], assigned_staff_id: staffId, follow_up_due_at: stages[index].follow_up_due_at ?? new Date(Date.now() + 86_400_000).toISOString() };
   saveCandidateStages(stages);

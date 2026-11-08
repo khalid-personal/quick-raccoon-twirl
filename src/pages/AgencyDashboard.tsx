@@ -43,6 +43,7 @@ import CandidateAvatar from '@/components/CandidateAvatar';
 import ControlRoomHeader from '@/components/ControlRoomHeader';
 import CandidateStaffingBoard from '@/components/CandidateStaffingBoard';
 import { filterStaffingCandidates, type StaffingFilters } from '@/lib/candidate-staffing';
+import { getForeignStaffWork } from '@/lib/api/foreign-staff-work';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
@@ -191,8 +192,14 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ field, currentSort, cur
 };
 
 const AgencyDashboard: React.FC = () => {
-  const { userRole, user, isDemo, isLoading: isAuthLoading, userForeignAgencyName, userForeignAgencyId } = useAuth(); // Renamed
+  const { userRole, user, isDemo, isLoading: isAuthLoading, userForeignAgencyName, userForeignAgencyId, viewAs } = useAuth(); // Renamed
   const queryClient = useQueryClient();
+  const { data: workload } = useQuery({
+    queryKey: ['foreign-staff-work', viewAs?.userId ?? user?.id, userRole, userForeignAgencyId],
+    queryFn: getForeignStaffWork,
+    enabled: !!userForeignAgencyId,
+    refetchInterval: 30000,
+  });
   
   const [searchQuery, setSearchQuery] = usePageMemory('search', '');
   const [currentQuery, setCurrentQuery] = usePageMemory('query', '');
@@ -410,6 +417,9 @@ const AgencyDashboard: React.FC = () => {
         description="Review candidate progress, agency payments, introductions and what is needed before departure."
         icon={Building}
       />
+      {userForeignAgencyId && <Link to="/agency/tasks" className="block rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 to-background p-5 transition-colors hover:border-primary/50">
+        <div className="flex items-center justify-between gap-4"><div><p className="font-semibold">{userRole === 'foreign-agency-staff' ? 'My work' : 'Staff workload'}</p><p className="text-sm text-muted-foreground">{workload ? `${workload.tasks.length} current tasks · ${workload.tasks.filter(task => task.action === 'Awaiting payment').length} awaiting payment` : 'Open your agency workboard'}</p></div><span className="text-sm font-medium text-primary">Open workboard →</span></div>
+      </Link>}
       <div data-tour="agency-pipeline" className="space-y-6">
           {!userForeignAgencyId ? <p role="alert" className="text-destructive">No foreign agency is assigned to this account.</p>
             : overviewError ? <p role="alert" className="text-destructive">Could not load candidate totals.</p>

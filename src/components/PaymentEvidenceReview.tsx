@@ -26,6 +26,7 @@ import InvestigationGuide from './InvestigationGuide';
 import { amountDiscrepancies } from '@/lib/agency-resolution';
 import { submissionDeadline } from '@/lib/submission-policy';
 import { currentVerifiedPaymentIds } from '@/lib/payment-review-clearance';
+import { isForeignAgencyRole } from '@/lib/api/auth';
 
 export interface PaymentEvidence {
   caseId: string;
@@ -40,9 +41,17 @@ export interface PaymentEvidence {
   stageTitle?: string;
 }
 
-export default function PaymentEvidenceReview({ agencyId, evidence, statementName, onClose, allowActions = true, activation }: {
+type ReviewProps = {
   agencyId: string; evidence: PaymentEvidence | null; statementName: string; onClose: () => void; allowActions?: boolean; activation?: number;
-}) {
+};
+
+export default function PaymentEvidenceReview(props: ReviewProps) {
+  const { userRole } = useAuth();
+  if (isForeignAgencyRole(userRole) || userRole === 'candidate' || !userRole) return null;
+  return <AuditedPaymentReview {...props} />;
+}
+
+function AuditedPaymentReview({ agencyId, evidence, statementName, onClose, allowActions = true, activation }: ReviewProps) {
   const { user, userRole } = useAuth();
   const prefix = useId();
   const fieldId = (name: string) => `${prefix}-${name}`;

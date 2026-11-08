@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { MedicalResult, CandidateStage, StageStatus, ALL_STAGES } from '../types';
-import { getMedicalResults, saveMedicalResults, getCandidateStages, saveCandidateStages, getCandidates } from '../data-store';
+import { getMedicalResults, saveMedicalResults, getCandidateStages, saveCandidateStages, getCandidates, getConfig, getPaymentStatuses, getPayments } from '../data-store';
+import { requiredMedicalExams, stageFeeCovered, stageProgressBlockers } from '../stage-readiness';
 
 // Helper function to synchronize medical results with stage status
 const syncMedicalStageStatus = (candidateId: string) => {
@@ -29,12 +30,16 @@ const syncMedicalStageStatus = (candidateId: string) => {
     let stagesChanged = false;
 
     if (medicalStageId) {
-        const medicalExams = allResults;
+        const candidate = getCandidates().find(candidate => candidate.id === candidateId);
+        if (!candidate) throw new Error('Candidate not found.');
+        const examTypes = requiredMedicalExams(candidate.gender);
+        const medicalExams = allResults.filter(result => examTypes.includes(result.exam_type));
         let newStatus: StageStatus = 'Pending';
 
         if (medicalExams.some(result => result.status === 'Failed')) {
             newStatus = 'Failed';
-        } else if (medicalExams.length && medicalExams.every(result => result.status === 'Passed')) {
+        } else if (examTypes.every(exam => medicalExams.some(result => result.exam_type === exam && result.status === 'Passed'))
+            && stageFeeCovered(candidate, medicalStageId, getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments())) {
             newStatus = 'Passed';
         } else if (medicalExams.some(result => result.status === 'Passed' || result.status === 'Pending')) {
             newStatus = 'In Progress';
@@ -67,6 +72,11 @@ export const updateMedicalResult = async (
     if (!trainingStage || !['Passed', 'Issued', 'Completed'].includes(trainingStage.status)) {
         throw new Error('Training must be completed before recording medical results.');
     }
+    const candidate = getCandidates().find(candidate => candidate.id === candidateId);
+    if (!candidate) throw new Error('Candidate not found.');
+    const medicalStageId = ALL_STAGES.find(stage => stage.slug === 'medical')!.id;
+    const blockers = stageProgressBlockers(candidate, medicalStageId, 'In Progress', stages, getConfig().stageFees ?? {}, getPaymentStatuses(), getPayments());
+    if (blockers.length) throw new Error(blockers.join(' '));
     const allResults = getMedicalResults();
     let result = allResults.find(r => r.candidate_id === candidateId && r.exam_type === examType);
 
@@ -90,6 +100,7 @@ export const updateMedicalResult = async (
     
     // SYNCHRONIZE STAGE STATUS AFTER MEDICAL RESULT UPDATE
     syncMedicalStageStatus(candidateId); 
+    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
     
     return result;
 };

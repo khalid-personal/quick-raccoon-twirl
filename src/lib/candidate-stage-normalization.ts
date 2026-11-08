@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { ALL_STAGES, type CandidateStage, type Candidate, type PaymentStatus, type StageStatus } from './types';
+import { ALL_STAGES, type CandidateStage, type Candidate, type Payment, type PaymentStatus, type StageStatus } from './types';
+import { stageFeeCovered } from './stage-readiness';
 
 const INITIAL_STATUS: StageStatus = 'Pending';
 export const isStageComplete = (status: StageStatus): boolean => ['Passed', 'Issued', 'Completed'].includes(status);
@@ -47,12 +48,14 @@ export const revertUnpaidCompletedStages = (
   paymentStatuses: PaymentStatus[],
   stageFees: Record<number, number>,
   updatedAt = new Date().toISOString(),
+  evidence?: { candidates: Candidate[]; payments: Payment[] },
 ): CandidateStage[] => stages.map(candidateStage => {
   const stage = ALL_STAGES.find(item => item.id === candidateStage.stage_id);
   if (!stage || !['Passed', 'Issued', 'Completed'].includes(candidateStage.status)) return candidateStage;
 
   const fee = stageFees[stage.id] ?? stage.fee_amount ?? 0;
-  const isPaid = paymentStatuses.some(payment =>
+  const candidate = evidence?.candidates.find(candidate => candidate.id === candidateStage.candidate_id);
+  const isPaid = candidate && evidence ? stageFeeCovered(candidate, stage.id, stageFees, paymentStatuses, evidence.payments) : paymentStatuses.some(payment =>
     payment.candidateId === candidateStage.candidate_id && payment.stageId === stage.id && payment.isPaid,
   );
   if (fee <= 0 || isPaid) return candidateStage;

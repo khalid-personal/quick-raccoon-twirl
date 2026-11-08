@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BadgeCheck, BookOpen, Film, LayoutDashboard, Map, MessageSquare, Receipt, Users } from 'lucide-react';
+import { BadgeCheck, BookOpen, Film, LayoutDashboard, ListTodo, Map, MessageSquare, Receipt, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { ChatMessage } from '@/lib/types';
@@ -27,10 +27,11 @@ const AgencyLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       label: 'Workspace',
       items: [
         { to: '/agency', label: 'Dashboard', icon: <LayoutDashboard /> },
+        { to: '/agency/tasks', label: 'Staff Workload', icon: <ListTodo /> },
         { to: '/agency/introductions', label: 'Candidate Introductions', icon: <Film /> },
         { to: '/agency/training-map', label: 'Destination Map', icon: <Map /> },
         { to: '/agency/clearance', label: 'Clearance Tracker', icon: <BadgeCheck /> },
-        { to: '/agency/payments', label: 'Payments', icon: <Receipt /> },
+        { to: '/agency/payments', label: 'Money sent', icon: <Receipt /> },
         { to: '/agency/users', label: 'Staff Users', icon: <Users /> },
         { to: '/agency/candidate-chat', label: 'Candidate Chat', icon: <MessageSquare />, badge: unreadChats },
         { to: '/agency/chat', label: 'Partner Chat', icon: <MessageSquare /> },
