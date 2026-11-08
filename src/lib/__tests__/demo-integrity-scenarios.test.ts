@@ -14,6 +14,8 @@ import { agencyIsSuspended, amountDiscrepancies, decideAgencyCase, getAgencyReso
 import { loadBankStatement, saveBankStatement } from '../bank-statement-store';
 import { stageFeeCovered, stageProgressBlockers } from '../stage-readiness';
 import { reconcile } from '../bank-reconciliation';
+import { getActiveStageTasks } from '../staff-tasks';
+import { isCleared } from '../ksa-visa';
 
 const now = new Date('2026-11-07T12:00:00Z').getTime();
 const fees = { 1: 500, 3: 2200, 2: 2000, 4: 6000 };
@@ -69,8 +71,7 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(data.candidates.map(candidate => [candidate.id, candidate.first_name, candidate.last_name, candidate.tracking_code, candidate.passport_number]))
         .toEqual(generateDemoDataset(now, 'high-performing').candidates.map(candidate => [candidate.id, candidate.first_name, candidate.last_name, candidate.tracking_code, candidate.passport_number]));
       expect(data.stages.every(stage => stage.notes?.startsWith('DEMO'))).toBe(true);
-      expect(data.candidates.every(candidate => candidate.clearance?.labour_ministry?.status === 'pending'
-        && candidate.clearance.labour_ministry.simulated && !candidate.clearance.labour_ministry.qr_image_url)).toBe(true);
+      expect(data.candidates.every(candidate => candidate.clearance?.labour_ministry?.simulated && !candidate.clearance.labour_ministry.qr_image_url)).toBe(true);
       expect(data.payments.every(payment => payment.amount > 0)).toBe(true);
       expect(data.payments.filter(payment => !isForeignPayment(payment)).every(payment => payment.amount === fees[payment.stage_id as keyof typeof fees])).toBe(true);
       expect(data.payments.filter(payment => payment.status !== 'succeeded')).toHaveLength(risky);
@@ -83,8 +84,8 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       data.candidates.forEach(candidate => {
         const stages = data.stages.filter(stage => stage.candidate_id === candidate.id);
         expect(stages.map(stage => stage.stage_id)).toEqual(ALL_STAGES.map(stage => stage.id));
-        const current = stages.findIndex(stage => stage.status !== 'Completed');
-        expect(current).toBeGreaterThanOrEqual(0);
+        const firstUnfinished = stages.findIndex(stage => stage.status !== 'Completed');
+        const current = firstUnfinished < 0 ? 4 : firstUnfinished;
         expect(stages.slice(current + 1).every(stage => stage.status === 'Pending')).toBe(true);
         stages.forEach(stage => expect(stageProgressBlockers(candidate, stage.stage_id, stage.status, data.stages, fees, data.paymentStatuses, data.payments)).toEqual([]));
         data.payments.filter(payment => payment.payer_candidate_id === candidate.id).forEach(payment => {
@@ -93,17 +94,17 @@ describe('DEMO integrity scenario data, not score overrides', () => {
         data.paymentStatuses.filter(status => status.candidateId === candidate.id).forEach(status => {
           expect(status.isPaid).toBe(stageFeeCovered(candidate, status.stageId, fees, data.paymentStatuses, data.payments));
         });
-        if (!stageFeeCovered(candidate, stages[current].stage_id, fees, data.paymentStatuses, data.payments)) {
+        if (current < 4 && !stageFeeCovered(candidate, stages[current].stage_id, fees, data.paymentStatuses, data.payments)) {
           expect(stageProgressBlockers(candidate, stages[current].stage_id, 'Completed', data.stages, fees, data.paymentStatuses, data.payments).length).toBeGreaterThan(0);
         }
         const medicals = data.medicals.filter(medical => medical.candidate_id === candidate.id);
-        expect(medicals.every(medical => medical.status === 'Passed')).toBe(current === 3 || current < 2);
+        expect(medicals.every(medical => medical.status === 'Passed')).toBe(current >= 3 || current < 2);
         if (current < 2) expect(medicals).toHaveLength(0);
         if (current >= 2) expect(medicals.map(medical => medical.exam_type)).toEqual(candidate.gender === 'male'
           ? ['HIV', 'Final Agency Medical'] : ['HIV', 'Pregnancy', 'Final Agency Medical']);
-        expect(candidate.visa?.status === 'validated').toBe(current === 3);
+        expect(candidate.visa?.status === 'validated').toBe(current >= 3);
         expect(data.documents.filter(document => document.candidate_id === candidate.id).map(document => document.doc_kind))
-          .toEqual(current === 0 ? [] : current === 3 ? ['work_contract', 'visa'] : ['work_contract']);
+          .toEqual(current === 0 ? [] : current >= 3 ? ['work_contract', 'visa'] : ['work_contract']);
         expect(data.payments.filter(payment => isForeignPayment(payment) && payment.candidate_ids.includes(candidate.id))).toHaveLength(current >= 2 ? 1 : 0);
         if (candidate.last_payment_id) expect(data.payments.some(payment => payment.id === candidate.last_payment_id)).toBe(true);
         stages.filter(stage => stage.status === 'Completed').forEach(stage => {
@@ -115,8 +116,11 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       const histogram = ALL_STAGES.map(stage => data.candidates.filter(candidate =>
         data.stages.find(record => record.candidate_id === candidate.id && record.status !== 'Completed')?.stage_id === stage.id).length);
       const unpaidRegistration = data.candidates.filter(candidate => !stageFeeCovered(candidate, 1, fees, data.paymentStatuses, data.payments)).length;
+      const deployed = data.candidates.filter(candidate => data.stages.filter(stage => stage.candidate_id === candidate.id).every(stage => stage.status === 'Completed')).length;
+      const tasks = getActiveStageTasks(data.candidates, data.stages, now, { fees, statuses: data.paymentStatuses, payments: data.payments });
       return { id: scenario.id, start: data.starting.score, score: data.measured.score, level: data.measured.level,
-        bank: data.measured.bank, payments: data.payments.length, documents: data.documents.length, histogram, unpaidRegistration };
+        bank: data.measured.bank, payments: data.payments.length, documents: data.documents.length, histogram, unpaidRegistration, deployed,
+        overdue: tasks.filter(task => task.overdue).length, tasks: tasks.length };
     });
     console.log('DEMO achieved measurements', JSON.stringify(measurements));
     expect(measurements.map(item => item.level)).toEqual(['red', 'yellow', 'yellow', 'green', 'yellow', 'green']);
@@ -130,13 +134,22 @@ describe('DEMO integrity scenario data, not score overrides', () => {
     expect(measurements[0].bank.missing).toBeGreaterThan(0);
     expect(measurements[5].bank.matched).toBe(measurements[5].payments);
     expect(new Set(measurements.map(item => JSON.stringify(item.histogram))).size).toBe(6);
-    expect(measurements.every(item => item.histogram.every(count => count > 0) && item.histogram.reduce((sum, count) => sum + count, 0) === 435)).toBe(true);
+    expect(measurements.every(item => item.histogram.every(count => count > 0) && item.histogram.reduce((sum, count) => sum + count, 0) + item.deployed === 435)).toBe(true);
     expect(measurements[0].histogram[0]).toBeGreaterThan(measurements[2].histogram[0]);
     expect(measurements[2].histogram[0]).toBeGreaterThan(measurements[5].histogram[0]);
     expect(measurements[0].unpaidRegistration).toBeGreaterThan(measurements[2].unpaidRegistration);
     expect(measurements[2].unpaidRegistration).toBeGreaterThan(measurements[5].unpaidRegistration);
-    expect(measurements[5].histogram[3]).toBeGreaterThan(measurements[2].histogram[3]);
-    expect(measurements[2].histogram[3]).toBeGreaterThan(measurements[0].histogram[3]);
+    const ranked = [measurements[0], measurements[1], measurements[2], measurements[4], measurements[3], measurements[5]];
+    for (let index = 1; index < ranked.length; index++) {
+      expect(ranked[index].deployed).toBeGreaterThan(ranked[index - 1].deployed);
+      expect(ranked[index].overdue).toBeLessThan(ranked[index - 1].overdue);
+      expect(ranked[index].unpaidRegistration).toBeLessThan(ranked[index - 1].unpaidRegistration);
+    }
+    expect(measurements[5].deployed / 435).toBeGreaterThanOrEqual(0.8);
+    expect(measurements[5].overdue).toBe(0);
+    expect(measurements[5].unpaidRegistration).toBe(0);
+    expect(measurements[0].deployed / 435).toBeLessThan(0.03);
+    expect(measurements[0].overdue / measurements[0].tasks).toBeGreaterThan(0.75);
   }, 30_000);
 
   it('uses configured thresholds unchanged and refuses free or invalid stages', () => {
@@ -146,6 +159,40 @@ describe('DEMO integrity scenario data, not score overrides', () => {
     expect(() => buildIntegrityDemoScenario('high', { ...fees, 2: NaN })).toThrow('positive');
     expect(JSON.stringify(buildIntegrityDemoScenario('low-medium', fees, undefined, now))).toBe(JSON.stringify(buildIntegrityDemoScenario('low-medium', fees, undefined, now)));
   }, 30_000);
+
+  it('keeps high-mode intake timely, all reached fees paid and completed journeys in chronological order', () => {
+    const data = buildIntegrityDemoScenario('high', fees, undefined, now);
+    expect(data.measured.findings).toBe(0);
+    expect(data.measured.deployed / data.candidates.length).toBeGreaterThanOrEqual(0.8);
+    expect(data.stages.filter(stage => stage.status === 'Completed').length / data.stages.length).toBeGreaterThanOrEqual(0.9);
+    expect(data.measured.returned).toBeGreaterThan(0);
+    expect(data.measured.activeTasks).toBeGreaterThan(0);
+    expect(data.measured.overdueTasks).toBe(0);
+    expect(data.candidates.every(candidate => !isCleared(candidate))).toBe(true);
+    const recent = data.candidates.filter(candidate => now - Date.parse(candidate.created_at) <= 7 * 86_400_000);
+    expect(recent.length).toBeGreaterThan(20);
+    expect(recent.every(candidate => candidate.elmis?.status === 'verified')).toBe(true);
+    for (const candidate of data.candidates) {
+      const stages = data.stages.filter(stage => stage.candidate_id === candidate.id);
+      const reached = stages.findIndex(stage => stage.status !== 'Completed');
+      for (const stage of stages.slice(0, reached < 0 ? 4 : reached + 1)) {
+        expect(stageFeeCovered(candidate, stage.stage_id, fees, data.paymentStatuses, data.payments)).toBe(true);
+      }
+      if (!candidate.arrival) continue;
+      expect(candidate.flight?.arrival_airport).not.toBe('');
+      const departure = Date.parse(stages[3].date!);
+      expect(Date.parse(candidate.created_at)).toBeLessThan(departure);
+      expect(Date.parse(candidate.flight!.departure_time)).toBe(departure);
+      expect(Date.parse(candidate.arrival.arrived_at)).toBeGreaterThan(departure);
+      expect(data.medicals.filter(medical => medical.candidate_id === candidate.id).every(medical =>
+        medical.status === 'Passed' && Date.parse(medical.exam_date!) <= departure)).toBe(true);
+      expect(data.payments.filter(payment => payment.candidate_ids.includes(candidate.id)).every(payment => Date.parse(payment.created_at) <= departure)).toBe(true);
+      if (candidate.return_status === 'returned') {
+        expect(Date.parse(candidate.actual_return_date!)).toBeGreaterThan(Date.parse(candidate.arrival.arrived_at));
+        expect(candidate.employment_history?.[0].returned_at).toBeTruthy();
+      }
+    }
+  });
 
   it('guards every write against live mode, unsigned users, wrong roles and missing confirmation/reason', async () => {
     const snapshot = () => JSON.stringify({ ...localStorage });

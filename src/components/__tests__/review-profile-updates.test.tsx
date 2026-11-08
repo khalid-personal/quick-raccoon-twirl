@@ -130,7 +130,8 @@ describe('colored controls, ministry QR and paired evidence', () => {
       savePayments([{ ...payment, amount: 150 }]);
       saveBankStatement('local-a', { name: 'Bank', lines: [{ amount: 150, currency: 'ETB', reference: 'REF', date: '2026-11-07', description: 'Credit' }] }, 'candidate');
     });
-    expect(document.querySelector('[aria-label="Receipt and bank statement side by side"]')?.textContent).toContain('150 ETB');
+    expect(document.querySelector('[aria-label="Receipt and bank statement side by side"]')?.textContent).toContain('Receipt: 150.00');
+    expect(document.querySelector('[aria-label="Evidence comparison checks"]')?.textContent).toContain('Currency: MatchReceipt: ETBBank: ETB');
     expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Automatically cleared after all checks');
     await act(async () => { savePayments([]); window.dispatchEvent(new Event('supabase-data-changed')); });
     expect(document.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain('no longer in the current payment records');
