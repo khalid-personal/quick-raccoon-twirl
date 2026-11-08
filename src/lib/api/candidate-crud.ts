@@ -5,6 +5,8 @@ import { generateInitialStages } from '../data-seed';
 import { isAdult } from '../utils-data';
 import { getStageId } from './utils';
 import { recordApprovalLog } from './log-management';
+import { hasCompleteCandidateIntroduction } from '../candidate-introduction';
+import { requireAgencyOperations } from '../agency-resolution';
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>>;
@@ -65,6 +67,12 @@ export const updateCandidateDetails = async (
     }
 
     const existingCandidate = candidates[index];
+    if (data.gender !== undefined && data.gender !== 'male' && data.gender !== 'female') {
+        throw new Error('Candidate gender must be male or female.');
+    }
+    if (!hasCompleteCandidateIntroduction({ ...existingCandidate, ...data })) {
+        throw new Error('Candidate gender, introduction, skills, languages, and introduction video are required.');
+    }
 
     // Age validation: Check if DOB is provided and if the person is 18+
     const dobToCheck = data.dob ?? existingCandidate.dob;
@@ -78,7 +86,7 @@ export const updateCandidateDetails = async (
     const newEmail = data.email;
 
     if (newTrackingCode && newTrackingCode !== existingCandidate.tracking_code) {
-        if (candidates.some(c => c.tracking_code === newTrackingCode)) {
+        if (candidates.some(c => c.id !== candidateId && c.tracking_code.trim().toUpperCase() === newTrackingCode.trim().toUpperCase())) {
             throw new Error(`Tracking code '${newTrackingCode}' already exists.`);
         }
     }
@@ -99,8 +107,15 @@ export const updateCandidateDetails = async (
     const updatedCandidate: Candidate = {
         ...existingCandidate,
         ...data,
+        tracking_code: (data.tracking_code ?? existingCandidate.tracking_code).trim().toUpperCase(),
         updated_at: new Date().toISOString(),
     } as Candidate; // Cast back to Candidate to satisfy return type
+    if (updatedCandidate.local_agency_id !== existingCandidate.local_agency_id || updatedCandidate.foreign_agency_id !== existingCandidate.foreign_agency_id) {
+      requireAgencyOperations('local', existingCandidate.local_agency_id);
+      requireAgencyOperations('foreign', existingCandidate.foreign_agency_id);
+      requireAgencyOperations('local', updatedCandidate.local_agency_id);
+      requireAgencyOperations('foreign', updatedCandidate.foreign_agency_id);
+    }
 
     candidates[index] = updatedCandidate;
     saveCandidates(candidates);
@@ -130,10 +145,19 @@ export const createCandidate = async (
     actorEmail: string // NEW PARAMETER for logging
 ): Promise<Candidate> => {
     await new Promise(resolve => setTimeout(resolve, 100));
+    requireAgencyOperations('local', data.local_agency_id);
+    requireAgencyOperations('foreign', data.foreign_agency_id);
     const candidates = getCandidates();
 
+    if (data.gender !== 'male' && data.gender !== 'female') {
+        throw new Error('Candidate gender is required.');
+    }
+    if (!hasCompleteCandidateIntroduction(data)) {
+        throw new Error('Candidate gender, introduction, skills, languages, and introduction video are required.');
+    }
+
     // --- Duplicate Check for Creation ---
-    if (candidates.some(c => c.tracking_code === data.tracking_code)) {
+    if (candidates.some(c => c.tracking_code.trim().toUpperCase() === data.tracking_code.trim().toUpperCase())) {
         throw new Error(`Tracking code '${data.tracking_code}' already exists.`);
     }
     if (candidates.some(c => c.passport_number === data.passport_number)) {
@@ -151,6 +175,7 @@ export const createCandidate = async (
 
     const newCandidate: Candidate = {
         ...data,
+        tracking_code: data.tracking_code.trim().toUpperCase(),
         id: uuidv4(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

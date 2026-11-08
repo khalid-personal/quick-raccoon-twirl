@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { api } from '@/lib/api';
 import { Document, PublicTrackingData, ALL_STAGES } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Loader2, FileText, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Label } from '@/components/ui/label';
+import DocumentScanInput, { type ScanSelection } from '@/components/DocumentScanInput';
 
 interface CandidateDocumentUploaderProps {
   candidateId: string;
@@ -22,35 +23,22 @@ const CandidateDocumentUploader: React.FC<CandidateDocumentUploaderProps> = ({
   existingDocuments,
   refetch,
 }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [scanSelection, setScanSelection] = useState<ScanSelection | null>(null);
   const [selectedStageId, setSelectedStageId] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    } else {
-      setSelectedFile(null);
-    }
-  };
-
   const handleUpload = async () => {
-    if (!selectedFile || !selectedStageId) {
+    if (!scanSelection?.ready || (!selectedStageId && !detectedStageAvailable) || (detectedStage && !detectedStageAvailable)) {
       toast.error("Please select a stage and a file to upload.");
       return;
     }
 
     setIsUploading(true);
     try {
-      await api.uploadDocument(candidateId, parseInt(selectedStageId), selectedFile);
-      toast.success(`Document "${selectedFile.name}" uploaded successfully.`);
-      setSelectedFile(null);
+      await api.uploadDocument(candidateId, detectedStageAvailable ? detectedStage.id : parseInt(selectedStageId), scanSelection.file, scanSelection.report);
+      toast.success(`Document "${scanSelection.file.name}" uploaded successfully.`);
+      setScanSelection(null);
       setSelectedStageId('');
-      
-      // Clear the file input manually
-      const input = document.getElementById(`candidate-file-input`) as HTMLInputElement;
-      if (input) input.value = '';
-      
       refetch();
     } catch (error) {
       toast.error((error as Error).message);
@@ -64,6 +52,8 @@ const CandidateDocumentUploader: React.FC<CandidateDocumentUploaderProps> = ({
     .filter(item => item.status === 'Pending' || item.status === 'In Progress')
     .map(item => ALL_STAGES.find(s => s.title === item.title))
     .filter((stage): stage is typeof ALL_STAGES[number] => !!stage);
+  const detectedStage = ALL_STAGES.find(stage => stage.id === scanSelection?.detectedStageId);
+  const detectedStageAvailable = !!detectedStage && availableStages.some(stage => stage.id === detectedStage.id);
 
   // Group existing documents by stage
   const documentsByStage = existingDocuments.reduce((acc, doc) => {
@@ -100,12 +90,12 @@ const CandidateDocumentUploader: React.FC<CandidateDocumentUploaderProps> = ({
                 <div className="space-y-2 md:col-span-1">
                     <Label htmlFor="stage-select">Associate with Stage</Label>
                     <Select
-                        value={selectedStageId}
+                        value={detectedStageAvailable ? String(detectedStage.id) : selectedStageId}
                         onValueChange={setSelectedStageId}
-                        disabled={isUploading || availableStages.length === 0}
+                        disabled={isUploading || availableStages.length === 0 || detectedStageAvailable}
                     >
                         <SelectTrigger id="stage-select">
-                            <SelectValue placeholder="Select Stage" />
+                            <SelectValue placeholder={detectedStage && !detectedStageAvailable ? `${detectedStage.title} is not open` : 'Select Stage'} />
                         </SelectTrigger>
                         <SelectContent>
                             {availableStages.map(stage => (
@@ -117,24 +107,26 @@ const CandidateDocumentUploader: React.FC<CandidateDocumentUploaderProps> = ({
                     </Select>
                 </div>
                 
-                <div className="space-y-2 md:col-span-1">
-                    <Label htmlFor="candidate-file-input">Select File</Label>
-                    <Input 
-                        id="candidate-file-input" 
-                        type="file" 
-                        onChange={handleFileChange} 
-                        disabled={isUploading || availableStages.length === 0}
-                    />
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Screen and select file</Label>
+                  <DocumentScanInput
+                    id="candidate-file-input"
+                    existingDocuments={existingDocuments}
+                    detectStage
+                    disabled={isUploading || availableStages.length === 0}
+                    onChange={setScanSelection}
+                  />
                 </div>
                 
                 <Button 
                     onClick={handleUpload} 
-                    disabled={isUploading || !selectedStageId || !selectedFile || availableStages.length === 0}
+                    disabled={isUploading || (!selectedStageId && !detectedStageAvailable) || (detectedStage !== undefined && !detectedStageAvailable) || !scanSelection?.ready || availableStages.length === 0}
                     className="w-full md:w-auto"
                 >
                     {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
                     Upload
                 </Button>
+                {scanSelection?.ready && detectedStage && !detectedStageAvailable && <p className="text-sm text-amber-700 md:col-span-3" role="status">{detectedStage.title} was detected, but that stage is not currently open for document submissions.</p>}
             </div>
         </div>
         

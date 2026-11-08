@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, ChatSender } from '../types';
-import { getChatMessages, saveChatMessages, getCandidates } from '../data-store';
+import { getChatMessages, saveChatMessages, getCandidates, getDocuments } from '../data-store';
+
+export const getCandidateChatDocuments = async (candidateId: string) => getDocuments().filter(document => document.candidate_id === candidateId);
 
 // GET /api/chat/candidate/:candidateId
 export const getCandidateChatHistory = async (candidateId: string): Promise<ChatMessage[]> => {
@@ -54,13 +56,23 @@ export const sendChatMessage = async (
     candidateId: string,
     sender: ChatSender,
     senderName: string,
-    message: string
+    message: string,
+    documentIds: string[] = [],
 ): Promise<ChatMessage> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const allMessages = getChatMessages();
     const candidate = getCandidates().find(c => c.id === candidateId);
 
     if (!candidate) throw new Error("Candidate not found.");
+    const uniqueIds = [...new Set(documentIds)];
+    if (uniqueIds.length > 10) throw new Error('A message can tag at most ten documents.');
+    const documents = getDocuments().filter(document => document.candidate_id === candidateId);
+    const tags = uniqueIds.map(id => {
+        const document = documents.find(item => item.id === id);
+        if (!document) throw new Error('Tagged documents must belong to this candidate.');
+        return { id: document.id, file_name: document.file_name, stage_id: document.stage_id };
+    });
+    if (!message.trim() && !tags.length) throw new Error('A message or document tag is required.');
 
     const isCandidate = sender === 'candidate';
     
@@ -69,7 +81,8 @@ export const sendChatMessage = async (
         candidate_id: candidateId,
         sender: sender,
         sender_name: senderName,
-        message: message,
+        message: message.trim(),
+        document_tags: tags,
         timestamp: new Date().toISOString(),
         is_read_by_admin: !isCandidate, // Admin messages are read by admin immediately
         is_read_by_candidate: isCandidate, // Candidate messages are read by candidate immediately

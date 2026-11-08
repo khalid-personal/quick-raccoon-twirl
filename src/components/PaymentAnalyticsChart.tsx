@@ -2,18 +2,24 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { PaymentAnalytics } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth'; // NEW IMPORT
 
-const PaymentAnalyticsChart: React.FC = () => {
+interface PaymentAnalyticsChartProps {
+  type?: 'foreign-to-local';
+  localAgencyNameFilter?: string;
+}
+
+const PaymentAnalyticsChart: React.FC<PaymentAnalyticsChartProps> = ({ localAgencyNameFilter }) => {
   const { userRole, userForeignAgencyName, userLocalAgencyName } = useAuth(); // Renamed
   const isLocalAgency = userRole === 'local-agency';
   const isAgency = userRole === 'agency';
 
   const { data: analytics, isLoading } = useQuery<PaymentAnalytics>({
-    queryKey: ['paymentAnalytics', userForeignAgencyName, userLocalAgencyName], // Renamed
+    queryKey: ['paymentAnalytics', userForeignAgencyName, localAgencyNameFilter ?? userLocalAgencyName], // Renamed
     queryFn: ({ queryKey }) => {
       const [, foreignAgencyFilter, localAgencyFilter] = queryKey; // Renamed
       return api.getPaymentAnalytics('All', foreignAgencyFilter as string | undefined, localAgencyFilter as string | undefined); // Renamed

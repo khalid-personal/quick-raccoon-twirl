@@ -4,11 +4,11 @@ import { getCandidates, savePaymentStatuses, getPaymentStatuses } from '../data-
 // Helper to find stage ID by slug
 export const getStageId = (slug: string): Stage | undefined => ALL_STAGES.find(s => s.slug === slug);
 
-// Initialize mock payment status for existing seed data (e.g., Candidate 1 paid for Initial Medical)
+// Initialize mock payment status for the seed candidate's active training stage.
 if (getPaymentStatuses().length === 0) {
-    const initialMedicalStage = getStageId('initial_medical');
+    const trainingStage = getStageId('training');
     const candidate1 = getCandidates().find(c => c.tracking_code === 'TRK-ET-0001');
-    if (candidate1 && initialMedicalStage) {
-        savePaymentStatuses([{ candidateId: candidate1.id, stageId: initialMedicalStage.id, isPaid: true }]);
+    if (candidate1 && trainingStage) {
+        savePaymentStatuses([{ candidateId: candidate1.id, stageId: trainingStage.id, isPaid: true }]);
     }
 }

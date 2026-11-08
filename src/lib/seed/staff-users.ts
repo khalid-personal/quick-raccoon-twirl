@@ -6,6 +6,9 @@ import { SEED_LOCAL_AGENCIES } from './local-agencies';
 export const MOCK_ADMIN_EMAIL = 'admin@agency.com';
 export const MOCK_STAFF_EMAIL = 'staff@agency.com';
 export const MOCK_STAFF_ID = uuidv4();
+export const PLACEHOLDER_ADMIN_EMAIL = MOCK_ADMIN_EMAIL;
+export const PLACEHOLDER_STAFF_EMAIL = MOCK_STAFF_EMAIL;
+export const PLACEHOLDER_STAFF_ID = MOCK_STAFF_ID;
 
 export const SEED_STAFF_USERS: StaffUser[] = [
     {

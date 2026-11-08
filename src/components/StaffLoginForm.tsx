@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CardContent } from '@/components/ui/card';
@@ -17,9 +17,25 @@ const StaffLoginForm: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   React.useEffect(() => {
-    // Only redirect if auth loading is complete, authenticated, AND the role is confirmed to be staff or admin
-    if (!isAuthLoading && isAuthenticated && (userRole === 'admin' || userRole === 'staff')) {
-      navigate('/admin', { replace: true });
+    // Redirect users to the appropriate dashboard once authenticated and role resolved
+    if (isAuthLoading) return;
+    if (!isAuthenticated) return;
+
+    switch (userRole) {
+      case 'superadmin':
+      case 'staff':
+        navigate('/admin', { replace: true });
+        break;
+      case 'foreign-agency':
+        navigate('/agency', { replace: true });
+        break;
+      case 'local-agency':
+        navigate('/local-agency', { replace: true });
+        break;
+      default:
+        console.warn(`Unhandled role: ${userRole}`);
+        toast.error('Access Denied: Unrecognized role.');
+        navigate('/login', { replace: true });
     }
   }, [isAuthLoading, isAuthenticated, userRole, navigate]);
 

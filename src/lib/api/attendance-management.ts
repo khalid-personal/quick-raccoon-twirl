@@ -14,7 +14,7 @@ export const checkIn = async (staffId: string, staffEmail: string): Promise<Atte
         .sort((a, b) => new Date(b.check_in_time).getTime() - new Date(a.check_in_time).getTime())[0];
 
     if (lastRecord && !lastRecord.check_out_time) {
-        throw new Error("You are already checked in.");
+        return lastRecord;
     }
 
     const newRecord: AttendanceRecord = {

@@ -1,14 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { MedicalResult, CandidateStage, StageStatus, ALL_STAGES } from '../types';
-import { getMedicalResults, saveMedicalResults, getCandidateStages, saveCandidateStages } from '../data-store';
+import { getMedicalResults, saveMedicalResults, getCandidateStages, saveCandidateStages, getCandidates } from '../data-store';
 
 // Helper function to synchronize medical results with stage status
 const syncMedicalStageStatus = (candidateId: string) => {
     const allResults = getMedicalResults().filter(r => r.candidate_id === candidateId);
     const allStages = getCandidateStages();
-    
-    const initialMedicalId = ALL_STAGES.find(s => s.slug === 'initial_medical')?.id;
-    const finalMedicalId = ALL_STAGES.find(s => s.slug === 'final_medical')?.id;
+    const medicalStageId = ALL_STAGES.find(s => s.slug === 'medical')?.id;
 
     const updateStageStatus = (stageId: number, newStatus: StageStatus, allStages: CandidateStage[]) => {
         const stageIndex = allStages.findIndex(cs => cs.candidate_id === candidateId && cs.stage_id === stageId);
@@ -30,44 +28,19 @@ const syncMedicalStageStatus = (candidateId: string) => {
 
     let stagesChanged = false;
 
-    // --- Logic for Initial Medical (Stage 1) ---
-    if (initialMedicalId) {
-        // Initial exams are all exams EXCEPT 'Final Agency Medical'
-        const initialExams = allResults.filter(r => r.exam_type !== 'Final Agency Medical');
+    if (medicalStageId) {
+        const medicalExams = allResults;
         let newStatus: StageStatus = 'Pending';
 
-        if (initialExams.length > 0) {
-            if (initialExams.some(r => r.status === 'Failed')) {
-                newStatus = 'Failed';
-            } else if (initialExams.every(r => r.status === 'Passed')) {
-                newStatus = 'Passed';
-            } else if (initialExams.some(r => r.status === 'Passed' || r.status === 'Pending')) {
-                // If some are passed, but others are pending/in progress
-                newStatus = 'In Progress'; 
-            }
+        if (medicalExams.some(result => result.status === 'Failed')) {
+            newStatus = 'Failed';
+        } else if (medicalExams.length && medicalExams.every(result => result.status === 'Passed')) {
+            newStatus = 'Passed';
+        } else if (medicalExams.some(result => result.status === 'Passed' || result.status === 'Pending')) {
+            newStatus = 'In Progress';
         }
-        
-        if (updateStageStatus(initialMedicalId, newStatus, allStages)) {
-            stagesChanged = true;
-        }
-    }
 
-    // --- Logic for Final Medical Clearance (Stage 9) ---
-    if (finalMedicalId) {
-        const finalExam = allResults.find(r => r.exam_type === 'Final Agency Medical');
-        let newStatus: StageStatus = 'Pending';
-
-        if (finalExam) {
-            if (finalExam.status === 'Failed') {
-                newStatus = 'Failed';
-            } else if (finalExam.status === 'Passed') {
-                newStatus = 'Passed';
-            } else {
-                newStatus = 'Pending';
-            }
-        }
-        
-        if (updateStageStatus(finalMedicalId, newStatus, allStages)) {
+        if (updateStageStatus(medicalStageId, newStatus, allStages)) {
             stagesChanged = true;
         }
     }
@@ -85,13 +58,21 @@ export const updateMedicalResult = async (
     examDate?: string
 ): Promise<MedicalResult> => {
     await new Promise(resolve => setTimeout(resolve, 100));
+    if (examType === 'Pregnancy' && getCandidates().find(candidate => candidate.id === candidateId)?.gender === 'male') {
+        throw new Error('Pregnancy results cannot be recorded for a male candidate.');
+    }
+    const stages = getCandidateStages();
+    const trainingStageId = ALL_STAGES.find(stage => stage.slug === 'training')?.id;
+    const trainingStage = stages.find(stage => stage.candidate_id === candidateId && stage.stage_id === trainingStageId);
+    if (!trainingStage || !['Passed', 'Issued', 'Completed'].includes(trainingStage.status)) {
+        throw new Error('Training must be completed before recording medical results.');
+    }
     const allResults = getMedicalResults();
     let result = allResults.find(r => r.candidate_id === candidateId && r.exam_type === examType);
 
     if (result) {
         result.status = status;
         result.exam_date = examDate || result.exam_date;
-        result.notes = result.notes;
     } else {
         result = {
             id: uuidv4(),

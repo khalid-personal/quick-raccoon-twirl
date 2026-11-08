@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Send, Loader2, MessageSquare, User, Shield, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ChatMessage } from '@/lib/types';
+import { ChatMessage, Document } from '@/lib/types';
+import { ChatDocumentPicker, ChatDocumentTags } from './ChatDocumentContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +18,7 @@ interface CandidateChatProps {
   candidateEmail: string;
 }
 
-const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
+const ChatBubble: React.FC<{ message: ChatMessage; documents: Document[] }> = ({ message, documents }) => {
     const isCandidate = message.sender === 'candidate';
     
     return (
@@ -45,6 +47,7 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                     )}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                <ChatDocumentTags message={message} documents={documents} />
                 <div className={cn(
                     "text-xs mt-1 flex items-center",
                     isCandidate ? "justify-end text-primary-foreground/80" : "justify-start text-gray-500 dark:text-gray-400"
@@ -68,6 +71,7 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
 const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateName, candidateEmail }) => {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
+  const [documentIds, setDocumentIds] = useState<string[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { data: messages = [], isLoading } = useQuery({
@@ -75,6 +79,8 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
     queryFn: () => api.getCandidateChatHistory(candidateId),
     refetchInterval: 5000, // Poll for new admin messages
   });
+  const { data: documents = [] } = useQuery({ queryKey: ['candidateChatDocuments', candidateId], queryFn: () => api.getCandidateChatDocuments(candidateId), refetchInterval: 5000 });
+  useEffect(() => { setDocumentIds([]); setMessage(''); }, [candidateId]);
   
   // Mark admin messages as read by candidate when history loads
   useEffect(() => {
@@ -97,10 +103,11 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
   }, [messages]);
 
   const mutation = useMutation({
-    mutationFn: (msg: string) => api.sendChatMessage(candidateId, 'candidate', candidateName, msg),
+    mutationFn: (input: { text: string; documentIds: string[] }) => api.sendChatMessage(candidateId, 'candidate', candidateName, input.text, input.documentIds),
     onSuccess: () => {
       toast.success("Message sent successfully.");
       setMessage('');
+      setDocumentIds([]);
       queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidateId] });
     },
     onError: (error) => {
@@ -112,12 +119,12 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
     e.preventDefault();
     const trimmedMessage = message.trim();
 
-    if (!trimmedMessage) {
+    if (!trimmedMessage && !documentIds.length) {
       toast.error("Message cannot be empty.");
       return;
     }
     
-    mutation.mutate(trimmedMessage);
+    mutation.mutate({ text: trimmedMessage, documentIds });
   };
 
   return (
@@ -139,13 +146,14 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
           ) : messages.length === 0 ? (
             <p className="text-center text-muted-foreground pt-10">Start a conversation with the Admin team.</p>
           ) : (
-            messages.map(msg => <ChatBubble key={msg.id} message={msg} />)
+            messages.map(msg => <ChatBubble key={msg.id} message={msg} documents={documents} />)
           )}
           <div ref={chatEndRef} />
         </div>
 
         {/* Message Input Form */}
         <form onSubmit={handleSendMessage} className="space-y-3 flex-shrink-0">
+          <ChatDocumentPicker documents={documents} selected={documentIds} onChange={setDocumentIds} disabled={mutation.isPending} />
           <Textarea
             placeholder="Type your question or concern here..."
             value={message}
@@ -153,7 +161,7 @@ const CandidateChat: React.FC<CandidateChatProps> = ({ candidateId, candidateNam
             rows={3}
             disabled={mutation.isPending}
           />
-          <Button type="submit" className="w-full" disabled={mutation.isPending || !message.trim()}>
+          <Button type="submit" className="w-full" disabled={mutation.isPending || (!message.trim() && !documentIds.length)}>
             {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             Send Message
           </Button>

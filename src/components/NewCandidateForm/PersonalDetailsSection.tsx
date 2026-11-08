@@ -6,11 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import PassportPhotoInput from '@/components/PassportPhotoInput';
 import { NewCandidateFormValues, MARITAL_STATUS_OPTIONS } from './schema';
+import type { UploadScanReport } from '@/lib/types';
 
 interface PersonalDetailsSectionProps {
   form: UseFormReturn<NewCandidateFormValues>;
   profileImageFile: File | null;
   setProfileImageFile: (file: File | null) => void;
+  setProfileImageScanReport: (report: UploadScanReport | null) => void;
   isSubmitting: boolean;
 }
 
@@ -18,6 +20,7 @@ const PersonalDetailsSection: React.FC<PersonalDetailsSectionProps> = ({
   form,
   profileImageFile,
   setProfileImageFile,
+  setProfileImageScanReport,
   isSubmitting,
 }) => {
   const { register, formState: { errors }, watch, setValue } = form;
@@ -30,6 +33,7 @@ const PersonalDetailsSection: React.FC<PersonalDetailsSectionProps> = ({
         <PassportPhotoInput
           value={profileImageFile}
           onChange={setProfileImageFile}
+          onScanReport={setProfileImageScanReport}
           disabled={isSubmitting}
         />
       </div>
@@ -52,6 +56,21 @@ const PersonalDetailsSection: React.FC<PersonalDetailsSectionProps> = ({
           <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
           <Input id="dob" type="date" {...register('dob')} disabled={isSubmitting} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="gender">Gender *</Label>
+          <Select
+            value={watch('gender')}
+            onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true })}
+            disabled={isSubmitting}
+          >
+            <SelectTrigger id="gender"><SelectValue placeholder="Select gender" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="male">Male</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.gender && <p className="text-red-500 text-xs">{errors.gender.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="marital_status">Marital Status *</Label>

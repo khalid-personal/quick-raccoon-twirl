@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { StaffUser, STAFF_ROLES, UserRole } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LastOnline } from '@/components/LastOnline';
+import UserAvatar from '@/components/UserAvatar';
+import { usePresence } from '@/hooks/use-presence';
+import { presenceFor } from '@/lib/presence';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, CheckCircle, XCircle, Save, UserCheck, UserX, UserCog, Pencil, UserPlus } from 'lucide-react';
@@ -17,26 +22,13 @@ import NewStaffUserForm from '@/components/NewStaffUserForm'; // NEW IMPORT
 
 const AdminUserManagement: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading, logout } = useAuth();
+  const presence = usePresence();
   const queryClient = useQueryClient();
   
   // State for the editor dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false); // NEW state for Add dialog
   const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
-  
-  // Role check and redirect
-  if (isAuthLoading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (userRole !== 'admin') {
-    toast.error("Access Denied: You must be a Superadmin to manage users.");
-    return <Navigate to="/admin" replace />;
-  }
   
   const currentUserId = user?.id;
   const actorId = user?.id || 'unknown-admin';
@@ -45,6 +37,7 @@ const AdminUserManagement: React.FC = () => {
   const { data: users = [], isLoading, refetch } = useQuery<StaffUser[]>({
     queryKey: ['staffUsers'],
     queryFn: api.getAllStaffUsers,
+    enabled: !isAuthLoading && userRole === 'admin',
   });
   
   // Mutation for quick approval/disapproval toggle
@@ -96,6 +89,14 @@ const AdminUserManagement: React.FC = () => {
       setIsAddDialogOpen(false);
   };
 
+  if (isAuthLoading) {
+    return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  if (userRole !== 'superadmin') {
+    toast.error("Access Denied: You must be a Superadmin to manage users.");
+    return <Navigate to="/admin" replace />;
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center p-12">
@@ -143,17 +144,19 @@ const AdminUserManagement: React.FC = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Approval Status</TableHead>
+                  <TableHead>Last Online</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((staffUser) => {
                   const isSelf = staffUser.id === currentUserId;
+                  const online = presenceFor(presence, 'staff', staffUser.id, staffUser.last_online_at);
                   
                   return (
                     <TableRow key={staffUser.id} className={isSelf ? "bg-blue-50/50 dark:bg-blue-950/50" : ""}>
                       <TableCell className="font-medium">
-                        {staffUser.email} {isSelf && <Badge variant="secondary" className="ml-2">You</Badge>}
+                        <div className="flex items-center gap-3"><UserAvatar user={staffUser} /><span>{staffUser.email} {isSelf && <Badge variant="secondary" className="ml-2">You</Badge>}</span></div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
@@ -171,6 +174,7 @@ const AdminUserManagement: React.FC = () => {
                           </Badge>
                         )}
                       </TableCell>
+                      <TableCell><LastOnline at={online.lastSeen} online={online.online} /></TableCell>
                       <TableCell className="text-right space-x-2">
                         {/* Approval Toggle Button */}
                         <Button

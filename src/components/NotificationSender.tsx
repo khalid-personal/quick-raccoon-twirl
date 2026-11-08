@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import CandidateCheckpoint from './CandidateCheckpoint';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Send, Loader2, MessageSquare, Phone, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,17 +51,9 @@ const NotificationSender: React.FC<NotificationSenderProps> = ({ candidate }) =>
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center text-xl">
-          <Phone className="h-5 w-5 mr-2 text-primary" />
-          Send Direct Notification
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-            Recipient: {candidate.phone_number || candidate.email || 'N/A'}
-        </p>
-      </CardHeader>
-      <CardContent>
+    <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
+      <CandidateCheckpoint eyebrow="Candidate follow-up checkpoint" title="Send Direct Notification" description={`Prepare a direct follow-up using the available channel. Recipient: ${candidate.phone_number || candidate.email || 'N/A'}. Demo channels remain simulated.`} icon={Phone} />
+      <CardContent className="p-5 sm:p-7">
         <form onSubmit={handleSendNotification} className="space-y-4">
           
           <div className="grid grid-cols-2 gap-4">

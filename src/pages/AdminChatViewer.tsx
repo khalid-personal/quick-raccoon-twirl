@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { MessageSquare, Loader2, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, Link } from 'react-router-dom';
@@ -10,11 +11,20 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const AdminChatViewer: React.FC = () => {
-  const { userRole, isLoading: isAuthLoading } = useAuth();
-  
+  const { userRole, userLocalAgencyId, userForeignAgencyId, isLoading: isAuthLoading } = useAuth();
+
   const { data: inboxSummary = [], isLoading } = useQuery({
     queryKey: ['adminInboxSummary'],
-    queryFn: api.getAdminInboxSummary,
+    queryFn: async () => {
+      const messages = await api.getAdminInboxSummary();
+      if (userRole === 'admin' || userRole === 'superadmin' || userRole === 'staff') return messages;
+      const candidates = await api.searchCandidates('');
+      const allowed = new Set(candidates.filter(candidate => userRole === 'local-agency'
+        ? candidate.local_agency_id === userLocalAgencyId
+        : candidate.foreign_agency_id === userForeignAgencyId || candidate.profile_shares?.some(share => share.foreign_agency_id === userForeignAgencyId)).map(candidate => candidate.id));
+      return messages.filter(message => allowed.has(message.candidate_id));
+    },
+    enabled: ['admin', 'superadmin', 'staff', 'local-agency', 'agency', 'foreign-agency', 'foreign-agency-staff'].includes(userRole ?? ''),
     refetchInterval: 10000, // Poll for new messages
   });
   
@@ -27,11 +37,13 @@ const AdminChatViewer: React.FC = () => {
     );
   }
   
-  if (userRole !== 'admin' && userRole !== 'staff' && userRole !== 'local-agency') { // Allow local-agency to view chat
+  if (!['admin', 'superadmin', 'staff', 'local-agency', 'agency', 'foreign-agency', 'foreign-agency-staff'].includes(userRole ?? '')) {
     return <Navigate to="/admin" replace />;
   }
   
   const unreadCount = inboxSummary.filter(m => m.sender === 'candidate' && !m.is_read_by_admin).length;
+  const candidateBasePath = userRole === 'local-agency' ? '/local-agency/candidate'
+    : userRole === 'agency' || userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' ? '/agency/candidate' : '/admin/candidate';
 
   if (isLoading) {
     return (
@@ -65,7 +77,7 @@ const AdminChatViewer: React.FC = () => {
                 return (
                   <Link 
                     key={msg.candidate_id} 
-                    to={`/admin/candidate/${msg.candidate_id}?tab=chat`}
+                    to={`${candidateBasePath}/${msg.candidate_id}?tab=chat`}
                     className={cn(
                       "flex items-center justify-between p-4 border rounded-lg transition-all hover:shadow-md",
                       isUnread ? 'bg-blue-50 dark:bg-blue-950 border-blue-300' : 'bg-white dark:bg-gray-900 border-gray-200'

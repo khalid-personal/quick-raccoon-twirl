@@ -2,7 +2,8 @@ import React from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api'; // Corrected '=>' to 'from'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import TrackingTimeline from '@/components/TrackingTimeline';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,8 +13,11 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import CandidateChat from '@/components/CandidateChat';
 import CandidateDocumentUploader from '@/components/CandidateDocumentUploader';
+import CandidateJourneyMap from '@/components/CandidateJourneyMap';
 import { format } from 'date-fns';
 import { CandidateDetail, PublicTrackingData } from '@/lib/types'; // NEW IMPORT
+import ViewAsButton from '@/components/ViewAsButton';
+import CandidateDeploymentPackage from '@/components/CandidateDeploymentPackage';
 
 const TrackingPage: React.FC = () => {
   const { trackingCode } = useParams<{ trackingCode: string }>();
@@ -22,25 +26,26 @@ const TrackingPage: React.FC = () => {
   
   const isCandidateAuthenticated = userRole === 'candidate';
   const isAdminOrStaffViewingPublic = userRole && userRole !== 'candidate' && location.pathname.startsWith('/public-track');
-
-  // Security check: If the user is a candidate, ensure the URL matches their code
-  if (isCandidateAuthenticated && trackingCode !== candidateTrackingCode) {
-    toast.error("Access denied to this tracking code.");
-    return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
-  }
+  const isTrackingCodeAllowed = !isCandidateAuthenticated || trackingCode === candidateTrackingCode;
   
   const { data, isLoading, error, refetch } = useQuery<PublicTrackingData | null>({ // Added type
     queryKey: ['publicTracking', trackingCode],
     queryFn: () => api.getPublicTrackingData(trackingCode!),
-    enabled: !!trackingCode,
+    enabled: !!trackingCode && isTrackingCodeAllowed,
     refetchInterval: 5000, 
   });
   
   const { data: candidateDetail, isLoading: isLoadingDetail } = useQuery<CandidateDetail | null>({
     queryKey: ['candidateDetailByTrackingCode', trackingCode],
     queryFn: () => api.getCandidateDetailByTrackingCode(trackingCode!),
-    enabled: !!trackingCode && isCandidateAuthenticated,
+    enabled: !!trackingCode && isCandidateAuthenticated && isTrackingCodeAllowed,
+    refetchInterval: 5000,
   });
+
+  if (!isTrackingCodeAllowed) {
+    toast.error("Access denied to this tracking code.");
+    return <Navigate to={`/track/${candidateTrackingCode}`} replace />;
+  }
   
   const handlePrint = async () => {
     if (!trackingCode) return;
@@ -102,6 +107,7 @@ const TrackingPage: React.FC = () => {
     <div className="container mx-auto py-8 space-y-8">
       <Card>
         <CardHeader>
+          <div className="flex justify-end"><ViewAsButton /></div>
           <CardTitle className="text-3xl">Application Status: {data.candidate_name}</CardTitle>
           <p className="text-lg text-muted-foreground">Tracking Code: <span className="font-mono font-semibold">{data.tracking_code}</span></p>
           
@@ -147,6 +153,15 @@ const TrackingPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <ProgressIndicator percent={data.progress_percent} className="mb-8" />
+
+          <CandidateJourneyMap
+            journey={data.journey}
+            candidate={displayCandidateDetail ?? undefined}
+            candidateId={displayCandidateDetail?.id}
+            canConfirmArrival={isCandidateAuthenticated}
+            returnedHome={!!displayCandidateDetail?.actual_return_date}
+            onChanged={() => { void refetch(); }}
+          />
           
           <h2 className="text-2xl font-bold mb-6 border-b pb-2">Deployment Timeline</h2>
           
@@ -155,9 +170,10 @@ const TrackingPage: React.FC = () => {
             isPublicView={true} 
             trackingCode={data.tracking_code}
             candidateId={displayCandidateDetail?.id}
-            refetch={refetch}
+            refetch={() => { void refetch(); }}
           />
           
+          <div className="mt-6">{displayCandidateDetail ? <CandidateDeploymentPackage candidate={displayCandidateDetail} /> : <div className="rounded-xl border bg-primary/5 p-4"><h3 className="text-lg font-semibold">Your deployment package</h3><p className="mb-3 text-sm text-muted-foreground">Personal documents and the downloadable package require your candidate account. A public tracking code does not grant access.</p><Button variant="outline" asChild><Link to="/login">Sign in as candidate to view documents</Link></Button></div>}</div>
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {displayCandidateDetail && (

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { api } from '@/lib/api';
-import { Document } from '@/lib/types';
+import { ALL_STAGES, Document } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Upload, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import DocumentScanInput, { type ScanSelection } from '@/components/DocumentScanInput';
 
 interface StageDocumentUploaderProps {
   candidateId: string;
@@ -19,32 +19,21 @@ const StageDocumentUploader: React.FC<StageDocumentUploaderProps> = ({
   existingDocuments,
   refetch,
 }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [scanSelection, setScanSelection] = useState<ScanSelection | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    } else {
-      setSelectedFile(null);
-    }
-  };
-
   const handleUpload = async () => {
-    if (!selectedFile) {
+    if (!scanSelection?.ready) {
       toast.error("Please select a file to upload.");
       return;
     }
 
     setIsUploading(true);
     try {
-      await api.uploadDocument(candidateId, stageId, selectedFile);
-      toast.success(`Document "${selectedFile.name}" uploaded successfully.`);
-      setSelectedFile(null);
-      // Clear the file input manually
-      const input = document.getElementById(`file-input-${stageId}`) as HTMLInputElement;
-      if (input) input.value = '';
-      
+      const targetStageId = scanSelection.detectedStageId ?? stageId;
+      await api.uploadDocument(candidateId, targetStageId, scanSelection.file, scanSelection.report);
+      toast.success(`Document "${scanSelection.file.name}" uploaded successfully.`);
+      setScanSelection(null);
       refetch();
     } catch (error) {
       toast.error((error as Error).message);
@@ -52,10 +41,20 @@ const StageDocumentUploader: React.FC<StageDocumentUploaderProps> = ({
       setIsUploading(false);
     }
   };
+  const detectedStageId = scanSelection?.detectedStageId;
+  const detectedStage = ALL_STAGES.find(stage => stage.id === detectedStageId);
+  const destinationStage = detectedStage ?? ALL_STAGES.find(stage => stage.id === stageId);
 
   return (
     <div className="space-y-3 border-t pt-3 mt-3">
       <h5 className="text-sm font-semibold text-muted-foreground">Stage Documents ({existingDocuments.length})</h5>
+      {scanSelection?.ready && destinationStage && (
+        <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground" role="status">
+          {detectedStage
+            ? <>Detected as <span className="font-semibold text-foreground">{detectedStage.title}</span> from the {scanSelection?.detectionSource ?? 'document'}; it will be filed under that stage.</>
+            : <>No document type detected; it will be filed under <span className="font-semibold text-foreground">{destinationStage.title}</span>, the stage currently open.</>}
+        </p>
+      )}
       
       {/* Existing Documents List */}
       {existingDocuments.length > 0 && (
@@ -76,17 +75,11 @@ const StageDocumentUploader: React.FC<StageDocumentUploaderProps> = ({
       )}
 
       {/* Upload Form */}
-      <div className="flex gap-2 items-center">
-        <Input 
-          id={`file-input-${stageId}`} 
-          type="file" 
-          onChange={handleFileChange} 
-          disabled={isUploading}
-          className="h-9 text-sm"
-        />
+      <div className="space-y-2">
+        <DocumentScanInput id={`file-input-${stageId}`} detectStage existingDocuments={existingDocuments} disabled={isUploading} onChange={setScanSelection} />
         <Button 
           onClick={handleUpload} 
-          disabled={isUploading || !selectedFile}
+          disabled={isUploading || !scanSelection?.ready}
           size="sm"
           className="flex-shrink-0"
         >

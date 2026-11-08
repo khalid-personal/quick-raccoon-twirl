@@ -1,92 +1,307 @@
-import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord, AuthorizationCode, CocFacility, LocalAgency, ForeignAgency, AppConfig, Payment } from './types';
-import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS, LS_ATTENDANCE, LS_AUTH_CODES, LS_COC_FACILITIES, LS_LOCAL_AGENCIES, LS_FOREIGN_AGENCIES, LS_PAYMENTS } from './data-keys';
-import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE, SEED_AUTH_CODES, SEED_COC_FACILITIES, SEED_LOCAL_AGENCIES, SEED_FOREIGN_AGENCIES, SEED_PAYMENTS } from './data-seed';
+import { Candidate, CandidateStage, MedicalResult, Document, StaffUser, ChatMessage, ApprovalLog, AttendanceRecord, AuthorizationCode, CocFacility, LocalAgency, ForeignAgency, AppConfig, Payment, PaymentStatus, Notification, AgencyChatThread, AgencyChatMessage, IntegrityOverride } from './types';
+import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_MEDICAL_RESULTS, LS_DOCUMENTS, LS_CONFIG, LS_STAFF_USERS, LS_PAYMENT_STATUS, LS_CHAT_MESSAGES, LS_APPROVAL_LOGS, LS_ATTENDANCE, LS_AUTH_CODES, LS_COC_FACILITIES, LS_LOCAL_AGENCIES, LS_FOREIGN_AGENCIES, LS_PAYMENTS, LS_NOTIFICATIONS, LS_DISABLE_SEED, LS_AGENCY_THREADS, LS_AGENCY_MESSAGES, LS_CANDIDATE_DRAFTS, LS_DRAFTS, LS_INTEGRITY_OVERRIDES } from './data-keys';
+import { DEMO_KEY_PREFIX, isDemoMode } from './demo-mode';
+import { flushSupabaseSync, isSupabaseDataMode } from './supabase-sync';
+import { v5 as uuidv5 } from 'uuid';
+import { prefillCandidateRegion } from './ethiopia-regions';
+import { enforceStageContinuity, normalizeCandidateStages, revertUnpaidCompletedStages } from './candidate-stage-normalization';
 
-// Define PaymentStatus interface locally for data store usage
-interface PaymentStatus {
-    candidateId: string;
-    stageId: number;
-    isPaid: boolean;
-}
+const dataStorage = {
+  getItem: (key: string) => window['localStorage'].getItem(isDemoMode() ? `${DEMO_KEY_PREFIX}${key}` : key),
+  setItem: (key: string, value: string) => window['localStorage'].setItem(isDemoMode() ? `${DEMO_KEY_PREFIX}${key}` : key, value),
+};
+
+const writeSyncedCollection = <T,>(key: string, table: string, records: T[], getId?: (record: T) => string) => {
+  dataStorage.setItem(key, JSON.stringify(records));
+  if (!isSupabaseDataMode() || isDemoMode()) return;
+  void flushSupabaseSync(table, records, getId as ((record: unknown) => string) | undefined).then(message => {
+    if (message) window.dispatchEvent(new CustomEvent('supabase-sync-error', { detail: { message: `Could not sync ${table}: ${message}` } }));
+  }).catch(error => {
+    window.dispatchEvent(new CustomEvent('supabase-sync-error', { detail: { message: `Could not sync ${table}: ${error instanceof Error ? error.message : 'unknown error'}` } }));
+  });
+};
+
+const writeSyncedValue = <T,>(key: string, table: string, id: string, value: T) => {
+  dataStorage.setItem(key, JSON.stringify(value));
+  if (!isSupabaseDataMode() || isDemoMode()) return;
+  void flushSupabaseSync(table, [value], () => id).then(message => {
+    if (message) window.dispatchEvent(new CustomEvent('supabase-sync-error', { detail: { message: `Could not sync ${table}: ${message}` } }));
+  }).catch(error => {
+    window.dispatchEvent(new CustomEvent('supabase-sync-error', { detail: { message: `Could not sync ${table}: ${error instanceof Error ? error.message : 'unknown error'}` } }));
+  });
+};
+// --- Notification Functions ---
+export const getNotifications = (): Notification[] => JSON.parse(dataStorage.getItem(LS_NOTIFICATIONS) || '[]');
+export const saveNotifications = (data: Notification[]) => {
+  try {
+    writeSyncedCollection(LS_NOTIFICATIONS, 'notifications', data);
+    // Notify same-tab listeners immediately
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('notifications-changed', { detail: data }));
+      } catch (e) {
+        // Older browsers may not accept CustomEvent constructor usage
+        try {
+          const evt = document.createEvent('Event');
+          evt.initEvent('notifications-changed', true, true);
+          window.dispatchEvent(evt);
+        } catch (err) {
+          console.warn('[data-store] saveNotifications: event dispatch fallback failed', err);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[data-store] saveNotifications: failed to persist or broadcast', e);
+  }
+};
+export const getNotificationsForUser = (userId: string): Notification[] => getNotifications().filter(n => n.recipient_id === userId);
+export const addNotification = (notification: Notification) => {
+  const all = getNotifications();
+  all.unshift(notification);
+  saveNotifications(all);
+};
+import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE, SEED_AUTH_CODES, SEED_COC_FACILITIES, SEED_LOCAL_AGENCIES, SEED_FOREIGN_AGENCIES, SEED_PAYMENTS, SEED_AGENCY_THREADS, SEED_AGENCY_MESSAGES } from './data-seed';
+import { LS_RECEIPT_TOKENS } from './data-keys';
+import { normalizePartnerships } from './agency-partnerships';
 
 // --- Getter Functions ---
 
-export const getCandidates = (): Candidate[] => JSON.parse(localStorage.getItem(LS_CANDIDATES) || '[]');
-export const getCandidateStages = (): CandidateStage[] => JSON.parse(localStorage.getItem(LS_CANDIDATE_STAGES) || '[]');
-export const getMedicalResults = (): MedicalResult[] => JSON.parse(localStorage.getItem(LS_MEDICAL_RESULTS) || '[]');
-export const getDocuments = (): Document[] => JSON.parse(localStorage.getItem(LS_DOCUMENTS) || '[]');
-export const getConfig = (): AppConfig => JSON.parse(localStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
-export const getStaffUsers = (): StaffUser[] => JSON.parse(localStorage.getItem(LS_STAFF_USERS) || '[]');
-export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(localStorage.getItem(LS_PAYMENT_STATUS) || '[]');
-export const getChatMessages = (): ChatMessage[] => JSON.parse(localStorage.getItem(LS_CHAT_MESSAGES) || '[]');
-export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(localStorage.getItem(LS_APPROVAL_LOGS) || '[]');
-export const getAttendanceRecords = (): AttendanceRecord[] => JSON.parse(localStorage.getItem(LS_ATTENDANCE) || '[]');
-export const getAuthorizationCodes = (): AuthorizationCode[] => JSON.parse(localStorage.getItem(LS_AUTH_CODES) || '[]');
-export const getCocFacilities = (): CocFacility[] => JSON.parse(localStorage.getItem(LS_COC_FACILITIES) || '[]'); // NEW
-export const getLocalAgencies = (): LocalAgency[] => JSON.parse(localStorage.getItem(LS_LOCAL_AGENCIES) || '[]'); // NEW
-export const getForeignAgencies = (): ForeignAgency[] => JSON.parse(localStorage.getItem(LS_FOREIGN_AGENCIES) || '[]'); // NEW
-export const getPayments = (): Payment[] => JSON.parse(localStorage.getItem(LS_PAYMENTS) || '[]'); // NEW
+export const getCandidates = (): Candidate[] => (JSON.parse(dataStorage.getItem(LS_CANDIDATES) || '[]') as Candidate[]).map(prefillCandidateRegion);
+const readCandidateStages = (): CandidateStage[] => JSON.parse(dataStorage.getItem(LS_CANDIDATE_STAGES) || '[]');
+const normalizeAndPersistCandidateStages = (stages: CandidateStage[]): CandidateStage[] => {
+  const withCanonicalStages = normalizeCandidateStages(stages, getCandidates());
+  const paidStages = revertUnpaidCompletedStages(withCanonicalStages, getPaymentStatuses(), getConfig().stageFees ?? {});
+  const normalized = enforceStageContinuity(paidStages);
+  const statuses = new Map(normalized.map(stage => [stage.id, stage.status]));
+  const changed = withCanonicalStages.filter(stage => statuses.get(stage.id) !== stage.status);
+  if (changed.length) {
+    const log: ApprovalLog = { id: crypto.randomUUID(), timestamp: new Date().toISOString(), actor_id: 'workflow-continuity', actor_email: 'System workflow continuity',
+      target_type: 'Config', target_id: 'stage-continuity', action: 'Updated',
+      description: `Corrected unpaid completions and out-of-order stages; preserved payments, documents, references and notes. ${JSON.stringify(changed.map(stage => ({ candidateId: stage.candidate_id, stageId: stage.stage_id, previousStatus: stage.status, status: statuses.get(stage.id), previousDate: stage.date })))}` };
+    writeSyncedCollection(LS_APPROVAL_LOGS, 'approval_logs', [...getApprovalLogs(), log]);
+  }
+  if (JSON.stringify(stages) !== JSON.stringify(normalized)) {
+    writeSyncedCollection(LS_CANDIDATE_STAGES, 'candidate_stages', normalized);
+  }
+  return normalized;
+};
+export const getCandidateStages = (): CandidateStage[] => normalizeAndPersistCandidateStages(readCandidateStages());
+const filterMalePregnancyResults = (results: MedicalResult[]): MedicalResult[] => {
+  const maleCandidateIds = new Set(getCandidates().filter(candidate => candidate.gender === 'male').map(candidate => candidate.id));
+  return results.filter(result => !(maleCandidateIds.has(result.candidate_id) && result.exam_type === 'Pregnancy'));
+};
+export const getMedicalResults = (): MedicalResult[] => {
+  const results = JSON.parse(dataStorage.getItem(LS_MEDICAL_RESULTS) || '[]') as MedicalResult[];
+  const filtered = filterMalePregnancyResults(results);
+  if (JSON.stringify(results) !== JSON.stringify(filtered)) {
+    writeSyncedCollection(LS_MEDICAL_RESULTS, 'medical_results', filtered);
+  }
+  return filtered;
+};
+export const getDocuments = (): Document[] => JSON.parse(dataStorage.getItem(LS_DOCUMENTS) || '[]');
+export const getConfig = (): AppConfig => JSON.parse(dataStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
+export const getStaffUsers = (): StaffUser[] => JSON.parse(dataStorage.getItem(LS_STAFF_USERS) || '[]');
+export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(dataStorage.getItem(LS_PAYMENT_STATUS) || '[]');
+export const getChatMessages = (): ChatMessage[] => JSON.parse(dataStorage.getItem(LS_CHAT_MESSAGES) || '[]');
+export const getAgencyThreads = (): AgencyChatThread[] => JSON.parse(dataStorage.getItem(LS_AGENCY_THREADS) || '[]');
+export const getAgencyMessages = (): AgencyChatMessage[] => JSON.parse(dataStorage.getItem(LS_AGENCY_MESSAGES) || '[]');
+export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(dataStorage.getItem(LS_APPROVAL_LOGS) || '[]');
+export const getAttendanceRecords = (): AttendanceRecord[] => JSON.parse(dataStorage.getItem(LS_ATTENDANCE) || '[]');
+export const getAuthorizationCodes = (): AuthorizationCode[] => JSON.parse(dataStorage.getItem(LS_AUTH_CODES) || '[]');
+export const getCocFacilities = (): CocFacility[] => JSON.parse(dataStorage.getItem(LS_COC_FACILITIES) || '[]'); // NEW
+export const getLocalAgencies = (): LocalAgency[] => JSON.parse(dataStorage.getItem(LS_LOCAL_AGENCIES) || '[]'); // NEW
+export const getForeignAgencies = (): ForeignAgency[] => JSON.parse(dataStorage.getItem(LS_FOREIGN_AGENCIES) || '[]'); // NEW
+export const getPayments = (): Payment[] => JSON.parse(dataStorage.getItem(LS_PAYMENTS) || '[]'); // NEW
+export const getIntegrityOverrides = (): IntegrityOverride[] => JSON.parse(dataStorage.getItem(LS_INTEGRITY_OVERRIDES) || '[]');
+export const saveIntegrityOverrides = (data: IntegrityOverride[]) => writeSyncedCollection(LS_INTEGRITY_OVERRIDES, 'integrity_overrides', data);
+
+// --- Draft helpers (for preview/autosave)
+export const getCandidateDrafts = (): Candidate[] => JSON.parse(dataStorage.getItem(LS_CANDIDATE_DRAFTS) || '[]');
+export const saveCandidateDrafts = (data: Candidate[]) => writeSyncedCollection(LS_CANDIDATE_DRAFTS, 'candidate_drafts', data);
+export const saveCandidateDraft = (candidate: Candidate) => {
+  try {
+    const drafts = getCandidateDrafts();
+    const idx = drafts.findIndex(d => d.id === candidate.id);
+    if (idx >= 0) drafts[idx] = candidate;
+    else drafts.unshift(candidate);
+    saveCandidateDrafts(drafts);
+    // notify same-tab listeners
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('candidate-draft-changed', { detail: candidate }));
+      } catch (e) {
+        try {
+          const evt = document.createEvent('Event');
+          evt.initEvent('candidate-draft-changed', true, true);
+          window.dispatchEvent(evt);
+        } catch (err) {
+          console.warn('[data-store] saveCandidateDraft: event dispatch fallback failed', err);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[data-store] saveCandidateDraft failed', e);
+  }
+};
+
+// Generic draft helpers (keyed store)
+export const getDrafts = (): Record<string, unknown> => JSON.parse(dataStorage.getItem(LS_DRAFTS) || '{}');
+export const getDraft = (key: string) => getDrafts()[key];
+export const saveDraft = (key: string, value: unknown) => {
+  try {
+    const all = getDrafts();
+    all[key] = value;
+    dataStorage.setItem(LS_DRAFTS, JSON.stringify(all));
+    // dispatch generic draft event
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('draft-changed', { detail: { key, value } }));
+      } catch (e) {
+        try {
+          const evt = document.createEvent('Event');
+          evt.initEvent('draft-changed', true, true);
+          window.dispatchEvent(evt);
+        } catch (err) {
+          console.warn('[data-store] saveDraft: event dispatch fallback failed', err);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[data-store] saveDraft failed', e);
+  }
+};
+
+export const removeDraft = (key: string) => {
+  try {
+    const all = getDrafts();
+    if (all[key]) {
+      delete all[key];
+      dataStorage.setItem(LS_DRAFTS, JSON.stringify(all));
+    }
+  } catch (e) {
+    console.warn('[data-store] removeDraft failed', e);
+  }
+};
+
+
+// Receipt tokens for public access
+interface ReceiptToken {
+  token: string;
+  paymentId: string;
+  expires_at: string; // ISO
+}
+
+export const getReceiptTokens = (): ReceiptToken[] => JSON.parse(dataStorage.getItem(LS_RECEIPT_TOKENS) || '[]');
+
+// --- Seed toggle helpers ---
+export const isSeedDisabled = (): boolean => {
+  try {
+    // If a localStorage override exists, prefer it (so the UI toggle takes priority)
+    const localOverride = dataStorage.getItem(LS_DISABLE_SEED);
+    if (localOverride !== null) {
+      return localOverride === 'true';
+    }
+    // Otherwise fall back to Vite env flag
+    return import.meta.env.VITE_DISABLE_SEED === 'true';
+  } catch (e) {
+    // If anything goes wrong, default to false (do not disable seed)
+    console.warn('[data-store] isSeedDisabled: error reading seed toggle, defaulting to false', e);
+    return false;
+  }
+};
+
+export const setSeedDisabled = (disabled: boolean) => {
+  try {
+    dataStorage.setItem(LS_DISABLE_SEED, disabled ? 'true' : 'false');
+  } catch (e) {
+    console.warn('[data-store] setSeedDisabled: Could not persist seed toggle', e);
+  }
+};
 
 // --- Setter Functions ---
 
-export const saveCandidates = (data: Candidate[]) => localStorage.setItem(LS_CANDIDATES, JSON.stringify(data));
-export const saveCandidateStages = (data: CandidateStage[]) => localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(data));
-export const saveMedicalResults = (data: MedicalResult[]) => localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(data));
-export const saveDocuments = (data: Document[]) => localStorage.setItem(LS_DOCUMENTS, JSON.stringify(data));
-export const saveConfig = (data: AppConfig) => localStorage.setItem(LS_CONFIG, JSON.stringify(data));
-export const saveStaffUsers = (data: StaffUser[]) => localStorage.setItem(LS_STAFF_USERS, JSON.stringify(data));
-export const savePaymentStatuses = (data: PaymentStatus[]) => localStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
-export const saveChatMessages = (data: ChatMessage[]) => localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(data));
-export const saveApprovalLogs = (data: ApprovalLog[]) => localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(data));
-export const saveAttendanceRecords = (data: AttendanceRecord[]) => localStorage.setItem(LS_ATTENDANCE, JSON.stringify(data));
-export const saveAuthorizationCodes = (data: AuthorizationCode[]) => localStorage.setItem(LS_AUTH_CODES, JSON.stringify(data));
-export const saveCocFacilities = (data: CocFacility[]) => localStorage.setItem(LS_COC_FACILITIES, JSON.stringify(data)); // NEW
-export const saveLocalAgencies = (data: LocalAgency[]) => localStorage.setItem(LS_LOCAL_AGENCIES, JSON.stringify(data)); // NEW
-export const saveForeignAgencies = (data: ForeignAgency[]) => localStorage.setItem(LS_FOREIGN_AGENCIES, JSON.stringify(data)); // NEW
-export const savePayments = (data: Payment[]) => localStorage.setItem(LS_PAYMENTS, JSON.stringify(data)); // NEW
+export const saveCandidates = (data: Candidate[]) => writeSyncedCollection(LS_CANDIDATES, 'candidates', data.map(prefillCandidateRegion));
+export const saveCandidateStages = (data: CandidateStage[]) => writeSyncedCollection(
+  LS_CANDIDATE_STAGES,
+  'candidate_stages',
+  normalizeCandidateStages(data, getCandidates()),
+);
+export const saveMedicalResults = (data: MedicalResult[]) => writeSyncedCollection(LS_MEDICAL_RESULTS, 'medical_results', filterMalePregnancyResults(data));
+export const saveDocuments = (data: Document[]) => writeSyncedCollection(LS_DOCUMENTS, 'documents', data);
+export const saveConfig = (data: AppConfig) => writeSyncedValue(LS_CONFIG, 'app_config', 'global', data);
+export const saveStaffUsers = (data: StaffUser[]) => writeSyncedCollection(LS_STAFF_USERS, 'staff_users', data);
+export const savePaymentStatuses = (data: PaymentStatus[]) => writeSyncedCollection(LS_PAYMENT_STATUS, 'payment_statuses', data, status => uuidv5(`${status.candidateId}:${status.stageId}`, uuidv5.URL));
+export const savePaymentStatusesLocal = (data: PaymentStatus[]) => dataStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
+export const saveChatMessages = (data: ChatMessage[]) => writeSyncedCollection(LS_CHAT_MESSAGES, 'chat_messages', data);
+export const saveAgencyThreads = (data: AgencyChatThread[]) => writeSyncedCollection(LS_AGENCY_THREADS, 'agency_threads', data);
+export const saveAgencyMessages = (data: AgencyChatMessage[]) => writeSyncedCollection(LS_AGENCY_MESSAGES, 'agency_messages', data);
+export const saveApprovalLogs = (data: ApprovalLog[]) => writeSyncedCollection(LS_APPROVAL_LOGS, 'approval_logs', data);
+export const saveAttendanceRecords = (data: AttendanceRecord[]) => writeSyncedCollection(LS_ATTENDANCE, 'attendance_records', data);
+export const saveAuthorizationCodes = (data: AuthorizationCode[]) => writeSyncedCollection(LS_AUTH_CODES, 'authorization_codes', data);
+export const saveCocFacilities = (data: CocFacility[]) => writeSyncedCollection(LS_COC_FACILITIES, 'coc_facilities', data);
+export const saveLocalAgencies = (data: LocalAgency[]) => writeSyncedCollection(LS_LOCAL_AGENCIES, 'local_agencies', data);
+export const saveForeignAgencies = (data: ForeignAgency[]) => writeSyncedCollection(LS_FOREIGN_AGENCIES, 'foreign_agencies', data);
+export const savePayments = (data: Payment[]) => writeSyncedCollection(LS_PAYMENTS, 'payments', data);
+export const savePaymentsLocal = (data: Payment[]) => dataStorage.setItem(LS_PAYMENTS, JSON.stringify(data));
+export const saveReceiptTokens = (data: ReceiptToken[]) => writeSyncedCollection(LS_RECEIPT_TOKENS, 'receipt_tokens', data, token => token.token);
 
 // --- Initialization ---
 
 export function initializeDataStore() {
-  // To force re-seed for this change, we'll clear all relevant local storage keys
-  localStorage.removeItem(LS_CANDIDATES);
-  localStorage.removeItem(LS_CANDIDATE_STAGES);
-  localStorage.removeItem(LS_MEDICAL_RESULTS);
-  localStorage.removeItem(LS_DOCUMENTS);
-  localStorage.removeItem(LS_CHAT_MESSAGES);
-  localStorage.removeItem(LS_APPROVAL_LOGS);
-  localStorage.removeItem(LS_ATTENDANCE);
-  localStorage.removeItem(LS_AUTH_CODES);
-  localStorage.removeItem(LS_PAYMENT_STATUS);
-  localStorage.removeItem(LS_STAFF_USERS);
-  localStorage.removeItem(LS_CONFIG); 
-  localStorage.removeItem(LS_COC_FACILITIES); // NEW
-  localStorage.removeItem(LS_LOCAL_AGENCIES); // NEW
-  localStorage.removeItem(LS_FOREIGN_AGENCIES); // NEW
-  localStorage.removeItem(LS_PAYMENTS); // NEW
+  // If the developer has set VITE_DISABLE_SEED=true, skip re-seeding localStorage.
+  // This preserves any local changes made via the UI between reloads.
+  // Default behavior (no flag) remains the same and will seed on first load.
+  // Respect the in-app/localStorage toggle if present, otherwise fall back to env var
+  if (isSeedDisabled()) {
+    console.log('[data-store] Seeding disabled via seed toggle (localStorage or VITE_DISABLE_SEED); skipping initializeDataStore().');
+    return;
+  }
 
-  localStorage.setItem(LS_CANDIDATES, JSON.stringify(SEED_CANDIDATES));
-  localStorage.setItem(LS_CANDIDATE_STAGES, JSON.stringify(SEED_CANDIDATE_STAGES));
-  localStorage.setItem(LS_MEDICAL_RESULTS, JSON.stringify(SEED_MEDICAL_RESULTS));
-  localStorage.setItem(LS_DOCUMENTS, JSON.stringify(SEED_DOCUMENTS));
-  localStorage.setItem(LS_CHAT_MESSAGES, JSON.stringify(SEED_CHAT_MESSAGES));
-  localStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify(SEED_APPROVAL_LOGS));
-  localStorage.setItem(LS_ATTENDANCE, JSON.stringify(SEED_ATTENDANCE));
-  localStorage.setItem(LS_AUTH_CODES, JSON.stringify(SEED_AUTH_CODES));
-  localStorage.setItem(LS_STAFF_USERS, JSON.stringify(SEED_STAFF_USERS));
-  localStorage.setItem(LS_COC_FACILITIES, JSON.stringify(SEED_COC_FACILITIES)); // NEW
-  localStorage.setItem(LS_LOCAL_AGENCIES, JSON.stringify(SEED_LOCAL_AGENCIES)); // NEW
-  localStorage.setItem(LS_FOREIGN_AGENCIES, JSON.stringify(SEED_FOREIGN_AGENCIES)); // NEW
-  localStorage.setItem(LS_PAYMENTS, JSON.stringify(SEED_PAYMENTS)); // NEW
+  const seedIfMissing = (key: string, value: unknown) => {
+    if (dataStorage.getItem(key) === null) {
+      dataStorage.setItem(key, JSON.stringify(value));
+    }
+  };
+
+  seedIfMissing(LS_CANDIDATES, SEED_CANDIDATES);
+  seedIfMissing(LS_CANDIDATE_STAGES, SEED_CANDIDATE_STAGES);
+  seedIfMissing(LS_MEDICAL_RESULTS, SEED_MEDICAL_RESULTS);
+  seedIfMissing(LS_DOCUMENTS, SEED_DOCUMENTS);
+  seedIfMissing(LS_CHAT_MESSAGES, SEED_CHAT_MESSAGES);
+  seedIfMissing(LS_APPROVAL_LOGS, SEED_APPROVAL_LOGS);
+  seedIfMissing(LS_ATTENDANCE, SEED_ATTENDANCE);
+  seedIfMissing(LS_AUTH_CODES, SEED_AUTH_CODES);
+  seedIfMissing(LS_STAFF_USERS, SEED_STAFF_USERS);
+  seedIfMissing(LS_CONFIG, SEED_CONFIG);
+  seedIfMissing(LS_COC_FACILITIES, SEED_COC_FACILITIES);
+  seedIfMissing(LS_LOCAL_AGENCIES, SEED_LOCAL_AGENCIES);
+  seedIfMissing(LS_FOREIGN_AGENCIES, SEED_FOREIGN_AGENCIES);
+  seedIfMissing(LS_AGENCY_THREADS, SEED_AGENCY_THREADS);
+  seedIfMissing(LS_AGENCY_MESSAGES, SEED_AGENCY_MESSAGES);
+  seedIfMissing(LS_PAYMENTS, SEED_PAYMENTS);
+  seedIfMissing(LS_RECEIPT_TOKENS, []);
 
   // Initialize config with new fields
   const currentConfig = getConfig(); // This will now return SEED_CONFIG if cleared
+  if (currentConfig.agencyPartnerships === undefined) {
+    const localIds = new Set((currentConfig.localAgencies ?? getLocalAgencies()).map(agency => agency.id));
+    const foreignIds = new Set((currentConfig.foreignAgencies ?? getForeignAgencies()).map(agency => agency.id));
+    const defaults = (SEED_CONFIG.agencyPartnerships ?? []).filter(item => localIds.has(item.local_agency_id) && foreignIds.has(item.foreign_agency_id));
+    const legacy = normalizePartnerships(undefined, getCandidates());
+    const linkedPairs = new Set(defaults.map(item => `${item.local_agency_id}|${item.foreign_agency_id}`));
+    currentConfig.agencyPartnerships = [...defaults, ...legacy.filter(item => !linkedPairs.has(`${item.local_agency_id}|${item.foreign_agency_id}`))];
+  }
+  const stageFees = currentConfig.stageFeesInitialized
+    ? currentConfig.stageFees ?? {}
+    : { ...SEED_CONFIG.stageFees, ...(currentConfig.stageFees ?? {}) };
   saveConfig({ 
       ...currentConfig, 
       countryOptions: currentConfig.countryOptions || SEED_CONFIG.countryOptions,
       cocFacilities: currentConfig.cocFacilities || SEED_CONFIG.cocFacilities, // NEW
       foreignAgencies: currentConfig.foreignAgencies || SEED_CONFIG.foreignAgencies,
       localAgencies: currentConfig.localAgencies || SEED_CONFIG.localAgencies, // NEW
+      stageFees,
+      stageFeesInitialized: true,
   });
 }
 

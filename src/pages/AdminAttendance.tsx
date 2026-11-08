@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AttendanceRecord } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // NEW IMPORT
 import { Loader2, Clock, LogIn, LogOut, CalendarDays, User, Users } from 'lucide-react';
@@ -19,25 +20,11 @@ const AdminAttendance: React.FC = () => {
   const staffId = user?.id;
   const staffEmail = user?.email;
 
-  // Role check and redirect
-  if (isAuthLoading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (userRole === 'candidate' || !staffId || !staffEmail) {
-    toast.error("Access Denied: Only staff and admin users can access attendance.");
-    return <Navigate to="/admin" replace />;
-  }
-
   // Fetch current user's attendance history
   const { data: myAttendance = [], isLoading: isLoadingMyAttendance, refetch: refetchMyAttendance } = useQuery<AttendanceRecord[]>({
     queryKey: ['myAttendance', staffId],
     queryFn: () => api.getStaffAttendanceHistory(staffId),
-    enabled: !!staffId,
+    enabled: !!staffId && !!staffEmail,
     refetchInterval: 30000, // Refresh every 30 seconds to update current status
   });
 
@@ -71,7 +58,7 @@ const AdminAttendance: React.FC = () => {
   const { data: allAttendance = [], isLoading: isLoadingAllAttendance } = useQuery<AttendanceRecord[]>({
     queryKey: ['allAttendanceRecords'],
     queryFn: api.getAllAttendanceRecords,
-    enabled: userRole === 'admin', // Only fetch for admin
+    enabled: userRole === 'admin' || userRole === 'superadmin', // Only fetch for admin roles
   });
 
   const formatTime = (isoString?: string) => {
@@ -79,6 +66,12 @@ const AdminAttendance: React.FC = () => {
     const date = new Date(isoString);
     return isValid(date) ? format(date, 'MMM d, yyyy h:mm:ss a') : 'Invalid Date';
   };
+
+  if (isAuthLoading) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (userRole === 'candidate' || !staffId || !staffEmail) {
+    toast.error('Access denied: staff and agency accounts only.');
+    return <Navigate to={userRole === 'local-agency' ? '/local-agency' : '/admin'} replace />;
+  }
 
   return (
     <div className="space-y-6">

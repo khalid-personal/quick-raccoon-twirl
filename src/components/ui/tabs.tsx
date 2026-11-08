@@ -2,8 +2,19 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 
 import { cn } from "@/lib/utils";
+import { usePageMemory } from "@/hooks/use-page-memory";
 
-const Tabs = TabsPrimitive.Root;
+const Tabs = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
+>(({ defaultValue, value, onValueChange, ...props }, ref) => {
+  const [remembered, setRemembered] = usePageMemory(`tabs:${defaultValue ?? 'default'}`, defaultValue);
+  return <TabsPrimitive.Root ref={ref} {...props} defaultValue={defaultValue} value={value ?? remembered} onValueChange={next => {
+    if (value === undefined) setRemembered(next);
+    onValueChange?.(next);
+  }} />;
+});
+Tabs.displayName = TabsPrimitive.Root.displayName;
 
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,

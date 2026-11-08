@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff, Landmark } from 'lucide-react'; // Added Landmark
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { DialogFooter } from '@/components/ui/dialog';
 import { CandidateDetail, Candidate, CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
@@ -39,6 +40,12 @@ const EditCandidateSchema = z.object({
   marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
     required_error: "Marital status is required.",
   }),
+  gender: z.enum(['male', 'female'], { required_error: "Gender is required." }),
+  professional_summary: z.string().trim().min(1, "Candidate introduction is required."),
+  occupation: z.string().trim().optional(),
+  skills_text: z.string().trim().min(1, "At least one skill is required."),
+  languages_text: z.string().trim().min(1, "At least one language is required."),
+  intro_video_url: z.string().trim().min(1, "Candidate introduction video is required."),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
   coc_facility_id: z.string().min(1, "COC Facility is required."), // Changed to ID
@@ -95,6 +102,8 @@ interface AppConfig {
 }
 
 const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
+  const prefix = React.useId();
+  const fieldId = (name: keyof EditCandidateFormValues) => `${prefix}-${name}`;
   const { user } = useAuth(); // Get current user for logging
   const actorId = user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
@@ -134,6 +143,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       batch_name: candidate.batch_name || NO_BATCH_OPTION,
       marital_status: candidate.marital_status, // Initialize marital status
+      gender: candidate.gender,
+      professional_summary: candidate.professional_summary || '',
+      occupation: candidate.occupation || '',
+      skills_text: candidate.skills?.join(', ') || '',
+      languages_text: candidate.languages?.join(', ') || '',
+      intro_video_url: candidate.intro_video_url || '',
       phone_number: candidate.phone_number || '', // Initialize phone number
       email: candidate.email, // Initialize email
       coc_facility_id: candidate.coc_facility_id || NONE_SELECT_VALUE, // Initialize COC facility ID
@@ -187,6 +202,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
+        gender: data.gender,
+        professional_summary: data.professional_summary.trim(),
+        occupation: data.occupation || undefined,
+        skills: data.skills_text.split(',').map(skill => skill.trim()).filter(Boolean),
+        languages: data.languages_text.split(',').map(language => language.trim()).filter(Boolean),
+        intro_video_url: data.intro_video_url.trim(),
         phone_number: data.phone_number || undefined,
         email: data.email,
         coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
@@ -228,25 +249,37 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       <h3 className="text-lg font-semibold border-b pb-2 mb-4">Personal & Tracking Details</h3>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="first_name">First Name *</Label>
-          <Input id="first_name" {...register('first_name')} />
+          <Label htmlFor={fieldId('first_name')}>First Name *</Label>
+          <Input id={fieldId('first_name')} {...register('first_name')} />
           {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="last_name">Last Name *</Label>
-          <Input id="last_name" {...register('last_name')} />
+          <Label htmlFor={fieldId('last_name')}>Last Name *</Label>
+          <Input id={fieldId('last_name')} {...register('last_name')} />
           {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('gender')}>Gender *</Label>
+          <Select value={watch('gender')} onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true })}>
+            <SelectTrigger id={fieldId('gender')}><SelectValue placeholder="Select gender" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="male">Male</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.gender && <p className="text-red-500 text-xs">{errors.gender.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="tracking_code">Tracking Code *</Label>
-          <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" />
+          <Label htmlFor={fieldId('tracking_code')}>Tracking Code *</Label>
+          <Input id={fieldId('tracking_code')} {...register('tracking_code')} placeholder="TRK-XX-0000" />
           {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="country_of_origin">Country of Origin *</Label>
+          <Label htmlFor={fieldId('country_of_origin')}>Country of Origin *</Label>
           <Select
             value={selectedCountry}
             onValueChange={(value) => {
@@ -256,7 +289,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
               }
             }}
           >
-            <SelectTrigger id="country_of_origin">
+            <SelectTrigger id={fieldId('country_of_origin')}>
               <SelectValue placeholder="Select Country" />
             </SelectTrigger>
             <SelectContent>
@@ -273,28 +306,28 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       {isCustomCountry && (
         <div className="space-y-2">
-          <Label htmlFor="custom_country">Specify Country *</Label>
-          <Input id="custom_country" {...register('custom_country')} />
+          <Label htmlFor={fieldId('custom_country')}>Specify Country *</Label>
+          <Input id={fieldId('custom_country')} {...register('custom_country')} />
           {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="passport_number">Passport Number *</Label>
-          <Input id="passport_number" {...register('passport_number')} />
+          <Label htmlFor={fieldId('passport_number')}>Passport Number *</Label>
+          <Input id={fieldId('passport_number')} {...register('passport_number')} />
           {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="dob">Date of Birth * (YYYY-MM-DD)</Label>
-          <Input id="dob" type="date" {...register('dob')} />
+          <Label htmlFor={fieldId('dob')}>Date of Birth * (YYYY-MM-DD)</Label>
+          <Input id={fieldId('dob')} type="date" {...register('dob')} />
           {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
         </div>
       </div>
       
       {/* Local Agency Selection */}
       <div className="space-y-2 border-t pt-4">
-        <Label htmlFor="local_agency_id" className="flex items-center">
+        <Label htmlFor={fieldId('local_agency_id')} className="flex items-center">
             <Landmark className="h-4 w-4 mr-2" /> Managing Local Agency *
         </Label>
         <Select
@@ -302,7 +335,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
             onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
             disabled={isSubmitting || localAgencies.length === 0}
         >
-            <SelectTrigger id="local_agency_id">
+            <SelectTrigger id={fieldId('local_agency_id')}>
                 <SelectValue placeholder="Select Local Agency" />
             </SelectTrigger>
             <SelectContent>
@@ -319,7 +352,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
 
       {/* COC Facility Selection */}
       <div className="space-y-2">
-        <Label htmlFor="coc_facility_id" className="flex items-center">
+        <Label htmlFor={fieldId('coc_facility_id')} className="flex items-center">
             <GraduationCap className="h-4 w-4 mr-2" /> COC Training Facility *
         </Label>
         <div className="flex gap-2">
@@ -328,7 +361,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
                 onValueChange={(value) => setValue('coc_facility_id', value, { shouldValidate: true })}
                 disabled={isSubmitting || cocFacilities.length === 0}
             >
-                <SelectTrigger id="coc_facility_id">
+                <SelectTrigger id={fieldId('coc_facility_id')}>
                     <SelectValue placeholder="Select COC Facility" />
                 </SelectTrigger>
                 <SelectContent>
@@ -356,7 +389,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       {/* Foreign Agency Selection */}
       <div className="space-y-2">
-        <Label htmlFor="foreign_agency_id" className="flex items-center">
+        <Label htmlFor={fieldId('foreign_agency_id')} className="flex items-center">
             <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
         </Label>
         <Select
@@ -364,7 +397,7 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
             onValueChange={(value) => setValue('foreign_agency_id', value, { shouldValidate: true })}
             disabled={isSubmitting || foreignAgencies.length === 0}
         >
-            <SelectTrigger id="foreign_agency_id">
+            <SelectTrigger id={fieldId('foreign_agency_id')}>
                 <SelectValue placeholder="Select Foreign Agency" />
             </SelectTrigger>
             <SelectContent>
@@ -381,12 +414,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       {/* Marital Status Selection */}
       <div className="space-y-2">
-        <Label htmlFor="marital_status">Marital Status *</Label>
+        <Label htmlFor={fieldId('marital_status')}>Marital Status *</Label>
         <Select
           value={watch('marital_status')}
           onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
         >
-          <SelectTrigger id="marital_status">
+          <SelectTrigger id={fieldId('marital_status')}>
             <SelectValue placeholder="Select Status" />
           </SelectTrigger>
           <SelectContent>
@@ -402,12 +435,12 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       {/* Batch Selection */}
       <div className="space-y-2">
-        <Label htmlFor="batch_name">Batch Group (Optional)</Label>
+        <Label htmlFor={fieldId('batch_name')}>Batch Group (Optional)</Label>
         <Select
           value={selectedBatch}
           onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
         >
-          <SelectTrigger id="batch_name">
+          <SelectTrigger id={fieldId('batch_name')}>
             <SelectValue placeholder="Select or Create Batch" />
           </SelectTrigger>
           <SelectContent>
@@ -427,32 +460,60 @@ const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate
       
       {isCreatingNewBatch && (
         <div className="space-y-2 pl-4 border-l-2 border-primary">
-          <Label htmlFor="new_batch_name">New Batch Name *</Label>
-          <Input id="new_batch_name" {...register('new_batch_name')} placeholder="e.g., Batch 3" />
+          <Label htmlFor={fieldId('new_batch_name')}>New Batch Name *</Label>
+          <Input id={fieldId('new_batch_name')} {...register('new_batch_name')} placeholder="e.g., Batch 3" />
           {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
         </div>
       )}
       
       <Separator className="my-6" />
+
+      <section className="space-y-3 border-t pt-4">
+        <h3 className="font-semibold">Candidate Introduction (Required)</h3>
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('occupation')}>Work / job type</Label>
+          <Input id={fieldId('occupation')} {...register('occupation')} placeholder="Housemaid, Cook, Nanny, Driver" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('professional_summary')}>Professional summary *</Label>
+          <Textarea id={fieldId('professional_summary')} {...register('professional_summary')} rows={3} />
+          {errors.professional_summary && <p className="text-red-500 text-xs">{errors.professional_summary.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('skills_text')}>Skills (comma separated) *</Label>
+          <Textarea id={fieldId('skills_text')} {...register('skills_text')} rows={2} />
+          {errors.skills_text && <p className="text-red-500 text-xs">{errors.skills_text.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('languages_text')}>Languages (comma separated) *</Label>
+          <Input id={fieldId('languages_text')} {...register('languages_text')} />
+          {errors.languages_text && <p className="text-red-500 text-xs">{errors.languages_text.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('intro_video_url')}>Introduction video link *</Label>
+          <Input id={fieldId('intro_video_url')} type="url" {...register('intro_video_url')} />
+          {errors.intro_video_url && <p className="text-red-500 text-xs">{errors.intro_video_url.message}</p>}
+        </div>
+      </section>
       
       <h3 className="text-lg font-semibold border-b pb-2 mb-4">Candidate Login Credentials</h3>
       
       {/* Email Input for Candidate Login */}
       <div className="space-y-2">
-        <Label htmlFor="email" className="flex items-center">
+        <Label htmlFor={fieldId('email')} className="flex items-center">
             <Mail className="h-4 w-4 mr-2" /> Candidate Email (Login) *
         </Label>
-        <Input id="email" {...register('email')} placeholder="candidate@example.com" />
+        <Input id={fieldId('email')} {...register('email')} placeholder="candidate@example.com" />
         {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
       </div>
       
       {/* PIN Reset Input */}
       <div className="space-y-2">
-        <Label htmlFor="new_pin" className="flex items-center">
+        <Label htmlFor={fieldId('new_pin')} className="flex items-center">
             <Lock className="h-4 w-4 mr-2" /> Reset PIN (Leave blank to keep current)
         </Label>
         <Input 
-            id="new_pin" 
+            id={fieldId('new_pin')}
             type="password" 
             placeholder="••••••"
             {...register('new_pin')} 

@@ -19,7 +19,8 @@ export const updateAppConfig = async (
     await new Promise(resolve => setTimeout(resolve, 100));
     
     const oldConfig = getConfig();
-    saveConfig(config);
+    const next = { ...config, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow };
+    saveConfig(next);
     
     // --- LOGGING ---
     const oldCountries = oldConfig.countryOptions.filter(c => c !== 'Other').join(', ');
@@ -43,7 +44,7 @@ export const updateAppConfig = async (
     await recordApprovalLog(actorId, actorEmail, 'Config', 'global_config', 'Updated', description);
     // --- END LOGGING ---
     
-    return config;
+    return next;
 };
 
 // NEW: Get COC Facilities
@@ -91,7 +92,9 @@ export const generateAuthorizationCode = async (
     const allCodes = getAuthorizationCodes();
     
     const newCode: AuthorizationCode = {
+        id: uuidv4(),
         code: uuidv4(),
+        is_used: false,
         local_agency_id: localAgencyId, // Changed
         foreign_agency_id: foreignAgencyId, // Changed
         created_by_admin_id: actorId,
@@ -131,18 +134,19 @@ export const validateAuthorizationCode = async (code: string): Promise<Authoriza
     if (!authCode) {
         throw new Error("Invalid authorization code.");
     }
-    if (!authCode.is_active) {
+    if (authCode.is_active === false || authCode.is_used) {
         throw new Error("Authorization code is inactive.");
     }
     if (authCode.expires_at && new Date(authCode.expires_at) < new Date()) {
         throw new Error("Authorization code has expired.");
     }
-    if (authCode.max_uses !== undefined && authCode.usage_count >= authCode.max_uses) {
+    const usageCount = authCode.usage_count ?? 0;
+    if (authCode.max_uses !== undefined && usageCount >= authCode.max_uses) {
         throw new Error("Authorization code has reached its maximum usage limit.");
     }
 
     // Increment usage count (mock update)
-    authCode.usage_count++;
+    authCode.usage_count = usageCount + 1;
     saveAuthorizationCodes(allCodes); // Persist the change
 
     return authCode;

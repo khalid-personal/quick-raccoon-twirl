@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import CandidateCheckpoint from './CandidateCheckpoint';
 import { Send, Loader2, MessageSquare, User, Shield, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { ChatMessage, CandidateDetail } from '@/lib/types';
+import { ChatMessage, CandidateDetail, Document } from '@/lib/types';
+import { ChatDocumentPicker, ChatDocumentTags } from './ChatDocumentContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
@@ -15,7 +17,7 @@ interface AdminChatViewerProps {
   candidate: CandidateDetail;
 }
 
-const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
+const ChatBubble: React.FC<{ message: ChatMessage; documents: Document[] }> = ({ message, documents }) => {
     const isAdminOrStaff = message.sender === 'admin' || message.sender === 'staff';
     
     return (
@@ -44,6 +46,7 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
                     )}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                <ChatDocumentTags message={message} documents={documents} />
                 <div className={cn(
                     "text-xs mt-1 flex items-center",
                     isAdminOrStaff ? "justify-end text-blue-100/80" : "justify-start text-gray-500 dark:text-gray-400"
@@ -68,6 +71,7 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
   const { userRole, user } = useAuth();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
+  const [documentIds, setDocumentIds] = useState<string[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   const senderName = user?.email || userRole || 'Admin';
@@ -77,6 +81,8 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
     queryFn: () => api.getCandidateChatHistory(candidate.id),
     refetchInterval: 5000, // Poll for new candidate messages
   });
+  const { data: documents = [] } = useQuery({ queryKey: ['candidateChatDocuments', candidate.id], queryFn: () => api.getCandidateChatDocuments(candidate.id), refetchInterval: 5000 });
+  useEffect(() => { setDocumentIds([]); setMessage(''); }, [candidate.id]);
   
   // Mark candidate messages as read by admin when history loads
   useEffect(() => {
@@ -99,10 +105,11 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
   }, [messages]);
 
   const mutation = useMutation({
-    mutationFn: (msg: string) => api.sendChatMessage(candidate.id, userRole as 'admin' | 'staff', senderName, msg),
+    mutationFn: (input: { text: string; documentIds: string[] }) => api.sendChatMessage(candidate.id, userRole === 'staff' ? 'staff' : 'admin', senderName, input.text, input.documentIds),
     onSuccess: () => {
       toast.success("Reply sent successfully.");
       setMessage('');
+      setDocumentIds([]);
       queryClient.invalidateQueries({ queryKey: ['candidateChatHistory', candidate.id] });
       queryClient.invalidateQueries({ queryKey: ['adminInboxSummary'] });
     },
@@ -115,26 +122,18 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
     e.preventDefault();
     const trimmedMessage = message.trim();
 
-    if (!trimmedMessage) {
+    if (!trimmedMessage && !documentIds.length) {
       toast.error("Message cannot be empty.");
       return;
     }
     
-    mutation.mutate(trimmedMessage);
+    mutation.mutate({ text: trimmedMessage, documentIds });
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle className="flex items-center text-xl">
-          <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-          Conversation History
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-            Replying as: <span className="font-semibold">{senderName}</span>
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col flex-grow p-4 pt-0">
+    <Card className="flex h-full flex-col overflow-hidden rounded-3xl border-cyan-500/25">
+      <CandidateCheckpoint eyebrow="Candidate conversation checkpoint" title="Conversation History" description={`Keep replies and supporting documents together. Replying as: ${senderName}.`} icon={MessageSquare} />
+      <CardContent className="flex flex-grow flex-col p-5 sm:p-7">
         
         {/* Chat History Area */}
         <div className="flex-grow overflow-y-auto p-3 border rounded-lg bg-gray-50 dark:bg-gray-800 mb-4 max-h-[500px]">
@@ -145,13 +144,14 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
           ) : messages.length === 0 ? (
             <p className="text-center text-muted-foreground pt-10">No conversation history yet.</p>
           ) : (
-            messages.map(msg => <ChatBubble key={msg.id} message={msg} />)
+            messages.map(msg => <ChatBubble key={msg.id} message={msg} documents={documents} />)
           )}
           <div ref={chatEndRef} />
         </div>
 
         {/* Message Input Form */}
         <form onSubmit={handleSendMessage} className="space-y-3 flex-shrink-0">
+          <ChatDocumentPicker documents={documents} selected={documentIds} onChange={setDocumentIds} disabled={mutation.isPending} />
           <Textarea
             placeholder="Type your reply here..."
             value={message}
@@ -159,7 +159,7 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
             rows={3}
             disabled={mutation.isPending}
           />
-          <Button type="submit" className="w-full" disabled={mutation.isPending || !message.trim()}>
+          <Button type="submit" className="w-full" disabled={mutation.isPending || (!message.trim() && !documentIds.length)}>
             {mutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             Send Reply
           </Button>

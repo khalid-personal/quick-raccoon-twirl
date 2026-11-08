@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AuthorizationCode, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,29 +33,17 @@ const AdminAuthorizationCodes: React.FC = () => {
   const [localAgencyFilter, setLocalAgencyFilter] = useState<string>('All');
   const [foreignAgencyFilter, setForeignAgencyFilter] = useState<string>('All');
 
-  // Role check and redirect
-  if (isAuthLoading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (userRole !== 'admin') {
-    toast.error("Access Denied: You must be a Superadmin to manage authorization codes.");
-    return <Navigate to="/admin" replace />;
-  }
-
   const { data: authCodes = [], isLoading, refetch } = useQuery<AuthorizationCode[]>({
     queryKey: ['authorizationCodes'],
     queryFn: api.getAuthorizationCodes, // Corrected API call
+    enabled: !isAuthLoading && userRole === 'superadmin',
   });
   
   const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
     queryKey: ['appConfig'],
     queryFn: api.getAppConfig,
     initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
+    enabled: !isAuthLoading && userRole === 'superadmin',
   });
   const localAgencies = config.localAgencies;
   const foreignAgencies = config.foreignAgencies;
@@ -104,6 +93,14 @@ const AdminAuthorizationCodes: React.FC = () => {
     const matchesForeign = foreignAgencyFilter === 'All' || code.foreign_agency_id === foreignAgencyFilter; // Filter by foreign_agency_id
     return matchesLocal && matchesForeign;
   });
+
+  if (isAuthLoading) {
+    return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  if (userRole !== 'superadmin') {
+    toast.error('Access denied: only superadmins can manage authorization codes.');
+    return <Navigate to="/admin" replace />;
+  }
 
   if (isLoading || isLoadingConfig) {
     return (

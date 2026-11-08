@@ -1,52 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useReturnToPrevious } from '@/hooks/use-page-memory';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { Loader2, ArrowLeft, Send } from 'lucide-react'; // Added Send icon
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { Loader2, ArrowLeft, Send, Clock3, Files, FileCheck2, Wallet, HeartPulse, Bell, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Link, Navigate } from 'react-router-dom';
+import CandidateAvatar from '@/components/CandidateAvatar';
 import CandidateProfile from '@/components/CandidateProfile';
 import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
+import ContractVisaPanel from '@/components/ContractVisaPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
+import CandidateContacts from '@/components/CandidateContacts';
+import CandidateIntroductionMedia from '@/components/CandidateIntroductionMedia';
+import CandidateMapDialog from '@/components/CandidateMapDialog';
+import EmploymentJourneyHistory from '@/components/EmploymentJourneyHistory';
+import CandidatePayments from '@/components/CandidatePayments';
 import MedicalResultsEditor from '@/components/MedicalResultsEditor';
 import NotificationSender from '@/components/NotificationSender';
 import AdminChatViewer from '@/components/AdminChatViewer';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
+import { calculateProgress, getCandidatePriority } from '@/lib/utils-data';
 import { toast } from 'sonner'; // NEW IMPORT
+import { normalizePartnerships, partnersForLocalAgency } from '@/lib/agency-partnerships';
+import { hasCompleteCandidateIntroduction } from '@/lib/candidate-introduction';
 
-const AdminCandidateDetail: React.FC = () => {
-  const { candidateId } = useParams<{ candidateId: string }>();
+export interface CandidateWorkspaceOptions { candidateId: string; tab: string; stageId?: number; onTabChange: (tab: string) => void; onStageHandled: () => void; onMinimize: () => void; }
+const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> = ({ workspace }) => {
+  const { candidateId: routeCandidateId } = useParams<{ candidateId: string }>();
+  const candidateId = workspace?.candidateId ?? routeCandidateId;
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const { userRole, userLocalAgencyName, user } = useAuth(); // Renamed
+  const [partnerId, setPartnerId] = useState('');
+  const queryClient = useQueryClient();
+  const { userRole, userLocalAgencyId, userForeignAgencyId, user, viewAs } = useAuth();
   
-  const actorId = user?.id || 'unknown-admin';
+  const actorId = viewAs?.userId || user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
+  const dashboardPath = userRole === 'local-agency' ? '/local-agency'
+    : userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' || userRole === 'agency' ? '/agency' : '/admin';
+  const returnToPrevious = useReturnToPrevious(dashboardPath);
+  const staffId = viewAs?.userId ?? user?.id;
 
-  const initialTab = searchParams.get('tab') || 'timeline';
-  const [activeTab, setActiveTab] = useState(initialTab);
-  
-  // Sync URL search param with active tab state
-  useEffect(() => {
-    if (activeTab !== searchParams.get('tab')) {
-        setSearchParams({ tab: activeTab }, { replace: true });
-    }
-  }, [activeTab, searchParams, setSearchParams]);
+  const activeTab = workspace?.tab ?? searchParams.get('tab') ?? 'timeline';
+  const setActiveTab = (tab: string) => {
+    if (workspace) { workspace.onTabChange(tab); return; }
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    if (tab !== 'timeline') next.delete('stage');
+    setSearchParams(next, { replace: true });
+  };
 
   const { data: candidate, isLoading, error, refetch } = useQuery({
     queryKey: ['candidateDetail', candidateId],
     queryFn: () => api.getCandidateDetail(candidateId!),
     enabled: !!candidateId,
   });
+  const { data: config } = useQuery({ queryKey: ['agency-partnership-config'], queryFn: api.getAppConfig, enabled: userRole === 'local-agency' });
+  const partners = partnersForLocalAgency(normalizePartnerships(config?.agencyPartnerships), candidate?.local_agency_id ?? '')
+    .filter(partnership => partnership.status === 'active')
+    .map(partnership => config?.foreignAgencies.find(agency => agency.id === partnership.foreign_agency_id))
+    .filter((agency): agency is NonNullable<typeof agency> => !!agency);
+  const selectedPartnerId = partners.some(agency => agency.id === partnerId) ? partnerId : partners.find(agency => agency.id === candidate?.foreign_agency_id)?.id ?? partners[0]?.id ?? '';
 
   const handleSendProfile = async () => {
-    if (!candidate) return;
+    if (!candidate || !selectedPartnerId) return;
     try {
-      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, candidate.foreign_agency_name || 'N/A', actorId, actorEmail); // Use foreign_agency_name
-      toast.success(`Candidate profile for ${candidate.tracking_code} sent to foreign agency.`);
+      await api.sendProfileToForeignAgency(candidate.id, candidate.tracking_code, selectedPartnerId, actorId, actorEmail);
+      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['localDashboardCandidates'] }), queryClient.invalidateQueries({ queryKey: ['agencyCandidates'] })]);
+      toast.success(`Candidate profile for ${candidate.tracking_code} sent to ${partners.find(agency => agency.id === selectedPartnerId)?.name}.`);
     } catch (error) {
       toast.error(`Failed to send profile: ${(error as Error).message}`);
     }
@@ -64,88 +90,133 @@ const AdminCandidateDetail: React.FC = () => {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-red-500">Error Loading Candidate</h1>
-        <p className="text-muted-foreground">Candidate ID {candidateId} not found.</p>
-        <Link to="/admin">
-          <Button variant="outline" className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        <p role="alert" className="text-muted-foreground">{error instanceof Error ? error.message : `Candidate ID ${candidateId} not found.`}</p>
+        {error && <Button variant="outline" className="mt-4" onClick={() => void refetch()}>Retry profile</Button>}
+          <Button variant="outline" className="mt-4" onClick={workspace?.onMinimize ?? returnToPrevious}>
+            <ArrowLeft className="h-4 w-4 mr-2" />{workspace ? 'Return to list' : 'Back to Dashboard'}
           </Button>
-        </Link>
       </div>
     );
   }
 
+  const canViewCandidate = userRole === 'superadmin' || userRole === 'admin'
+    || (userRole === 'staff' && (!userLocalAgencyId || candidate.local_agency_id === userLocalAgencyId)
+      && (candidate.assigned_staff_id === staffId || candidate.stages.some(stage => stage.assigned_staff_id === staffId)))
+    || (userRole === 'local-agency' && candidate.local_agency_id === userLocalAgencyId)
+    || ((userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' || userRole === 'agency')
+      && (candidate.foreign_agency_id === userForeignAgencyId || candidate.profile_shares?.some(share => share.foreign_agency_id === userForeignAgencyId)));
+  if (!canViewCandidate) return workspace ? <p role="alert" className="p-8">You do not have access to this candidate. Close this tab to return to your list.</p> : <Navigate to={dashboardPath} replace />;
+
   const isLocalAgencyUser = userRole === 'local-agency';
   // Check if the local agency user's associated local agency name matches the candidate's local agency name
-  const canSendProfile = isLocalAgencyUser && candidate.local_agency_name === userLocalAgencyName && candidate.foreign_agency_name; // Renamed
+  const canSendProfile = isLocalAgencyUser && candidate.local_agency_id === userLocalAgencyId && partners.length > 0;
+  const introductionComplete = hasCompleteCandidateIntroduction(candidate);
+
+  // Compute progress and priority for header highlighting
+  const progressPercent = candidate ? calculateProgress(candidate.stages) : 0;
+  const priority = candidate ? getCandidatePriority(candidate.created_at, progressPercent) : 'green';
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">
-          {candidate.first_name} {candidate.last_name} 
+      <div className="flex flex-wrap items-center justify-between gap-5 rounded-3xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/10 via-card to-emerald-500/10 p-5 sm:p-7">
+        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
+          <CandidateAvatar candidate={candidate} className="h-12 w-12" />
+          <span className={priority === 'green' ? 'text-green-700' : priority === 'yellow' ? 'text-yellow-700' : 'text-red-700'}>
+            {candidate.first_name} {candidate.last_name}
+          </span>
           <span className="text-lg font-normal text-muted-foreground ml-3">({candidate.tracking_code})</span>
         </h1>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
+            <CandidateMapDialog candidate={candidate} />
             {canSendProfile && (
-                <Button onClick={handleSendProfile} variant="default">
-                    <Send className="h-4 w-4 mr-2" /> Send Profile to Foreign Agency
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={selectedPartnerId} onValueChange={setPartnerId}>
+                    <SelectTrigger aria-label="Foreign partner" className="w-48"><SelectValue placeholder="Choose partner" /></SelectTrigger>
+                    <SelectContent>{partners.map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Button onClick={handleSendProfile} variant="default" disabled={!introductionComplete}><Send className="h-4 w-4 mr-2" />{candidate.profile_shares?.some(share => share.foreign_agency_id === selectedPartnerId) ? 'Resend profile' : 'Send profile'}</Button>
+                  {!introductionComplete && <p className="max-w-48 text-xs text-amber-700">Complete required profile details before sharing.</p>}
+                </div>
             )}
-            <Link to={isLocalAgencyUser ? "/local-agency" : "/admin"}>
-                <Button variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+            {
+              (() => {
+                const path = userRole === 'local-agency' ? `/local-agency/agency-chat?candidateId=${candidate.id}` : (userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' ? `/agency/chat?candidateId=${candidate.id}` : `/admin/agency-chat?candidateId=${candidate.id}`);
+                return (
+                  <Link to={path}>
+                    <Button variant="outline">View Agency Conversations</Button>
+                  </Link>
+                );
+              })()
+            }
+                <Button variant="outline" onClick={workspace?.onMinimize ?? returnToPrevious}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />{workspace ? 'Return to list' : 'Back to Dashboard'}
                 </Button>
-            </Link>
         </div>
       </div>
 
-      <CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} />
+      {!workspace && <><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} />
+      <CandidateIntroductionMedia candidate={candidate} />
+      <CandidateContacts key={candidate.updated_at} candidate={candidate} onChanged={refetch} />
+      <EmploymentJourneyHistory candidate={candidate} /></>}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="timeline">Timeline Editor</TabsTrigger>
-          <TabsTrigger value="documents">Document Manager</TabsTrigger>
-          <TabsTrigger value="medical">Medical Results</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="chat">Chat History</TabsTrigger>
+        <TabsList data-tour="candidate-stages" className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-2 [&>button]:min-h-12 [&>button]:shrink-0 [&>button]:gap-2 [&>button]:rounded-xl [&>button]:px-4 [&>button]:py-3 [&>button]:text-sm [&>button[data-state=active]]:bg-cyan-500/15 [&>button[data-state=active]]:text-cyan-700 dark:[&>button[data-state=active]]:text-cyan-200 [&>button[data-state=active]]:shadow-sm">
+          {workspace && <TabsTrigger value="profile">Profile</TabsTrigger>}
+          <TabsTrigger value="timeline"><Clock3 className="h-5 w-5" />Timeline</TabsTrigger>
+          <TabsTrigger value="documents"><Files className="h-5 w-5" />Documents</TabsTrigger>
+          <TabsTrigger value="contract"><FileCheck2 className="h-5 w-5" />Contract & Visa</TabsTrigger>
+          <TabsTrigger value="payments"><Wallet className="h-5 w-5" />Payments</TabsTrigger>
+          <TabsTrigger value="medical"><HeartPulse className="h-5 w-5" />Medical</TabsTrigger>
+          <TabsTrigger value="notifications"><Bell className="h-5 w-5" />Notifications</TabsTrigger>
+          <TabsTrigger value="chat"><MessageSquare className="h-5 w-5" />Chat</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="timeline" className="mt-4">
-          <TimelineEditor candidateDetail={candidate} refetch={refetch} />
+        {workspace && <TabsContent forceMount value="profile" className="space-y-4 data-[state=inactive]:hidden"><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} /><CandidateIntroductionMedia candidate={candidate} /><CandidateContacts key={candidate.updated_at} candidate={candidate} onChanged={refetch} /><EmploymentJourneyHistory candidate={candidate} /></TabsContent>}
+        <TabsContent forceMount={workspace ? true : undefined} value="timeline" className="mt-4 data-[state=inactive]:hidden">
+          <TimelineEditor candidateDetail={candidate} refetch={refetch} workspace={workspace ? { stageId: workspace.stageId, onStageHandled: workspace.onStageHandled } : undefined} />
         </TabsContent>
         
-        <TabsContent value="documents" className="mt-4">
+        <TabsContent forceMount={workspace ? true : undefined} value="documents" className="mt-4 data-[state=inactive]:hidden">
           <DocumentManager candidateDetail={candidate} refetch={refetch} />
         </TabsContent>
         
-        <TabsContent value="medical" className="mt-4">
+        <TabsContent forceMount={workspace ? true : undefined} value="contract" className="mt-4 data-[state=inactive]:hidden">
+          <ContractVisaPanel candidateDetail={candidate} refetch={refetch} />
+        </TabsContent>
+
+        <TabsContent forceMount={workspace ? true : undefined} value="payments" className="mt-4 data-[state=inactive]:hidden">
+          <CandidatePayments candidateDetail={candidate} />
+        </TabsContent>
+
+        <TabsContent forceMount={workspace ? true : undefined} value="medical" className="mt-4 data-[state=inactive]:hidden">
           <MedicalResultsEditor candidateDetail={candidate} refetch={refetch} />
         </TabsContent>
         
-        <TabsContent value="notifications" className="mt-4">
+        <TabsContent forceMount={workspace ? true : undefined} value="notifications" className="mt-4 data-[state=inactive]:hidden">
           <NotificationSender candidate={candidate} />
         </TabsContent>
         
-        <TabsContent value="chat" className="mt-4">
+        <TabsContent forceMount={workspace ? true : undefined} value="chat" className="mt-4 data-[state=inactive]:hidden">
           <AdminChatViewer candidate={candidate} />
         </TabsContent>
       </Tabs>
       
       {/* Edit Candidate Details Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Candidate Details</DialogTitle>
-          </DialogHeader>
-          {candidate && (
-            <CandidateDetailEditor 
-              candidate={candidate} 
-              onSuccess={refetch} 
-              onClose={() => setIsEditDialogOpen(false)} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+  <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-auto">
+    <DialogHeader>
+      <DialogTitle>Edit Candidate Details</DialogTitle>
+    </DialogHeader>
+    {candidate && (
+      <CandidateDetailEditor 
+        candidate={candidate} 
+        onSuccess={refetch} 
+        onClose={() => setIsEditDialogOpen(false)} 
+      />
+    )}
+  </DialogContent>
+</Dialog>
+
     </div>
   );
 };

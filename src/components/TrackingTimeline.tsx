@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PublicTrackingData, StageStatus, MedicalStatus } from '@/lib/types';
 import { getStatusColor, cn } from '@/lib/utils';
-import { CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, FileText, BadgeCheck, BadgeAlert, MinusCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import PaymentGate from './PaymentGate'; // Import PaymentGate
@@ -65,6 +65,16 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ timeline, isPublicV
                 >
                   {statusText}
                 </Badge>
+                {item.fee_amount && item.fee_amount > 0 ? (
+                  <span
+                    className={cn('ml-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium', item.is_fee_paid ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300')}
+                    aria-label={item.is_fee_paid ? 'Stage fee paid' : 'Stage fee unpaid'}
+                    title={item.is_fee_paid ? 'Stage fee paid' : 'Stage fee unpaid'}
+                  >
+                    {item.is_fee_paid ? <BadgeCheck className="h-3.5 w-3.5" /> : <BadgeAlert className="h-3.5 w-3.5" />}
+                    <span>{item.is_fee_paid ? 'Paid' : 'Unpaid'}</span>
+                  </span>
+                ) : <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground" aria-label="No stage fee required"><MinusCircle className="h-3.5 w-3.5" />No fee</span>}
               </h3>
               
               {item.date && (

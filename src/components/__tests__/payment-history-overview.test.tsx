@@ -1,0 +1,104 @@
+// @vitest-environment jsdom
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
+import { PageMemoryProvider } from '@/hooks/use-page-memory';
+import { saveCandidates, saveLocalAgencies, savePayments } from '@/lib/data-store';
+import type { Payment } from '@/lib/types';
+const mocks = vi.hoisted(() => ({
+  auth: { userRole: 'superadmin', user: { id: 'admin' }, isDemo: true, viewAs: null, userLocalAgencyId: null, userForeignAgencyId: 'foreign', userLocalAgencyName: '', userForeignAgencyName: 'Foreign partner' },
+  all: vi.fn(), foreign: vi.fn(), local: vi.fn(),
+}));
+vi.mock('@/lib/auth-context', () => ({ useAuth: () => mocks.auth }));
+vi.mock('@/lib/api', () => ({ default: { getAllPayments: mocks.all, getPaymentsByForeignAgency: mocks.foreign, getPaymentsByLocalAgency: mocks.local, getLocalAgencyList: async () => [] } }));
+vi.mock('../AgencyResolutionCenter', () => ({ default: () => <p>Resolution inbox</p> }));
+vi.mock('../PaymentEvidenceReview', () => ({ default: ({ evidence }: { evidence: { payment?: Payment } | null }) => evidence ? <p>Inspect {evidence.payment?.id}</p> : null }));
+const base: Payment = { id: 'settled-foreign', amount: 100, currency: 'USD', status: 'succeeded', payer_type: 'foreign-agency', payer_foreign_agency_id: 'foreign', payee_local_agency_id: 'local', candidate_ids: [], created_at: '2026-11-05', updated_at: '2026-11-05' };
+const payments: Payment[] = [base, { ...base, id: 'waiting', status: 'pending', amount: 50 }, { ...base, id: 'candidate-fee', payer_type: 'candidate', currency: 'ETB', amount: 300 }, { ...base, id: 'returned', status: 'refunded', amount: 20 }, { ...base, id: 'failed', status: 'failed', amount: 10 }];
+let root: Root, container: HTMLDivElement, client: QueryClient;
+const render = async (path = '/admin/payments') => {
+  await act(async () => root.render(<MemoryRouter initialEntries={[path]}><QueryClientProvider client={client}><PageMemoryProvider><PaymentHistoryPage /></PageMemoryProvider></QueryClientProvider></MemoryRouter>));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 40)); });
+};
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', { value: true, configurable: true });
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  localStorage.clear(); sessionStorage.clear();
+  saveCandidates([]); savePayments(payments); saveLocalAgencies([{ id: 'local', name: 'Local partner', created_at: '2026-11-07' }]);
+  mocks.auth.userRole = 'superadmin'; mocks.all.mockResolvedValue(payments); mocks.foreign.mockResolvedValue(payments.filter(payment => payment.payer_type === 'foreign-agency')); mocks.local.mockResolvedValue([]);
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  container = document.createElement('div'); document.body.append(container); root = createRoot(container);
+});
+afterEach(async () => { await act(async () => root.unmount()); client.clear(); container.remove(); vi.restoreAllMocks(); });
+describe('payment history finance-first view', () => {
+  it('uses large animated color-coded flow controls without changing source filtering', async () => {
+    await render('/admin/payments?tab=ledger');
+    const foreign = container.querySelector<HTMLButtonElement>('[aria-label="Foreign agency to local agency · 4"]')!;
+    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate to local agency · 1"]')!;
+    for (const control of [foreign, candidate]) {
+      expect(control.className).toContain('min-h-28');
+      expect(control.className).toContain('control-nav-shine');
+      expect(control.className).toContain('motion-reduce:transition-none');
+      expect(control.querySelector('.control-nav-icon svg')).not.toBeNull();
+      expect(control.querySelector('.text-xl')).not.toBeNull();
+    }
+    expect(foreign.className).toContain('text-sky-800');
+    expect(candidate.className).toContain('text-emerald-800');
+    await act(async () => candidate.click());
+    expect(container.textContent).toContain('Local transfers · ETB final');
+    expect(container.textContent).not.toContain('Foreign receipts · USD estimate');
+    expect(candidate.getAttribute('aria-checked')).toBe('true');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(container.querySelector('tbody')?.textContent).toContain('300 ETB');
+    await act(async () => foreign.click());
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
+    expect(container.querySelector('tbody')?.textContent).not.toContain('300 ETB');
+  });
+  it('shows final ETB money received in the candidate overview and drills down to local receipts', async () => {
+    await render();
+    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate to local agency · 1"]')!;
+    await act(async () => candidate.click());
+    const overview = container.querySelector('[aria-label="Finance overview"]')!;
+    expect(overview.textContent).toContain('Local transfers · ETB final');
+    expect(overview.querySelector('h2')?.textContent).toBe('300.00 ETB');
+    expect(overview.textContent).not.toContain('USD reference estimate');
+    const explore = [...overview.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Explore settled local transfers'))!;
+    await act(async () => explore.click());
+    expect(candidate.getAttribute('aria-checked')).toBe('true');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Payment overview"]')?.textContent).toContain('Local transfers · ETB final');
+  });
+  it('opens an actionable overview, keeps currency sources separate and drills down to pending receipts', async () => {
+    await render();
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Finance overview');
+    expect(document.querySelector('table')).toBeNull();
+    expect(container.textContent).toContain('$100.00');
+    expect(container.textContent).toContain('300 ETB');
+    expect(container.textContent).toContain('Oldest');
+    const pending = [...container.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Waiting to settle'))!;
+    await act(async () => pending.click());
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Payments list');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(container.querySelector('tbody')?.textContent).toContain('50 USD');
+    expect(container.querySelector('tbody')?.textContent).not.toContain('100 USD');
+  });
+  it('preserves direct ledger links and routes the resolution anchor to its own tab', async () => {
+    await render('/admin/payments?tab=ledger');
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Payments list');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(5);
+    await act(async () => root.unmount()); root = createRoot(container); client.clear();
+    await render('/admin/payments#resolution');
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Resolve & protect');
+    expect(container.textContent).toContain('Resolution inbox');
+  });
+  it('uses the foreign agency API scope and never offers superadmin resolution controls', async () => {
+    mocks.auth.userRole = 'foreign-agency';
+    await render('/agency/payments');
+    expect(mocks.foreign).toHaveBeenCalledWith('foreign');
+    expect(container.textContent).not.toContain('300 ETB');
+    expect([...container.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)).toEqual(['Finance overview', 'Payments list']);
+  });
+});

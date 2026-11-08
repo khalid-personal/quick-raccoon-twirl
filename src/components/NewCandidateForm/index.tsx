@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Loader2, PlusCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Candidate, CandidateDetail, CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
+import { Candidate, CandidateDetail, CocFacility, ForeignAgency, LocalAgency, UploadScanReport } from '@/lib/types'; // NEW IMPORT
 import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { generateInitialStages } from '@/lib/data-seed';
@@ -15,13 +15,19 @@ import PersonalDetailsSection from './PersonalDetailsSection';
 import TrackingDetailsSection from './TrackingDetailsSection';
 import AgencyBatchDetailsSection from './AgencyBatchDetailsSection';
 import LoginCredentialsSection from './LoginCredentialsSection';
+import CandidateIntroductionSection from './CandidateIntroductionSection';
 import { NewCandidateSchema, NewCandidateFormValues, NEW_BATCH_OPTION, NO_BATCH_OPTION, isAdult, NONE_SELECT_VALUE } from './schema'; // Added NONE_SELECT_VALUE
 import { useAuth } from '@/lib/auth';
 
 interface NewCandidateFormProps {
   onSuccess: (candidate: Candidate) => void;
   onClose: () => void;
+  prefill?: PassportPrefill | null;
 }
+
+export type PassportPrefill = Partial<Pick<NewCandidateFormValues, 'first_name' | 'last_name' | 'dob' | 'passport_number' | 'gender' | 'country_of_origin'>> &
+  Pick<Candidate, 'passport_nationality' | 'passport_issuing_country' | 'passport_expiry_date' | 'passport_document_type'> &
+  { passport_image_url?: string; passport_image_scan_report?: UploadScanReport };
 
 // Define AppConfig type locally for useQuery generics
 interface AppConfig {
@@ -31,7 +37,7 @@ interface AppConfig {
     localAgencies: LocalAgency[]; // NEW
 }
 
-const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose }) => {
+const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose, prefill }) => {
   const { user } = useAuth(); // Get current user for logging
   const actorId = user?.id || 'unknown-admin';
   const actorEmail = user?.email || 'unknown-admin@agency.com';
@@ -47,7 +53,13 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
     initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
   });
   
-  const countryOptions = config.countryOptions;
+  const countryOptions = [...new Set([...config.countryOptions, ...(prefill?.country_of_origin ? [prefill.country_of_origin] : []), 'Other'])];
+  const passportMetadata = {
+    passport_nationality: prefill?.passport_nationality,
+    passport_issuing_country: prefill?.passport_issuing_country,
+    passport_expiry_date: prefill?.passport_expiry_date,
+    passport_document_type: prefill?.passport_document_type,
+  };
   const cocFacilities = config.cocFacilities; // Changed
   const foreignAgencies = config.foreignAgencies; // Changed
   const localAgencies = config.localAgencies; // NEW
@@ -64,6 +76,12 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       custom_country: '',
       batch_name: NO_BATCH_OPTION,
       marital_status: 'Single',
+      gender: undefined,
+      professional_summary: '',
+      occupation: '',
+      skills_text: '',
+      languages_text: '',
+      intro_video_url: '',
       phone_number: '',
       email: '',
       coc_facility_id: NONE_SELECT_VALUE, // Initialize with NONE_SELECT_VALUE
@@ -80,8 +98,17 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
   const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
   
   const [profileImageFile, setProfileImageFile] = React.useState<File | null>(null);
+  const [profileImageScanReport, setProfileImageScanReport] = React.useState<UploadScanReport | null>(null);
   const [previewCandidate, setPreviewCandidate] = React.useState<CandidateDetail | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!prefill) return;
+    for (const field of ['first_name', 'last_name', 'dob', 'passport_number', 'gender', 'country_of_origin'] as const) {
+      const value = prefill[field];
+      if (value) form.setValue(field, value);
+    }
+  }, [prefill, form]);
 
   const handlePreview = async () => {
     const isValid = await form.trigger();
@@ -98,6 +125,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       const mockProfileImageUrl = profileImageFile ? URL.createObjectURL(profileImageFile) : undefined;
 
       const mockCandidate: Candidate = {
+        ...passportMetadata,
         id: uuidv4(),
         first_name: data.first_name,
         last_name: data.last_name,
@@ -107,12 +135,22 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         country_of_origin: finalCountry || '',
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
+        gender: data.gender,
+        professional_summary: data.professional_summary.trim(),
+        occupation: data.occupation || undefined,
+        skills: data.skills_text.split(',').map(skill => skill.trim()).filter(Boolean),
+        languages: data.languages_text.split(',').map(language => language.trim()).filter(Boolean),
+        intro_video_url: data.intro_video_url.trim(),
         phone_number: data.phone_number || undefined,
         email: data.email,
         coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
         foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
         local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
         profile_image_url: mockProfileImageUrl,
+        profile_image_scan_report: profileImageScanReport ?? undefined,
+        passport_image_url: prefill?.passport_image_url,
+        passport_image_scan_report: prefill?.passport_image_scan_report,
+        payment_status: 'unpaid',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -159,6 +197,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
       }
 
       const newCandidate = await api.createCandidate({
+        ...passportMetadata,
         first_name: data.first_name,
         last_name: data.last_name,
         dob: data.dob,
@@ -167,12 +206,21 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
         country_of_origin: finalCountry,
         batch_name: finalBatchName,
         marital_status: data.marital_status as Candidate['marital_status'],
+        gender: data.gender,
+        professional_summary: data.professional_summary.trim(),
+        occupation: data.occupation || undefined,
+        skills: data.skills_text.split(',').map(skill => skill.trim()).filter(Boolean),
+        languages: data.languages_text.split(',').map(language => language.trim()).filter(Boolean),
+        intro_video_url: data.intro_video_url.trim(),
         phone_number: data.phone_number || undefined,
         email: data.email,
         coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
         foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
         local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
         profile_image_url: profileImageUrl,
+        profile_image_scan_report: profileImageScanReport ?? undefined,
+        passport_image_url: prefill?.passport_image_url,
+        passport_image_scan_report: prefill?.passport_image_scan_report,
       }, actorId, actorEmail); // Pass actor info
       
       toast.success(`Candidate ${newCandidate.tracking_code} created successfully. Credentials: Email=${newCandidate.email}, PIN=123456 (Mock)`);
@@ -205,6 +253,7 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
             form={form}
             profileImageFile={profileImageFile}
             setProfileImageFile={setProfileImageFile}
+            setProfileImageScanReport={setProfileImageScanReport}
             isSubmitting={isSubmitting}
           />
 
@@ -214,6 +263,17 @@ const NewCandidateForm: React.FC<NewCandidateFormProps> = ({ onSuccess, onClose 
             countryOptions={countryOptions}
             isCustomCountry={isCustomCountry}
           />
+          {prefill && <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <h3 className="font-semibold">Scanned passport details</h3>
+            <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div><dt className="text-xs text-muted-foreground">Nationality</dt><dd>{prefill.passport_nationality || 'Not read'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Issuing country</dt><dd>{prefill.passport_issuing_country || 'Not read'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Passport expires</dt><dd>{prefill.passport_expiry_date || 'Not read'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Document type</dt><dd>{prefill.passport_document_type || 'Not read'}</dd></div>
+            </dl>
+          </div>}
+
+          <CandidateIntroductionSection form={form} />
 
           {/* Agency & Batch Details Section */}
           <AgencyBatchDetailsSection

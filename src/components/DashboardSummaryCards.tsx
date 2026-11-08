@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import { Users, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { DashboardSummary, CandidateSummary } from '@/lib/types';
 import { useAuth } from '@/lib/auth'; // NEW IMPORT
@@ -29,15 +30,16 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, icon, colorClas
 interface DashboardSummaryCardsProps {
   onStatusSelect: (status: DashboardSummary['total'] | 'Pending' | 'In Progress' | 'Completed' | 'Blocked' | '') => void;
   selectedStatus: string;
+  localAgencyNameFilter?: string;
 }
 
-const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus }) => {
+const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({ onStatusSelect, selectedStatus, localAgencyNameFilter }) => {
   const { userRole, userForeignAgencyName, userLocalAgencyName } = useAuth(); // Renamed
   const isLocalAgency = userRole === 'local-agency';
   const isAgency = userRole === 'agency';
 
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
-    queryKey: ['dashboardSummary', userForeignAgencyName, userLocalAgencyName], // Renamed
+    queryKey: ['dashboardSummary', userForeignAgencyName, localAgencyNameFilter ?? userLocalAgencyName], // Renamed
     queryFn: ({ queryKey }) => {
       const [, foreignAgencyFilter, localAgencyFilter] = queryKey; // Renamed
       return api.getDashboardSummary('All', foreignAgencyFilter as string | undefined, localAgencyFilter as string | undefined); // Renamed

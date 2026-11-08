@@ -8,4 +8,14 @@ export const SEED_CONFIG: AppConfig = {
     cocFacilities: SEED_COC_FACILITIES,
     foreignAgencies: SEED_FOREIGN_AGENCIES,
     localAgencies: SEED_LOCAL_AGENCIES,
+    agencyPartnerships: SEED_LOCAL_AGENCIES.flatMap((local, localIndex) => SEED_FOREIGN_AGENCIES.map((foreign, foreignIndex) => ({
+        local_agency_id: local.id,
+        foreign_agency_id: foreign.id,
+        status: 'active' as const,
+        agreement_reference: `DAWM-SEED-${localIndex + 1}-${foreignIndex + 1}`,
+        started_at: new Date().toISOString(),
+    }))),
+    stageFees: { 1: 500, 2: 2200, 3: 2000, 4: 6000 },
+    stageFeesInitialized: true,
+    integrityScoreThresholds: { greenMin: 85, yellowMin: 60 },
 };

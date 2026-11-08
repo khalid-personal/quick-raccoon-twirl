@@ -5,6 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { NewCandidateFormValues } from './schema';
+import { Button } from '@/components/ui/button';
+import { WandSparkles } from 'lucide-react';
+import { nextTrackingCode } from '@/lib/tracking-code';
+import { getCandidates } from '@/lib/data-store';
+import { toast } from 'sonner';
 
 interface TrackingDetailsSectionProps {
   form: UseFormReturn<NewCandidateFormValues>;
@@ -20,6 +25,13 @@ const TrackingDetailsSection: React.FC<TrackingDetailsSectionProps> = ({
   const { register, formState: { errors }, watch, setValue } = form;
   const selectedCountry = watch('country_of_origin');
   const isSubmitting = form.formState.isSubmitting;
+  const generateCode = () => {
+    try {
+      setValue('tracking_code', nextTrackingCode(selectedCountry === 'Other' ? watch('custom_country') ?? '' : selectedCountry, getCandidates()), { shouldValidate: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not generate a tracking code.');
+    }
+  };
 
   return (
     <>
@@ -29,6 +41,10 @@ const TrackingDetailsSection: React.FC<TrackingDetailsSectionProps> = ({
         <div className="space-y-2">
           <Label htmlFor="tracking_code">Tracking Code *</Label>
           <Input id="tracking_code" {...register('tracking_code')} placeholder="TRK-XX-0000" disabled={isSubmitting} />
+          <Button type="button" variant="outline" size="sm" onClick={generateCode} disabled={isSubmitting}>
+            <WandSparkles className="mr-2 h-4 w-4" />Generate next tracking code
+          </Button>
+          <p className="text-xs text-muted-foreground">Uses the origin country and the next number after the highest existing code. Availability is checked again when saving.</p>
           {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
         </div>
         <div className="space-y-2">

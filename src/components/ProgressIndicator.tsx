@@ -10,10 +10,7 @@ interface ProgressIndicatorProps {
 const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ percent, className }) => {
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex justify-end items-center">
-        <span className="text-xl font-bold text-primary">{percent}%</span>
-      </div>
-      <Progress value={percent} className="h-3" />
+      <Progress aria-label="Journey progress" value={Math.max(0, Math.min(100, percent))} className="h-2" />
     </div>
   );
 };

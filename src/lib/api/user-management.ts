@@ -9,6 +9,53 @@ export const getAllStaffUsers = async (): Promise<StaffUser[]> => {
     return getStaffUsers();
 };
 
+export const getStaffUserById = async (userId: string): Promise<StaffUser | null> =>
+    getStaffUsers().find(user => user.id === userId) ?? null;
+
+export const getUsersWithPendingProfileUpdates = async (): Promise<StaffUser[]> =>
+    getStaffUsers().filter(user => user.profile_edit_pending);
+
+export const approveStaffProfileUpdate = async (actorId: string, targetUserId: string): Promise<StaffUser> => {
+    const users = getStaffUsers();
+    const index = users.findIndex(user => user.id === targetUserId);
+    if (index < 0) throw new Error('User not found.');
+
+    const user = users[index];
+    if (!user.profile_edit_pending || !user.profile_edit_data) throw new Error('No profile update is pending.');
+    const updatedUser: StaffUser = {
+        ...user,
+        phone_number: user.profile_edit_data.phone_number ?? user.phone_number,
+        profile_image_url: user.profile_edit_data.profile_image_url ?? user.profile_image_url,
+        profile_edit_pending: false,
+        profile_edit_data: undefined,
+        profile_edit_approved_at: new Date().toISOString(),
+    };
+    users[index] = updatedUser;
+    saveStaffUsers(users);
+    await recordApprovalLog(actorId, getStaffUsers().find(item => item.id === actorId)?.email ?? 'unknown-admin', 'StaffUser', targetUserId, 'Approved', `Approved profile update for ${user.email}.`);
+    return updatedUser;
+};
+
+export const rejectStaffProfileUpdate = async (actorId: string, targetUserId: string, reason: string): Promise<StaffUser> => {
+    const users = getStaffUsers();
+    const index = users.findIndex(user => user.id === targetUserId);
+    if (index < 0) throw new Error('User not found.');
+
+    const user = users[index];
+    if (!user.profile_edit_pending) throw new Error('No profile update is pending.');
+    const updatedUser: StaffUser = {
+        ...user,
+        profile_edit_pending: false,
+        profile_edit_data: undefined,
+        profile_edit_rejected_at: new Date().toISOString(),
+        profile_edit_rejection_reason: reason.trim(),
+    };
+    users[index] = updatedUser;
+    saveStaffUsers(users);
+    await recordApprovalLog(actorId, getStaffUsers().find(item => item.id === actorId)?.email ?? 'unknown-admin', 'StaffUser', targetUserId, 'Rejected', `Rejected profile update for ${user.email}. Reason: ${reason.trim()}`);
+    return updatedUser;
+};
+
 // POST: Create a new staff user (Admin bypasses signup)
 export const createStaffUser = async (
     email: string, 

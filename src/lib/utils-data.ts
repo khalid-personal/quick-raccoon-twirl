@@ -1,5 +1,14 @@
 import { CandidateStage, CandidateSummary, TOTAL_STAGES, TimeFilter } from './types';
 
+export type CandidatePriority = 'green' | 'yellow' | 'red';
+
+export const getCandidatePriority = (createdAt: string, progressPercent: number): CandidatePriority => {
+    const ageDays = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
+    if (progressPercent < 25 && ageDays > 30) return 'red';
+    if (progressPercent < 50 && ageDays > 14) return 'yellow';
+    return 'green';
+};
+
 // Helper function to check if DOB is 18+
 export const isAdult = (dob: string): boolean => {
     const birthDate = new Date(dob);
@@ -40,6 +49,10 @@ export function calculateOverallStatus(candidateStages: CandidateStage[]): Candi
     
     // Check for In Progress (at least one stage passed/issued/completed, but not all)
     if (completedStages.length > 0) {
+        return 'In Progress';
+    }
+
+    if (candidateStages.some(cs => cs.stage_id === 1 && cs.status === 'In Progress')) {
         return 'In Progress';
     }
 

@@ -27,6 +27,12 @@ export const NewCandidateSchema = z.object({
   marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
     required_error: "Marital status is required.",
   }),
+  gender: z.enum(['male', 'female'], { required_error: "Gender is required." }),
+  professional_summary: z.string().trim().min(1, "Candidate introduction is required."),
+  occupation: z.string().trim().optional(),
+  skills_text: z.string().trim().min(1, "At least one skill is required."),
+  languages_text: z.string().trim().min(1, "At least one language is required."),
+  intro_video_url: z.string().trim().min(1, "Candidate introduction video is required."),
   phone_number: z.string().optional(),
   email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
   coc_facility_id: z.string().min(1, "COC Facility is required."), // Changed to ID

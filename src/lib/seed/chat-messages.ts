@@ -25,9 +25,9 @@ export const SEED_CHAT_MESSAGES: ChatMessage[] = [
     },
     {
         id: uuidv4(),
-        candidate_id: SEED_CANDIDATES[2].id,
+        candidate_id: SEED_CANDIDATES[1].id,
         sender: 'candidate',
-        sender_name: 'Fatima Ali',
+        sender_name: 'Jane Smith',
         message: "When is the next CoC training session scheduled? I need to book my travel.",
         timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
         is_read_by_admin: true,

@@ -8,7 +8,7 @@ import {
     PaymentAnalytics,
     TimeFilter,
 } from '../types';
-import { getCandidates, getCandidateStages, getPaymentStatuses, getLocalAgencies, getForeignAgencies, getCocFacilities } from '../data-store'; // Import new getters
+import { getCandidates, getCandidateStages, getPaymentStatuses, getLocalAgencies, getForeignAgencies, getCocFacilities, getConfig } from '../data-store'; // Import new getters
 import { calculateProgress, calculateOverallStatus, getFilterStartDate } from '../utils-data';
 import { getStageId } from './utils';
 
@@ -30,7 +30,7 @@ const filterCandidatesByForeignAgencyId = (candidates: CandidateSummary[], forei
     if (!foreignAgencyName) return candidates;
     const foreignAgency = getForeignAgencies().find(fa => fa.name === foreignAgencyName);
     if (!foreignAgency) return []; // If agency name doesn't exist, no candidates match
-    return candidates.filter(c => c.foreign_agency_id === foreignAgency.id);
+    return candidates.filter(c => c.foreign_agency_id === foreignAgency.id || c.profile_shares?.some(share => share.foreign_agency_id === foreignAgency.id));
 };
 
 // NEW: Helper function to filter candidates by Local Agency ID
@@ -55,7 +55,7 @@ export const getBatches = async (): Promise<string[]> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const candidates = getCandidates();
     const allStages = getCandidateStages();
-    const flightDepartureStage = ALL_STAGES.find(s => s.slug === 'flight_departure'); // Get the full stage object
+    const deploymentStage = ALL_STAGES.find(s => s.slug === 'deployment');
 
     const batches = new Set<string>();
 
@@ -70,7 +70,7 @@ export const getBatches = async (): Promise<string[]> => {
         const candidatesInBatch = candidates.filter(c => c.batch_name === batch);
         const allCompleted = candidatesInBatch.every(candidate => {
             const flightStage = allStages.find(
-                cs => cs.candidate_id === candidate.id && cs.stage_id === flightDepartureStage?.id // Access .id
+                cs => cs.candidate_id === candidate.id && cs.stage_id === deploymentStage?.id
             );
             return flightStage?.status === 'Completed';
         });
@@ -160,8 +160,7 @@ export const searchCandidates = async (
     const cocFacilities = getCocFacilities();
     const q = query.toLowerCase();
     
-    const initialMedicalStage = ALL_STAGES.find(s => s.slug === 'initial_medical');
-    const finalMedicalStage = ALL_STAGES.find(s => s.slug === 'final_medical');
+    const medicalStage = ALL_STAGES.find(s => s.slug === 'medical');
 
     // 1. Augment candidates with calculated status/progress and payment status
     const candidatesWithStatus = candidates.map(candidate => {
@@ -169,11 +168,8 @@ export const searchCandidates = async (
         const progress_percent = calculateProgress(candidateStages);
         const overall_status = calculateOverallStatus(candidateStages);
         
-        const is_initial_medical_paid = paymentStatuses.some(ps => 
-            ps.candidateId === candidate.id && ps.stageId === initialMedicalStage?.id && ps.isPaid
-        );
-        const is_final_medical_paid = paymentStatuses.some(ps => 
-            ps.candidateId === candidate.id && ps.stageId === finalMedicalStage?.id && ps.isPaid
+        const is_medical_paid = paymentStatuses.some(ps =>
+            ps.candidateId === candidate.id && ps.stageId === medicalStage?.id && ps.isPaid
         );
 
         const foreignAgency = candidate.foreign_agency_id ? foreignAgencies.find(fa => fa.id === candidate.foreign_agency_id) : undefined;
@@ -184,8 +180,8 @@ export const searchCandidates = async (
             ...candidate,
             progress_percent,
             overall_status,
-            is_initial_medical_paid,
-            is_final_medical_paid,
+            is_medical_paid,
+            paid_stage_ids: paymentStatuses.filter(status => status.candidateId === candidate.id && status.isPaid).map(status => status.stageId),
             foreign_agency_name: foreignAgency?.name,
             local_agency_name: localAgency?.name,
             coc_facility_name: cocFacility?.name,
@@ -241,7 +237,7 @@ export const searchCandidates = async (
             case 'progress_percent':
                 compareNumbers(a.progress_percent, b.progress_percent);
                 break;
-            case 'overall_status':
+            case 'overall_status': {
                 // Define a custom order for status
                 const statusOrder: Record<CandidateSummary['overall_status'], number> = {
                     'Blocked': 1,
@@ -251,6 +247,7 @@ export const searchCandidates = async (
                 };
                 compareNumbers(statusOrder[a.overall_status], statusOrder[b.overall_status]);
                 break;
+            }
             case 'marital_status':
                 compareStrings(a.marital_status, b.marital_status);
                 break;
@@ -411,7 +408,10 @@ export const getPaymentAnalytics = async (
     // 4. Apply Local agency filter
     filteredCandidates = filterCandidatesByLocalAgencyName(filteredCandidates, localAgencyNameFilter);
     
-    const stagesWithFees = ALL_STAGES.filter(s => s.fee_amount !== undefined);
+    const configuredFees = getConfig().stageFees ?? {};
+    const stagesWithFees = ALL_STAGES
+        .map(stage => ({ ...stage, fee_amount: configuredFees[stage.id] ?? stage.fee_amount }))
+        .filter(stage => stage.fee_amount !== undefined);
     
     let totalFeesDue = 0;
     let totalFeesPaid = 0;
