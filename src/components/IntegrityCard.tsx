@@ -38,14 +38,14 @@ const IntegrityCard: React.FC = () => {
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           {score >= 85 ? <ShieldCheck className="h-5 w-5 text-emerald-600" /> : <ShieldAlert className="h-5 w-5 text-amber-600" />}
-          Integrity & anti-corruption
+          Records needing review
         </CardTitle>
         <Link to="/admin/integrity" className="text-sm text-primary hover:underline">Review all</Link>
       </CardHeader>
       <CardContent className="space-y-4">
         <IntegrityScore score={score} counts={counts} candidateCount={getCandidates().length} onReview={() => navigate('/admin/integrity')} />
         <ul className="space-y-1.5 text-sm">
-          {top.length === 0 && <li className="text-muted-foreground">No red flags detected.</li>}
+          {top.length === 0 && <li className="text-muted-foreground">No issues found by the current checks.</li>}
           {top.map(f => (
             <li key={f.id} className="flex gap-2"><Badge variant="outline" className="shrink-0">{f.severity}</Badge><span className="text-muted-foreground">{f.title}: {f.detail}</span></li>
           ))}

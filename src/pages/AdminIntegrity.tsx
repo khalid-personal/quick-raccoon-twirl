@@ -134,7 +134,7 @@ const AdminIntegrity: React.FC = () => {
   };
   const revoke = async (id: string) => {
     await revokeOverride(id, actor);
-    toast.success('Override revoked. The flag is active again.');
+    toast.success('Exception cancelled. The warning is active again.');
     setOverrideVersion(v => v + 1);
   };
 
@@ -171,9 +171,9 @@ const AdminIntegrity: React.FC = () => {
   return (
     <div className="space-y-6">
       <ControlRoomHeader
-        scope={isAuditor ? 'Auditor · read-only oversight' : 'Administration · integrity and compliance'}
-        description={isAuditor ? 'Review integrity flags, superadmin overrides, and portal activity. Data is read-only in this workspace.' : 'See risk flags across candidates, payments, and staff activity, with ELMIS verification tools.'}
-        title={isAuditor ? 'Control room' : 'Integrity & compliance'}
+        scope={isAuditor ? 'Auditor · view only' : 'Administration · record checks'}
+        description={isAuditor ? 'Review warnings, approved exceptions and activity history. You can view these records but cannot change them.' : 'Find missing or conflicting candidate and payment details. Check identity records against the Ethiopian Labour Market Information System (ELMIS).'}
+        title={isAuditor ? 'Record review' : 'Record checks'}
         icon={ShieldAlert}
         actions={isAuditor ? <Badge variant="outline" className="gap-1 !border-white/30 !text-white"><Eye className="h-3.5 w-3.5" />Read-only</Badge> : <Button variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10" onClick={() => downloadFile('integrity-findings.csv', ['severity,rule,title,detail', ...findings.map(f => [f.severity, f.rule, f.title, f.detail].map(v => `"${v.replace(/"/g, '""')}"`).join(','))].join('\n'))}><Download className="mr-2 h-4 w-4" />Export findings</Button>}
       />
@@ -191,10 +191,10 @@ const AdminIntegrity: React.FC = () => {
       {canOverride && <AgencyResolutionCenter />}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="findings">Red flags ({findings.length})</TabsTrigger>
-          <TabsTrigger value="overrides">Overrides ({overrides.filter(o => !o.revoked_at).length})</TabsTrigger>
-          {!isAuditor && <TabsTrigger value="elmis">ELMIS</TabsTrigger>}
-          <TabsTrigger value="audit">Audit trail</TabsTrigger>
+          <TabsTrigger value="findings">Issues to review ({findings.length})</TabsTrigger>
+          <TabsTrigger value="overrides">Accepted exceptions ({overrides.filter(o => !o.revoked_at).length})</TabsTrigger>
+          {!isAuditor && <TabsTrigger value="elmis">Identity checks (ELMIS)</TabsTrigger>}
+          <TabsTrigger value="audit">Activity history</TabsTrigger>
         </TabsList>
 
         <TabsContent value="findings" className="space-y-4">
@@ -209,7 +209,7 @@ const AdminIntegrity: React.FC = () => {
           <Card>
             <CardContent className="pt-6">
               {visible.length === 0 ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-emerald-600" />No red flags match this view.</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-emerald-600" />No issues match this selection.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -230,7 +230,7 @@ const AdminIntegrity: React.FC = () => {
                             {f.paymentId && isAuditor && <span className="text-sm">Payment</span>}
                             {f.actor && <span className="text-sm">{f.actor}</span>}
                           </TableCell>
-                          {canOverride && <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => { setOverrideTarget(f); setReason(''); }}>Override</Button></TableCell>}
+                          {canOverride && <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => { setOverrideTarget(f); setReason(''); }}>Accept an exception</Button></TableCell>}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -244,13 +244,13 @@ const AdminIntegrity: React.FC = () => {
         <TabsContent value="overrides">
           <Card>
             <CardHeader>
-              <CardTitle>Overridden flags</CardTitle>
+              <CardTitle>Accepted exceptions</CardTitle>
               <CardDescription>
-                {canOverride ? 'Flags you accepted with a recorded reason. They no longer count toward the score. The auditor can see every one.' : 'Flags the superadmin has accepted. Review each reason; overrides never delete the underlying data.'}
+                {canOverride ? 'Warnings accepted with a saved reason no longer count toward the score. This does not mean the issue was fixed. Auditors can review every decision.' : 'Warnings accepted by the superadmin. Review each reason. Accepting an exception does not delete the original record or prove the issue was fixed.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {overrides.length === 0 ? <p className="text-sm text-muted-foreground">No flags have been overridden.</p> : (
+              {overrides.length === 0 ? <p className="text-sm text-muted-foreground">No exceptions have been accepted.</p> : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -267,9 +267,9 @@ const AdminIntegrity: React.FC = () => {
                             <TableCell className="text-sm">{o.overridden_by_email}</TableCell>
                             <TableCell className="whitespace-nowrap text-sm">{new Date(o.overridden_at).toLocaleString()}</TableCell>
                             <TableCell>
-                              {o.revoked_at ? <Badge variant="secondary">Revoked</Badge> : stillFlagged ? <Badge variant="outline" className="bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900">Overridden</Badge> : <Badge variant="secondary">Resolved</Badge>}
+                              {o.revoked_at ? <Badge variant="secondary">Exception cancelled</Badge> : stillFlagged ? <Badge variant="outline" className="bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900">Accepted exception</Badge> : <Badge variant="secondary">Warning no longer found</Badge>}
                             </TableCell>
-                            {canOverride && <TableCell className="text-right">{!o.revoked_at && <Button size="sm" variant="ghost" onClick={() => void revoke(o.id)}><Undo2 className="mr-1 h-4 w-4" />Revoke</Button>}</TableCell>}
+                            {canOverride && <TableCell className="text-right">{!o.revoked_at && <Button size="sm" variant="ghost" onClick={() => void revoke(o.id)}><Undo2 className="mr-1 h-4 w-4" />Cancel exception</Button>}</TableCell>}
                           </TableRow>
                         );
                       })}
@@ -285,8 +285,8 @@ const AdminIntegrity: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                ELMIS verification
-                {mode && <Badge variant="outline" className={mode === 'live' ? ELMIS_STYLE.verified : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900'}>{mode === 'live' ? 'Live' : 'Sandbox'}</Badge>}
+                Identity checks (ELMIS)
+                {mode && <Badge variant="outline" className={mode === 'live' ? ELMIS_STYLE.verified : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900'}>{mode === 'live' ? 'Live' : 'Practice only'}</Badge>}
               </CardTitle>
               <CardDescription>
                 {mode ? 'Checks each candidate’s passport and identity against the Ethiopian Labour Market Information System.' : 'ELMIS verification is not configured. Candidate records can still be exported for review.'}
@@ -335,7 +335,7 @@ const AdminIntegrity: React.FC = () => {
         <TabsContent value="audit">
           <Card>
             <CardHeader>
-              <CardTitle>Audit trail</CardTitle>
+              <CardTitle>Activity history</CardTitle>
               <CardDescription>Every sensitive action with who did it and when. Latest 200 entries.</CardDescription>
               <div className="flex gap-2 pt-2">
                 <Button size="sm" variant={auditScope === 'superadmin' ? 'default' : 'outline'} onClick={() => setAuditScope('superadmin')}>Superadmin actions</Button>
@@ -349,7 +349,7 @@ const AdminIntegrity: React.FC = () => {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow><TableHead>When</TableHead><TableHead>Who</TableHead><TableHead>Action</TableHead><TableHead>Target</TableHead><TableHead>Details</TableHead></TableRow>
+                      <TableRow><TableHead>When</TableHead><TableHead>Who</TableHead><TableHead>Action</TableHead><TableHead>Record changed</TableHead><TableHead>Details</TableHead></TableRow>
                     </TableHeader>
                     <TableBody>
                       {logs.map(l => (
@@ -373,18 +373,18 @@ const AdminIntegrity: React.FC = () => {
       <Dialog open={!!overrideTarget} onOpenChange={open => { if (!open) setOverrideTarget(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Override this flag</DialogTitle>
+            <DialogTitle>Accept this warning as an exception</DialogTitle>
             <DialogDescription>{overrideTarget?.title}: {overrideTarget?.detail}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Your reason, name and the time are recorded in the audit trail where the auditor reviews them.</p>
-            <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Why is this flag acceptable?" rows={4} />
+            <p className="text-sm text-muted-foreground">This removes the warning from the score, but does not fix or delete the original record. Your reason, name and time are saved for the auditor to review.</p>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Explain why this warning should be accepted as an exception." rows={4} />
             <p className="text-xs text-muted-foreground">{reason.trim().length} / {MIN_OVERRIDE_REASON} characters minimum</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOverrideTarget(null)}>Cancel</Button>
             <Button onClick={() => void submitOverride()} disabled={savingOverride || reason.trim().length < MIN_OVERRIDE_REASON}>
-              {savingOverride && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Override flag
+              {savingOverride && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Accept exception
             </Button>
           </DialogFooter>
         </DialogContent>

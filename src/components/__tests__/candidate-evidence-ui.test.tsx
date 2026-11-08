@@ -48,18 +48,18 @@ describe('visual evidence and candidate shortcuts', () => {
   });
   it('shows missing proof as unknown, not a zero deposit or a match', async () => {
     await act(async () => root.render(<PaymentEvidenceOverview evidence={{ caseId: 'p', payment, source: 'candidate' }} statementName="No statement" />));
-    expect(container.textContent).toContain('No linked row');
-    expect(container.textContent).toContain('Not comparable');
-    expect(container.textContent).not.toContain('The money and reference match');
+    expect(container.textContent).toContain('No matching entry found');
+    expect(container.textContent).toContain('Cannot compare');
+    expect(container.textContent).not.toContain('Payment and bank-file details match');
     expect(container.querySelector('[aria-label="Payment route"]')).not.toBeNull();
   });
   it('visually distinguishes short deposits, equal-amount reference mismatches and currency mismatches', async () => {
-    for (const [amount, reference, currency, title] of [[80, 'REF', 'ETB', 'The bank shows less money'], [100, 'OTHER', 'ETB', 'The deposit needs a reference check'], [100, 'REF', 'USD', 'Check the currency first']] as const) {
+    for (const [amount, reference, currency, title] of [[80, 'REF', 'ETB', 'Uploaded file shows less than the payment record'], [100, 'OTHER', 'ETB', 'The deposit needs a reference check'], [100, 'REF', 'USD', 'Check the currency first']] as const) {
       const match = reconcile([payment], [{ amount, reference, currency, description: 'Bank credit', date: '2026-11-07' }]).matches[0];
       await act(async () => root.render(<PaymentEvidenceOverview evidence={{ caseId: 'p', payment, source: 'candidate', match }} statementName="Test" />));
       expect(container.textContent).toContain(title);
-      expect(container.textContent).not.toContain('The money and reference match');
-      if (currency === 'USD') expect(container.textContent).toContain('Not comparable');
+      expect(container.textContent).not.toContain('Payment and bank-file details match');
+      if (currency === 'USD') expect(container.textContent).toContain('Cannot compare');
     }
   });
   it('replaces repetitive origin with profile, passport and integrity buttons and a progress bar', async () => {
@@ -68,7 +68,7 @@ describe('visual evidence and candidate shortcuts', () => {
     expect(container.querySelector(`a[aria-label="Open profile for ${candidate.first_name} ${candidate.last_name}"]`)?.getAttribute('href')).toBe(`/admin/candidate/${candidate.id}`);
     expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
     expect(container.querySelector('thead')?.textContent).not.toContain('Origin');
-    expect(container.querySelector('[aria-label^="Candidate integrity:"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label^="Candidate record checks:"]')).not.toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View passport"]')!.click());
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('DEMO / synthetic record');
     expect(document.querySelector('img[src="generated"]')).toBeNull();
@@ -78,10 +78,10 @@ describe('visual evidence and candidate shortcuts', () => {
     saveCandidates([candidate, other]);
     const render = (visible: CandidateSummary[]) => root.render(<MemoryRouter><TooltipProvider><CandidateList candidates={visible} basePath="/admin/candidate" sortBy="first_name" direction="asc" onSort={vi.fn()} /></TooltipProvider></MemoryRouter>);
     await act(async () => render([candidate, other]));
-    const before = container.querySelector('[aria-label^="Candidate integrity:"]')!.getAttribute('aria-label');
+    const before = container.querySelector('[aria-label^="Candidate record checks:"]')!.getAttribute('aria-label');
     await act(async () => render([candidate]));
-    expect(container.querySelector('[aria-label^="Candidate integrity:"]')!.getAttribute('aria-label')).toBe(before);
-    expect(before).not.toContain('0 flags');
+    expect(container.querySelector('[aria-label^="Candidate record checks:"]')!.getAttribute('aria-label')).toBe(before);
+    expect(before).not.toContain('0 warnings');
   });
   it('opens the exact requested stage from a task deep link', async () => {
     const detail: CandidateDetail = { ...candidate, stages: demo.stages.filter(stage => stage.candidate_id === candidate.id), documents: [], medical_results: [], chat_messages: [] };
@@ -115,8 +115,8 @@ describe('visual evidence and candidate shortcuts', () => {
     savePayments([{ ...payment, amount: 80, stage_id: 1, payee_local_agency_id: local.id }]);
     saveCandidateStages([1, 3, 2, 4].map(id => ({ id: `s${id}`, candidate_id: own.id, stage_id: id, status: id === 1 ? 'In Progress' : 'Pending', updated_at: '2026-11-07' })));
     await act(async () => root.render(<MemoryRouter><TooltipProvider><LocalPaymentEvidence localAgencyId={local.id} /></TooltipProvider></MemoryRouter>));
-    expect(container.textContent).toContain('Underpaid');
-    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent?.startsWith('View compiled record'))!.click());
+    expect(container.textContent).toContain('Stage fee not fully covered');
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent?.startsWith('View full payment record'))!.click());
     const compiled = document.querySelector('[role="dialog"]')!;
     expect(compiled.querySelectorAll('section')).toHaveLength(4);
     expect(compiled.textContent).toContain('0/4 stages complete');
@@ -124,10 +124,10 @@ describe('visual evidence and candidate shortcuts', () => {
     await act(async () => open.click());
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain('80 ETB');
-    expect(dialog.textContent).toContain('Not comparable');
+    expect(dialog.textContent).toContain('Cannot compare');
     expect(dialog.querySelectorAll('[role="tab"]')).toHaveLength(3);
     await act(async () => [...dialog.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(button => button.textContent?.startsWith('Next action'))!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })));
-    await act(async () => [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Ask for proof'))!.click());
+    await act(async () => [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Record a proof request'))!.click());
     expect(dialog.querySelector('[data-field="case-start"]')).not.toBeNull();
     expect(dialog.querySelector('label[for$="-case-due"]')?.textContent).toContain('(required)');
   });

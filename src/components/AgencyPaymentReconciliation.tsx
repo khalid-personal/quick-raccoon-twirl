@@ -53,13 +53,13 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
   const settled = summary.expectedUsd ? Math.min(100, Math.round((summary.receivedUsd / summary.expectedUsd) * 100)) : 0;
 
   return (
-    <WidgetShell title="Foreign to local agency payments" description="Every work contract checked against the transfer its foreign agency owes the local agency" icon={Scale} accent="emerald" className="h-full" bodyClassName="space-y-5">
+    <WidgetShell title="Foreign agency payments to local agencies" description="We compare each work contract with the payment the foreign agency is expected to make to the local agency." icon={Scale} accent="emerald" className="h-full" bodyClassName="space-y-5">
       <div className="grid gap-3 sm:grid-cols-4">
         {[
           ['Contracts checked', String(summary.contracts), 'text-foreground'],
-          ['Matched', `${summary.byIssue.paid} (${matchedRate}%)`, 'text-emerald-600'],
-          ['Discrepancies', String(summary.flagged), summary.flagged ? 'text-rose-600' : 'text-emerald-600'],
-          ['Received vs expected', `${usd(summary.receivedUsd)} / ${usd(summary.expectedUsd)}`, 'text-foreground'],
+          ['Paid as expected', `${summary.byIssue.paid} (${matchedRate}%)`, 'text-emerald-600'],
+          ['Payments needing review', String(summary.flagged), summary.flagged ? 'text-rose-600' : 'text-emerald-600'],
+          ['Received vs contract amount', `${usd(summary.receivedUsd)} / ${usd(summary.expectedUsd)}`, 'text-foreground'],
         ].map(([label, value, tone]) => (
           <div key={label} className="rounded-xl border bg-background/60 p-3">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -72,12 +72,12 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold">Agency pairs</p>
+        <p className="text-sm font-semibold">Payments between agencies</p>
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full text-sm">
-            <thead><tr><th className="px-3 py-2 text-left">Foreign agency</th><th className="px-3 py-2 text-left">Pays</th><th className="px-3 py-2 text-right">Contracts</th><th className="px-3 py-2 text-right">Matched</th><th className="px-3 py-2 text-right">Flagged</th><th className="px-3 py-2 text-right">Received / expected</th></tr></thead>
+            <thead><tr><th className="px-3 py-2 text-left">Foreign agency</th><th className="px-3 py-2 text-left">Pays local agency</th><th className="px-3 py-2 text-right">Work contracts</th><th className="px-3 py-2 text-right">Paid as expected</th><th className="px-3 py-2 text-right">Needs review</th><th className="px-3 py-2 text-right">Received / contract amount</th></tr></thead>
             <tbody>
-              {summary.pairs.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No work contracts to reconcile.</td></tr>}
+              {summary.pairs.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No work contracts to check yet.</td></tr>}
               {summary.pairs.map(pair => (
                 <tr key={pair.key}>
                   <td className="px-3 py-2 font-medium">{name(foreigns, pair.foreignAgencyId)}</td>
@@ -95,7 +95,7 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="mr-2 text-sm font-semibold">Discrepancies</p>
+          <p className="mr-2 text-sm font-semibold">Payments needing review</p>
           <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} className="h-7 rounded-full px-3 text-xs" onClick={() => setFilter('all')}>All {summary.flagged}</Button>
           {DISCREPANCIES.filter(issue => summary.byIssue[issue] > 0).map(issue => (
             <Button key={issue} size="sm" variant={filter === issue ? 'default' : 'outline'} className="h-7 rounded-full px-3 text-xs" onClick={() => setFilter(issue)}>{ISSUE_LABEL[issue]} {summary.byIssue[issue]}</Button>
@@ -103,17 +103,17 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
         </div>
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full text-sm">
-            <thead><tr><th className="px-3 py-2 text-left">Candidate</th><th className="px-3 py-2 text-left">Foreign to local</th><th className="px-3 py-2 text-left">Issue</th><th className="px-3 py-2 text-right">Received</th><th className="px-3 py-2 text-left">Detail</th><th className="px-3 py-2 text-left">Review</th></tr></thead>
+            <thead><tr><th className="px-3 py-2 text-left">Candidate</th><th className="px-3 py-2 text-left">Payment from → to</th><th className="px-3 py-2 text-left">What needs checking</th><th className="px-3 py-2 text-right">Received</th><th className="px-3 py-2 text-left">Details</th><th className="px-3 py-2 text-left">Next step</th></tr></thead>
             <tbody>
-              {visible.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No discrepancies for this selection.</td></tr>}
+              {visible.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No payment issues for this selection.</td></tr>}
               {visible.map(row => (
                 <tr key={row.candidate.id}>
                   <td className="px-3 py-2"><div className="flex items-center gap-2"><CandidateAvatar candidate={row.candidate} className="h-9 w-9" /><div><button type="button" className="font-medium hover:text-primary hover:underline" onClick={() => setQuickId(row.candidate.id)}>{row.candidate.first_name} {row.candidate.last_name}</button><p className="font-mono text-xs text-muted-foreground">{row.candidate.tracking_code}</p></div></div></td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{name(foreigns, row.foreignAgencyId)}<br />{name(locals, row.localAgencyId)}</td>
                   <td className="px-3 py-2"><Badge variant="secondary" className={cn('whitespace-nowrap', ISSUE_TONE[row.issue])}>{ISSUE_LABEL[row.issue]}</Badge></td>
-                  <td className="px-3 py-2 text-right tabular-nums">{row.received ? `${Math.round(row.received).toLocaleString()} ${row.payment?.currency ?? row.currency}` : '\u2014'}<p className="text-xs text-muted-foreground">min {row.expectedMin?.toLocaleString()} {row.currency}</p></td>
+                  <td className="px-3 py-2 text-right tabular-nums">{row.received ? `${Math.round(row.received).toLocaleString()} ${row.payment?.currency ?? row.currency}` : '\u2014'}<p className="text-xs text-muted-foreground">Minimum due: {row.expectedMin?.toLocaleString()} {row.currency}</p></td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{row.message}</td>
-                  <td className="px-3 py-2"><Button size="sm" variant="outline" aria-label={`Review contract payment ${row.candidate.tracking_code}`} onClick={() => openReview(row)}>Review evidence</Button></td>
+                  <td className="px-3 py-2"><Button size="sm" variant="outline" aria-label={`Review contract payment ${row.candidate.tracking_code}`} onClick={() => openReview(row)}>Check payment</Button></td>
                 </tr>
               ))}
             </tbody>

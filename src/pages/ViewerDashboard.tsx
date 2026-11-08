@@ -16,7 +16,7 @@ const ViewerDashboard: React.FC = () => {
   return <AppShell portalName="Viewer" homePath="/viewer" navGroups={[]}>
     <div className="space-y-6">
       <ControlRoomHeader
-        scope="Viewer · read-only access"
+        scope="Viewer · view only"
         description="Look up a candidate using their tracking code. Results depend on the portal's public tracking configuration."
         icon={Eye}
         actions={<Button asChild variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10"><Link to="/guide"><BookOpen className="mr-2 h-4 w-4" />Getting started</Link></Button>}

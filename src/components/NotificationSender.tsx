@@ -52,7 +52,7 @@ const NotificationSender: React.FC<NotificationSenderProps> = ({ candidate }) =>
 
   return (
     <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
-      <CandidateCheckpoint eyebrow="Candidate follow-up checkpoint" title="Send Direct Notification" description={`Prepare a direct follow-up using the available channel. Recipient: ${candidate.phone_number || candidate.email || 'N/A'}. Demo channels remain simulated.`} icon={Phone} />
+      <CandidateCheckpoint eyebrow="Contact the candidate" title="Send a notification" description={`Choose how to contact the candidate. Recipient: ${candidate.phone_number || candidate.email || 'Not recorded'}. Demo notifications are for practice only.`} icon={Phone} />
       <CardContent className="p-5 sm:p-7">
         <form onSubmit={handleSendNotification} className="space-y-4">
           
@@ -72,7 +72,7 @@ const NotificationSender: React.FC<NotificationSenderProps> = ({ candidate }) =>
                             <div className="flex items-center"><MessageSquare className="h-4 w-4 mr-2" /> SMS</div>
                         </SelectItem>
                         <SelectItem value="whatsapp">
-                            <div className="flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> WhatsApp (Mock)</div>
+                            <div className="flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> WhatsApp (practice)</div>
                         </SelectItem>
                     </SelectContent>
                 </Select>

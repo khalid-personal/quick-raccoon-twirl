@@ -118,7 +118,7 @@ const MedicalResultsEditor: React.FC<MedicalResultsEditorProps> = ({ candidateDe
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="flex max-w-xl items-start gap-4">
               <span className="control-nav-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"><HeartPulse className="h-8 w-8" /></span>
-              <div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-cyan-700 dark:text-cyan-300">Candidate health checkpoint</p><CardTitle className="text-2xl font-bold sm:text-3xl">Medical compliance</CardTitle><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Review the saved results, record each exam and keep the Medical stage up to date.</p></div>
+              <div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-cyan-700 dark:text-cyan-300">Candidate health checks</p><CardTitle className="text-2xl font-bold sm:text-3xl">Medical compliance</CardTitle><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Review and save each exam result to keep the Medical stage up to date.</p></div>
             </div>
             <div className={`rounded-2xl border px-5 py-4 ${summaryTheme.surface} ${summaryTheme.color}`}>
               <p className="text-3xl font-bold tabular-nums">{passedCount}<span className="text-lg font-medium opacity-70"> / {examTypes.length}</span></p>
@@ -126,7 +126,7 @@ const MedicalResultsEditor: React.FC<MedicalResultsEditorProps> = ({ candidateDe
             </div>
           </div>
           <div className="rounded-2xl border bg-background/70 p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className={`flex items-center gap-2 font-semibold ${summaryTheme.color}`}><ShieldCheck className="h-5 w-5" />{summaryTitle}</p><span className="text-xs text-muted-foreground">Saved results only · drafts excluded</span></div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className={`flex items-center gap-2 font-semibold ${summaryTheme.color}`}><ShieldCheck className="h-5 w-5" />{summaryTitle}</p><span className="text-xs text-muted-foreground">Only saved results count here</span></div>
             <div className="grid gap-2 sm:grid-cols-3" aria-label="Saved medical result totals">
               {medicalTotals.map(item => {
                 const presentation = EXAM_PRESENTATION[item.status];

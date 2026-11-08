@@ -18,8 +18,8 @@ export default function EvidenceRequestList({ events, source, onReview }: {
   const visible = requests.filter(request => filter === 'all' || request.status === filter);
   if (!requests.length) return null;
   return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
-    <h3 className="flex items-center gap-2 font-semibold"><FileClock className="h-5 w-5" />Evidence waiting room</h3>
-    <p className="text-xs text-muted-foreground">Submission windows include the whole deadline day (Addis Ababa time). In-portal reminders refresh every minute while the portal is open; no email, SMS, or background alarm is sent.</p>
+    <h3 className="flex items-center gap-2 font-semibold"><FileClock className="h-5 w-5" />Requests for proof</h3>
+    <p className="text-xs text-muted-foreground">The deadline includes the full final day in Addis Ababa time. Reminders update here while the portal is open; the portal does not send email or text messages.</p>
     <div className="flex flex-wrap gap-2">
       {(['all', 'overdue', 'due-soon', 'pending', 'scheduled'] as const).map(status => <Button key={status} size="sm" variant={filter === status ? 'default' : 'outline'} aria-pressed={filter === status} onClick={() => setFilter(status)}>
         {status === 'overdue' && <AlarmClock className="mr-1 h-4 w-4" />}{status === 'all' ? 'All requests' : EVIDENCE_STATUS_LABELS[status]} · {status === 'all' ? requests.length : requests.filter(request => request.status === status).length}
@@ -29,10 +29,10 @@ export default function EvidenceRequestList({ events, source, onReview }: {
       {visible.map(({ event, status }) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><Badge variant={status === 'overdue' ? 'destructive' : 'secondary'}>{EVIDENCE_STATUS_LABELS[status]}</Badge>{event.synthetic && <Badge variant="outline">DEMO / synthetic</Badge>}<span className="break-all text-sm font-medium">{event.evidence.payment?.receipt_number || event.caseId}</span></div>
-          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3 w-3 shrink-0" />{event.submissionStart || event.createdAt.slice(0, 10)} through {event.dueDate} · Owner: {event.owner}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3 w-3 shrink-0" />{event.submissionStart || event.createdAt.slice(0, 10)} through {event.dueDate} · Assigned to: {event.owner}</p>
           <p className="mt-1 text-sm">{event.note}</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => onReview(event)}>Review request</Button>
+        <Button size="sm" variant="outline" onClick={() => onReview(event)}>Open request</Button>
       </div>)}
       {!visible.length && <p className="text-sm text-muted-foreground">No requests match this status.</p>}
     </div>

@@ -346,3 +346,17 @@
   .motion-safe\:animate-fade-up { animation: fade-up-in 0.45s ease both; }
   .motion-safe\:animate-scale-in { animation: fade-up-in 0.35s ease both; }
 }
+.dashboard-nav-glyph { color: var(--nav-color); }
+.dashboard-nav-item[data-state='active'] { border-color: color-mix(in srgb, var(--nav-color) 35%, transparent); }
+.dashboard-nav-item[data-state='active'] .dashboard-nav-indicator { background: var(--nav-color); box-shadow: 0 0 12px var(--nav-color); }
+.dashboard-nav-item::after {
+  content: '';
+  position: absolute;
+  inset-inline: 18px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--nav-color);
+  opacity: 0;
+}
+.dashboard-nav-item[data-state='active']::after { opacity: 1; }

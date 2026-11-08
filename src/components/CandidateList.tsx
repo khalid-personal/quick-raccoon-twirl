@@ -40,7 +40,7 @@ const CandidateList: React.FC<CandidateListProps> = ({ candidates, basePath, sor
       <TableHead>{heading('Status', 'overall_status')}</TableHead>
       <TableHead>{heading('Local agency', 'local_agency_name')}</TableHead>
       <TableHead>{heading('Foreign agency', 'foreign_agency_name')}</TableHead>
-      <TableHead>Profile / passport / integrity</TableHead>
+      <TableHead>Profile / passport / record checks</TableHead>
     </TableRow></TableHeader>
     <TableBody>{candidates.map(candidate => {
       const state = presence ? presenceFor(presence, 'candidate', candidate.id) : { online: false, lastSeen: undefined };

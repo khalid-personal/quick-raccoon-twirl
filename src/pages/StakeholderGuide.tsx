@@ -26,9 +26,9 @@ const commonSteps: GuideStep[] = [
 const roleSteps: Record<UserRole, GuideStep[]> = {
   superadmin: [
     { title: 'Balance staff work', what: 'Open tasks are created from each candidate’s next unfinished stage. Equal workload is the default.', next: 'Set a staff weight, then apply the workload settings.', href: '/admin/tasks' },
-    { title: 'Review integrity', what: 'Integrity flags point to records that need review. Clear findings by correcting the source record, not by hiding the warning.', next: 'Open the compliance list and work the highest-priority items.', href: '/admin/integrity' },
-    { title: 'Show the journey in a demo', what: 'Three isolated scenarios show a few priorities, cases needing attention, and clean high performance.', next: 'Open the demo sandbox from Settings and select a scenario.', href: '/admin/settings' },
-    { title: 'Review online staff', what: 'The green dot means the account sent a recent heartbeat. Attendance begins at sign-in and ends at logout.', next: 'Review the staff roster or attendance history.', href: '/admin/users' },
+    { title: 'Review record warnings', what: 'Warnings show records that need a closer look. Correct the missing or conflicting details rather than hiding the warning.', next: 'Open Record checks and start with urgent issues.', href: '/admin/integrity' },
+    { title: 'Practice with demo records', what: 'Six examples show different numbers of record and payment problems while keeping the same candidates.', next: 'Open Settings and choose a demo practice example.', href: '/admin/settings' },
+    { title: 'Review online staff', what: 'The green dot means the account was recently active. Recorded attendance begins at sign-in and ends at logout.', next: 'Review the staff list or attendance history.', href: '/admin/users' },
     { title: 'Manage access and fees', what: 'Approved accounts determine who can enter each workspace. Stage fees are shown to candidates before payment.', next: 'Review staff approvals, agency access, and stage fees.', href: '/admin/settings' },
     { title: 'Review payments', what: 'Payment records link the candidate, stage, amount, and receipt reference.', next: 'Check payment status and open a receipt when a payment is confirmed.', href: '/admin/payments' },
     { title: 'Read system messages', what: 'Candidate chats, notifications, and audit entries help your team coordinate and trace decisions.', next: 'Open the relevant inbox or notification list.', href: '/admin/chat' },
@@ -42,8 +42,8 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Keep in touch', what: 'Candidate chat and notifications keep follow-ups attached to the candidate workflow.', next: 'Open your inbox and record the next action on the task.', href: '/admin/chat' },
   ],
   'local-agency': [
-    { title: 'Review your pipeline', what: 'The dashboard summarizes each stage and lists blocked, flagged, or inactive candidate files.', next: 'Open the candidate row to review the next step.', href: '/local-agency' },
-    { title: 'Acknowledge contracts', what: 'The foreign agency shares a secure contract link. Your agency confirms once the contract has arrived.', next: 'Open the candidate profile and mark the contract received.', href: '/local-agency' },
+    { title: 'Review candidate progress', what: 'The dashboard summarizes each stage and lists blocked, flagged, or inactive candidate files.', next: 'Open the candidate row to review the next step.', href: '/local-agency' },
+    { title: 'Confirm received contracts', what: 'The foreign agency shares a secure contract link. Your agency confirms once the contract has arrived.', next: 'Open the candidate profile and mark the contract received.', href: '/local-agency' },
     { title: 'Prepare clearance', what: 'Visa, Enjaz, and Tasheer checks show what remains before ministry issuance.', next: 'Complete local checks and wait for the official ministry QR.', href: '/local-agency/clearance' },
     { title: 'Review payments and messages', what: 'Candidate fees, receipts, and chat stay linked to your agency’s candidate records.', next: 'Open payments to review receipts, or chat to reply to a candidate.', href: '/local-agency/payments' },
     ...commonSteps,
@@ -67,7 +67,7 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Contact your agency', what: 'Use candidate chat for a question about a stage, document, payment, or follow-up.', next: 'Open chat from your tracking page.', href: '/track' },
   ],
   auditor: [
-    { title: 'Review integrity findings', what: 'Findings are generated from recorded candidate, stage, payment, and document data.', next: 'Review the evidence and audit trail for each finding.', href: '/auditor' },
+    { title: 'Review record warnings', what: 'Checks look for missing or conflicting candidate, stage, payment and document details.', next: 'Review the supporting records and activity history for each issue.', href: '/auditor' },
     { title: 'Understand review findings', what: 'A finding identifies a record that needs review; it is not a conclusion of wrongdoing.', next: 'Inspect the evidence available in the integrity workspace.', href: '/auditor' },
   ],
   viewer: [

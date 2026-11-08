@@ -10,7 +10,7 @@ interface ControlRoomHeaderProps {
   actions?: React.ReactNode;
 }
 
-const ControlRoomHeader: React.FC<ControlRoomHeaderProps> = ({ scope, description, title = 'Control room', icon: Icon = Activity, actions }) => (
+const ControlRoomHeader: React.FC<ControlRoomHeaderProps> = ({ scope, description, title = 'Dashboard', icon: Icon = Activity, actions }) => (
   <header className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-br from-[#123b36] via-[#174b43] to-[#1d5a4f] text-white shadow-lg">
     <div aria-hidden="true" className="absolute -right-10 -top-20 h-72 w-72 rounded-full border-[36px] border-white/[0.04]" />
     <div aria-hidden="true" className="absolute bottom-0 right-[28%] top-0 hidden w-px bg-white/10 xl:block" />

@@ -109,17 +109,17 @@ const PaymentHistoryPage: React.FC = () => {
   const effectiveTab = (!canInspect && (tab === 'discrepancies' || tab === 'resolution')) || (userRole !== 'superadmin' && tab === 'resolution') ? 'overview' : tab;
 
   return <div className="space-y-6">
-    <PageHeader title={title} description="Understand collections first. Open a receipt, follow up pending money, or compare the bank evidence." actions={<MinistrySubmissionCountdown />} />
+    <PageHeader title={title} description="See what is marked as paid and what is still waiting. Open a receipt; reviewers can compare it with the agency’s uploaded bank records." actions={<MinistrySubmissionCountdown />} />
     <Tabs value={effectiveTab} onValueChange={setTab} className="space-y-5">
     <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-muted/50 p-2 lg:flex lg:justify-start">
       <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="overview"><ChartNoAxesCombined className="h-5 w-5" />Finance overview</TabsTrigger>
       <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="ledger"><List className="h-5 w-5" />Payments list</TabsTrigger>
-      {canInspect && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="discrepancies"><FileSearch className="h-5 w-5" />Bank & evidence</TabsTrigger>}
-      {userRole === 'superadmin' && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="resolution"><Scale className="h-5 w-5" />Resolve & protect</TabsTrigger>}
+      {canInspect && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="discrepancies"><FileSearch className="h-5 w-5" />Bank records & checks</TabsTrigger>}
+      {userRole === 'superadmin' && <TabsTrigger className="gap-2 rounded-xl px-5 py-3 text-base" value="resolution"><Scale className="h-5 w-5" />Payment issues</TabsTrigger>}
     </TabsList>
     {userRole === 'superadmin' && <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-rose-500/5 p-4" aria-label="Payment resolution status">
-      <div><h2 className="text-lg font-semibold">Automatic checks → Resolve & protect</h2><p className="text-sm text-muted-foreground">{reviewQueue.isLoading ? 'Checking current receipts and proof…' : `${summaryPayments.filter(payment => reviewQueue.data?.verified.has(payment.id)).length} receipts green-cleared in this scope · ${reviewQueue.data?.cases.length ?? 0} open cases · ${reviewQueue.data?.gaps.length ?? 0} amount signals portal-wide.`}</p><p className="mt-1 text-xs text-muted-foreground">Only verified settled money clears automatically. Holds still require an explicit reinstatement.</p></div>
-      <Button variant={effectiveTab === 'resolution' ? 'default' : 'outline'} onClick={() => setTab('resolution')}><Scale className="mr-2 h-5 w-5" />Open Resolve & protect</Button>
+      <div><h2 className="text-lg font-semibold">Automatic payment checks → Payment issues</h2><p className="text-sm text-muted-foreground">{reviewQueue.isLoading ? 'Checking receipts and uploaded bank records…' : `${summaryPayments.filter(payment => reviewQueue.data?.verified.has(payment.id)).length} payments fully checked in this view · ${reviewQueue.data?.cases.length ?? 0} issues to review · ${reviewQueue.data?.gaps.length ?? 0} amount differences to check across the portal.`}</p><p className="mt-1 text-xs text-muted-foreground">Only payments confirmed as received and passing all required checks are cleared automatically. A bank match alone is not enough. An agency suspension stays in place until an administrator explicitly lifts it.</p></div>
+      <Button variant={effectiveTab === 'resolution' ? 'default' : 'outline'} onClick={() => setTab('resolution')}><Scale className="mr-2 h-5 w-5" />View payment issues</Button>
       {reviewQueue.error && <p role="alert" className="w-full text-sm text-destructive">{reviewQueue.error.message}</p>}
     </section>}
     {(effectiveTab === 'overview' || effectiveTab === 'ledger') && <section className="space-y-4 rounded-2xl border bg-card/60 p-4" aria-label="Payment scope filters">
@@ -130,13 +130,13 @@ const PaymentHistoryPage: React.FC = () => {
           <span className="control-nav-icon rounded-xl bg-slate-500/10 p-3"><Landmark className="h-8 w-8" /></span>
           <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">All payments</span><span className="mt-1 block text-sm">Both flows in one view</span><span className="mt-2 block text-base font-semibold tabular-nums">{payments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="foreign" aria-label={`Foreign agency to local agency · ${foreignPayments.length}`} style={{ '--section-delay': '1.2s' } as React.CSSProperties} className={`${sourceTileClass} border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950 data-[state=on]:border-sky-600 data-[state=on]:bg-sky-100 data-[state=on]:text-sky-950 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60 dark:data-[state=on]:bg-sky-900/70 dark:data-[state=on]:text-sky-100`}>
+        <ToggleGroupItem value="foreign" aria-label={`Foreign agency payments to local agencies · ${foreignPayments.length}`} style={{ '--section-delay': '1.2s' } as React.CSSProperties} className={`${sourceTileClass} border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950 data-[state=on]:border-sky-600 data-[state=on]:bg-sky-100 data-[state=on]:text-sky-950 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60 dark:data-[state=on]:bg-sky-900/70 dark:data-[state=on]:text-sky-100`}>
           <span className="control-nav-icon rounded-xl bg-sky-500/15 p-3"><Globe2 className="h-8 w-8" /></span>
-          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Foreign agency → local</span><span className="mt-1 flex items-center gap-2 text-sm"><Building2 className="h-4 w-4 shrink-0" />Agency settlement<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{foreignPayments.length.toLocaleString()} receipts</span></span>
+          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Foreign agency → local agency</span><span className="mt-1 flex items-center gap-2 text-sm"><Building2 className="h-4 w-4 shrink-0" />Agency payments<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{foreignPayments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="candidate" aria-label={`Candidate to local agency · ${candidatePayments.length}`} style={{ '--section-delay': '2.4s' } as React.CSSProperties} className={`${sourceTileClass} border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 data-[state=on]:border-emerald-600 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60 dark:data-[state=on]:bg-emerald-900/70 dark:data-[state=on]:text-emerald-100`}>
+        <ToggleGroupItem value="candidate" aria-label={`Candidate payments to local agencies · ${candidatePayments.length}`} style={{ '--section-delay': '2.4s' } as React.CSSProperties} className={`${sourceTileClass} border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 data-[state=on]:border-emerald-600 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60 dark:data-[state=on]:bg-emerald-900/70 dark:data-[state=on]:text-emerald-100`}>
           <span className="control-nav-icon rounded-xl bg-emerald-500/15 p-3"><UserRound className="h-8 w-8" /></span>
-          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Candidate → local</span><span className="mt-1 flex items-center gap-2 text-sm"><Landmark className="h-4 w-4 shrink-0" />Candidate stage fees<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{candidatePayments.length.toLocaleString()} receipts</span></span>
+          <span className="relative z-10 min-w-0"><span className="block text-xl font-bold">Candidate → local agency</span><span className="mt-1 flex items-center gap-2 text-sm"><Landmark className="h-4 w-4 shrink-0" />Candidate stage fees<ArrowRight className="h-4 w-4 shrink-0" /></span><span className="mt-2 block text-base font-semibold tabular-nums">{candidatePayments.length.toLocaleString()} receipts</span></span>
         </ToggleGroupItem>
       </ToggleGroup>
     </div>}
@@ -162,7 +162,7 @@ const PaymentHistoryPage: React.FC = () => {
         : isError ? <p role="alert" className="p-8 text-center text-destructive">Could not load payment history.</p>
           : filtered.length === 0 ? <p className="p-8 text-center text-muted-foreground">No payments match these filters.</p>
             : <Table><TableHeader><TableRow>
-              <TableHead>Date</TableHead><TableHead>Payment source</TableHead><TableHead>Payer → recipient</TableHead><TableHead>Amount</TableHead><TableHead>Candidate count</TableHead><TableHead>Status</TableHead><TableHead>Reference</TableHead><TableHead>Receipt</TableHead>
+              <TableHead>Date</TableHead><TableHead>Payment from</TableHead><TableHead>Payer → recipient</TableHead><TableHead>Amount</TableHead><TableHead>Candidates covered</TableHead><TableHead>Status</TableHead><TableHead>Payment reference</TableHead><TableHead>Receipt</TableHead>
             </TableRow></TableHeader><TableBody>{[...filtered].sort((a, b) => b.created_at.localeCompare(a.created_at)).map(payment => (
               <TableRow key={payment.id}>
                 <TableCell>{new Date(payment.created_at).toLocaleDateString()}</TableCell>
@@ -172,7 +172,7 @@ const PaymentHistoryPage: React.FC = () => {
                 <TableCell>{payment.candidate_ids.length}</TableCell>
                 <TableCell><Badge variant="outline" className={payment.status === 'succeeded' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : payment.status === 'pending' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : payment.status === 'failed' ? 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300'}>{PAYMENT_STATUS_LABELS[payment.status]}</Badge></TableCell>
                 <TableCell className="font-mono text-xs">{payment.receipt_number || payment.provider_reference || payment.id}</TableCell>
-                <TableCell><Button variant="outline" size="sm" onClick={() => inspectReceipt(payment)}>{userRole === 'superadmin' ? 'Investigate' : 'View receipt'}</Button></TableCell>
+                <TableCell><Button variant="outline" size="sm" onClick={() => inspectReceipt(payment)}>{userRole === 'superadmin' ? 'Check payment' : 'View receipt'}</Button></TableCell>
               </TableRow>
             ))}</TableBody></Table>}
     </CardContent></Card>
@@ -185,7 +185,7 @@ const PaymentHistoryPage: React.FC = () => {
       {reviewAgency ? <>
         {statementSource === 'foreign' && userRole !== 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency} />}
         <BankReconciliation key={`${reviewAgency}:${statementSource}`} agencyId={reviewAgency} paymentSource={statementSource} allowActions={canReview} payments={(statementSource === 'foreign' ? foreignPayments : candidatePayments).filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
-      </> : <p className="text-sm text-muted-foreground">Choose a recipient agency to inspect contract-payment compliance and compare its settled transfers with its bank statement.</p>}
+      </> : <p className="text-sm text-muted-foreground">Choose a local agency to compare payments with its work contracts and uploaded bank records.</p>}
     </TabsContent>}
     {userRole === 'superadmin' && <TabsContent value="resolution"><div id="resolution"><AgencyResolutionCenter /></div></TabsContent>}
     </Tabs>

@@ -198,7 +198,7 @@ const AdminDashboard: React.FC = () => {
         <ControlRoomTabs />
 
         <TabsContent value="overview" className="space-y-6">
-      <DashSection title="Command overview" subtitle="Movement, risk, and live workload" icon={LayoutDashboard} />
+      <DashSection title="Today’s overview" subtitle="Candidate progress, issues and assigned work" icon={LayoutDashboard} />
       <EditableGrid pageId="dash-overview" title="Overview" items={[
       { id: 'view', title: 'Dashboard view', node: isSuperAdmin && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
@@ -213,11 +213,11 @@ const AdminDashboard: React.FC = () => {
           <span className="text-xs text-muted-foreground">Applies to the totals and charts below. The integrity score stays system-wide.</span>
         </div>
       ) },
-      { id: 'integrity', title: 'Integrity score', node: !isLocalAgency && <IntegrityCard /> },
+      { id: 'integrity', title: 'Record check score', node: !isLocalAgency && <IntegrityCard /> },
       { id: 'resolution', title: 'Resolve & protect', node: isSuperAdmin && <AgencyResolutionCenter /> },
       { id: 'assigned', title: 'Assigned candidates', node: userRole === 'staff' && <section className="space-y-3">
         <div><h2 className="text-lg font-semibold">Your assigned candidates</h2>
-          <p className="text-sm text-muted-foreground">Your workload; the full pipeline remains available below.</p></div>
+          <p className="text-sm text-muted-foreground">Your assigned work. All candidate stages are available below.</p></div>
         {!staffId ? <p className="text-sm text-muted-foreground">Select a specific staff user in View As to see their workload.</p>
           : assignedError ? <p role="alert" className="text-destructive">Could not load assigned candidate totals.</p>
           : assignedLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <RoleCandidateOverview candidates={assigned} active={listStatus} onSelect={setListStatus} />}
@@ -241,9 +241,9 @@ const AdminDashboard: React.FC = () => {
         <TabsContent value="portfolio" className="space-y-6">
       <DashSection title="Candidate portfolio" subtitle="Who is where in the journey, and who is already working" icon={Users2} />
       <EditableGrid pageId="dash-portfolio" title="Candidate portfolio" items={[
-      { id: 'lifecycle', title: 'Candidate lifecycle', span: 6, node: <PortfolioLifecycle localAgencyId={visualLocalId} /> },
+      { id: 'lifecycle', title: 'Candidate journeys', span: 6, node: <PortfolioLifecycle localAgencyId={visualLocalId} /> },
       { id: 'workforce', title: 'Working abroad', span: 6, node: <PortfolioWorkforce localAgencyId={visualLocalId} /> },
-      { id: 'mix', title: 'Portfolio mix', node: <PortfolioMix localAgencyId={visualLocalId} /> },
+      { id: 'mix', title: 'Candidate backgrounds', node: <PortfolioMix localAgencyId={visualLocalId} /> },
       { id: 'partners', title: 'Partner contracts', node: isLocalAgency && <AgencyPartnerContracts /> },
       ]} />
         </TabsContent>

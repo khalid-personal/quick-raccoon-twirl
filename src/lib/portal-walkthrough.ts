@@ -21,18 +21,18 @@ export const walkthroughSteps = (role: UserRole, trackingCode?: string | null): 
     { title: 'Return and reapplication', detail: 'Previous deployment and return history stays visible alongside the new application.', path: '/admin/candidate/demo-cand-0431', selector: '[data-tour="return-history"]' },
   ];
   if (role === 'local-agency') return [
-    { title: 'Your pipeline', detail: 'Review your agency’s candidate records and their next stages.', path: '/local-agency', selector: 'main h1' },
+    { title: 'Candidate progress', detail: 'Review your agency’s candidate records and their next stages.', path: '/local-agency', selector: 'main h1' },
     { title: 'Visa and clearance', detail: 'Complete local checks and follow ministry confirmation.', path: '/local-agency/clearance', selector: 'main h1' },
     { title: 'Deployment and returns', detail: 'Follow your candidates’ destinations and return journeys.', path: '/local-agency/training-map', selector: '[data-tour="deployment-map"]' },
-    { title: 'Payments', detail: 'Review payment records and reconcile settled transfers.', path: '/local-agency/payments', selector: 'main h1' },
+    { title: 'Payments', detail: 'Review payment records and compare received payments with bank deposits.', path: '/local-agency/payments', selector: 'main h1' },
   ];
   if (role === 'foreign-agency' || role === 'foreign-agency-staff') return [
-    { title: 'Agency pipeline', detail: 'Review the candidates linked to your agency.', path: '/agency', selector: '[data-tour="agency-pipeline"]' },
+    { title: 'Agency candidates', detail: 'Review the candidates linked to your agency.', path: '/agency', selector: '[data-tour="agency-pipeline"]' },
     { title: 'Introductions', detail: 'Review candidate introductions before coordinating a contract.', path: '/agency/introductions', selector: 'main h1' },
     { title: 'Clearance', detail: 'Follow visa and clearance progress for your candidates.', path: '/agency/clearance', selector: 'main h1' },
     { title: 'Deployment and returns', detail: 'Track current destinations and return journeys.', path: '/agency/training-map', selector: '[data-tour="deployment-map"]' },
   ];
   if (role === 'candidate' && trackingCode) return [{ title: 'Your journey', detail: 'Review your stages, documents, journey and messages here.', path: `/track/${trackingCode}`, selector: '[data-tour="candidate-journey"]' }];
-  if (role === 'auditor') return [{ title: 'Integrity review', detail: 'Review findings and their supporting information.', path: '/auditor', selector: 'main h1' }];
+  if (role === 'auditor') return [{ title: 'Record review', detail: 'Review warnings and the records behind them.', path: '/auditor', selector: 'main h1' }];
   return [{ title: 'Candidate tracking', detail: 'Use a tracking code to open the available public tracking view.', path: '/viewer', selector: 'main h1' }];
 };

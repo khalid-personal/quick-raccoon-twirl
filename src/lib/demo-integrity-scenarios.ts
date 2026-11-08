@@ -9,6 +9,7 @@ import { getApprovalLogs, getCandidates, getCandidateStages, getConfig, getDocum
 import { ALL_STAGES, type Candidate, type UserRole } from './types';
 import { withDemoPaymentEvidence, withDemoStatementOriginal } from './demo-payment-evidence';
 import { assignUnassignedStageTasks } from './staff-tasks';
+import { amountDiscrepancies, escalateAmountDiscrepancy, getAgencyResolutionCases } from './agency-resolution';
 
 export const INTEGRITY_DEMO_SCENARIOS = [
   { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Several files have problems. Some bank slips show too little, too much, or no proof. Deployment is waiting.' },
@@ -27,6 +28,9 @@ export interface IntegrityDemoMeasurement {
   findings: number;
   documents: number;
   bank: Record<MatchStatus, number>;
+  flaggedPayments: number;
+  openPaymentCases: number;
+  openAgencyCases: number;
 }
 type ScenarioEvidence = { agencyId: string; source: PaymentStatementSource; statement: BankStatement; events: ReconciliationCaseEvent[] };
 export interface IntegrityDemoDataset extends DemoDataset { evidence: ScenarioEvidence[]; starting: IntegrityDemoMeasurement; measured: IntegrityDemoMeasurement }
@@ -39,14 +43,17 @@ const requireActor = (actor: DemoScenarioActor, confirmed: boolean, reason: stri
   if (!confirmed || !reason.trim()) throw new Error('Confirm replacement and give a reason first.');
 };
 const measure = (data: Pick<DemoDataset, 'candidates' | 'stages' | 'medicals' | 'documents' | 'payments' | 'paymentStatuses' | 'logs'>,
-  evidence: Pick<ScenarioEvidence, 'agencyId' | 'source' | 'statement'>[], stageFees: Record<number, number>,
+  evidence: Pick<ScenarioEvidence, 'agencyId' | 'source' | 'statement' | 'events'>[], stageFees: Record<number, number>,
   thresholds: { greenMin: number; yellowMin: number } | undefined, now: number): IntegrityDemoMeasurement => {
   const findings = analyzeIntegrity({ ...data, stageFees, now });
   const score = riskScore(findings, data.candidates.length);
   const bank: Record<MatchStatus, number> = { matched: 0, short: 0, over: 0, missing: 0, 'reference-mismatch': 0, 'currency-mismatch': 0 };
   evidence.forEach(item => reconcile(data.payments.filter(p => p.status === 'succeeded' && p.payee_local_agency_id === item.agencyId
     && isForeignPayment(p) === (item.source === 'foreign')), item.statement.lines).matches.forEach(match => bank[match.status]++));
-  return { score, level: getIntegrityScoreLevel(score, thresholds), candidates: data.candidates.length, findings: findings.length, documents: data.documents.length, bank };
+  const latest = new Map(evidence.flatMap(item => item.events).map(event => [event.caseId, event]));
+  return { score, level: getIntegrityScoreLevel(score, thresholds), candidates: data.candidates.length, findings: findings.length, documents: data.documents.length, bank,
+    flaggedPayments: Object.entries(bank).reduce((total, [status, count]) => total + (status === 'matched' ? 0 : count), 0),
+    openPaymentCases: [...latest.values()].filter(event => event.action !== 'resolve').length, openAgencyCases: 0 };
 };
 
 // No score or finding is injected: only synthetic candidate, receipt and bank records change.
@@ -170,14 +177,32 @@ export const measureStoredIntegrityDemo = (now = Date.now()): IntegrityDemoMeasu
   const agencyIds = new Set(data.payments.map(payment => payment.payee_local_agency_id));
   const evidence = [...agencyIds].flatMap(agencyId => (['candidate', 'foreign'] as const).flatMap(source => {
     const statement = loadBankStatement(agencyId, source);
-    return statement ? [{ agencyId, source, statement }] : [];
+    return statement ? [{ agencyId, source, statement, events: loadReconciliationEvents(agencyId).filter(event => (event.source ?? 'foreign') === source) }] : [];
   }));
   const config = getConfig();
-  return measure(data, evidence, config.stageFees ?? {}, config.integrityScoreThresholds, now);
+  return { ...measure(data, evidence, config.stageFees ?? {}, config.integrityScoreThresholds, now),
+    openAgencyCases: getAgencyResolutionCases().filter(record => record.state !== 'resolved').length };
 };
 
-export const applyIntegrityDemoScenario = (id: IntegrityDemoScenarioId, actor: DemoScenarioActor, confirmed: boolean, reason: string) => {
+const generatedCaseReason = 'DEMO ONLY scenario practice:';
+const resolutionKey = 'demo:dawm-agency-resolution';
+const scenarioCases = () => getAgencyResolutionCases().filter(record => record.events[0]?.reason.startsWith(generatedCaseReason));
+const requireReplaceableCases = () => {
+  if (getAgencyResolutionCases().some(record => record.state !== 'resolved' && record.issue.paymentId.startsWith('demo-')
+    && (record.holdActive || !record.events[0]?.reason.startsWith(generatedCaseReason)))) {
+    throw new Error('Resolve existing operator agency cases and explicitly reinstate suspended agencies before replacing generated demo payments.');
+  }
+};
+const refreshScenario = () => {
+  window.dispatchEvent(new CustomEvent('bank-statement-changed'));
+  window.dispatchEvent(new CustomEvent('agency-resolution-changed'));
+  window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+  window.dispatchEvent(new CustomEvent('demo-scenario-changed'));
+};
+
+export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, actor: DemoScenarioActor, confirmed: boolean, reason: string) => {
   requireActor(actor, confirmed, reason);
+  requireReplaceableCases();
   bootDemo();
   bootDemo();
   const now = Date.now();
@@ -197,7 +222,11 @@ export const applyIntegrityDemoScenario = (id: IntegrityDemoScenarioId, actor: D
     throw new Error('An uploaded statement is present. Remove it explicitly or use a separate demo sandbox before replacing scenario bank evidence.');
   }
   const previous = new Map(Object.entries(localStorage).filter(([key]) => key.startsWith(DEMO_KEY_PREFIX)));
+  const previousCases = localStorage.getItem(resolutionKey);
+  const previousScenario = sessionStorage.getItem('dawm_integrity_scenario');
   try {
+    const generatedIds = new Set(scenarioCases().map(record => record.id));
+    localStorage.setItem(resolutionKey, JSON.stringify(getAgencyResolutionCases().filter(record => !generatedIds.has(record.id))));
     data.localAgencies.forEach(agency => {
       const history = loadReconciliationEvents(agency.id).filter(event => !event.id.startsWith('demo-evidence-') && !event.id.startsWith('demo-integrity-evidence-'));
       localStorage.setItem(`${DEMO_KEY_PREFIX}dawm_bank_statement:${agency.id}:cases`,
@@ -217,23 +246,42 @@ export const applyIntegrityDemoScenario = (id: IntegrityDemoScenarioId, actor: D
       timestamp: new Date(now).toISOString(), target_type: 'Config', target_id: 'demo-integrity-scenarios', action: 'Updated',
       description: `DEMO ONLY ${id}. Reason: ${reason.trim()}.` } as const;
     saveApprovalLogs([...priorAudits, audit]);
+    // Escalate a representative set through the real audited workflow. All other
+    // gaps stay visible as payment evidence requests, without creating holds.
+    const represented = new Set<string>();
+    const caseLimit = Math.min(2, Math.ceil(data.measured.flaggedPayments / 15));
+    for (const issue of amountDiscrepancies().filter(issue => issue.basis === 'bank' && issue.paymentId.startsWith('demo-integrity-'))) {
+      if (represented.size >= caseLimit) break;
+      const group = `${issue.agencyId}:${issue.source}:${issue.kind}`;
+      if (represented.has(group)) continue;
+      represented.add(group);
+      await escalateAmountDiscrepancy(issue.id, `${generatedCaseReason} ${id}. Synthetic bank amount needs review, not proven agency fault. ${reason.trim()}`,
+        new Date(now + 3 * DAY).toISOString().slice(0, 10), actor);
+    }
     const after = measureStoredIntegrityDemo(now);
-    saveApprovalLogs([...priorAudits, { ...audit,
+    saveApprovalLogs([...getApprovalLogs().filter(log => log.id !== audit.id), { ...audit,
       description: `${audit.description} Measured before=${before.score}/${before.level}, after=${after.score}/${after.level}. Synthetic journey=${data.starting.score}→${data.measured.score}. Bank evidence=${JSON.stringify(after.bank)}. No live files or official clearance changed.` }]);
-    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
-    window.dispatchEvent(new CustomEvent('demo-scenario-changed'));
     sessionStorage.setItem('dawm_integrity_scenario', id);
+    refreshScenario();
     return { before, after, starting: data.starting };
   } catch (error) {
     Object.entries(localStorage).filter(([key, value]) => key.startsWith(DEMO_KEY_PREFIX) && previous.get(key) !== value).forEach(([key]) => localStorage.removeItem(key));
     previous.forEach((value, key) => { if (localStorage.getItem(key) !== value) localStorage.setItem(key, value); });
-    window.dispatchEvent(new Event('supabase-data-changed'));
+    if (previousCases === null) localStorage.removeItem(resolutionKey); else localStorage.setItem(resolutionKey, previousCases);
+    if (previousScenario === null) sessionStorage.removeItem('dawm_integrity_scenario'); else sessionStorage.setItem('dawm_integrity_scenario', previousScenario);
+    refreshScenario();
     throw new Error(`Could not switch demo mode; previous demo records were restored. ${error instanceof Error ? error.message : 'Browser storage failed.'}`);
   }
 };
 
 export const resetIntegrityDemoScenario = (actor: DemoScenarioActor, confirmed: boolean, reason: string) => {
   requireActor(actor, confirmed, reason);
+  requireReplaceableCases();
+  const paymentAgencyIds = new Set(getPayments().map(payment => payment.payee_local_agency_id));
+  if ([...paymentAgencyIds].some(agencyId => (['candidate', 'foreign'] as const).some(source => {
+    const statement = loadBankStatement(agencyId, source);
+    return statement && !statement.synthetic;
+  }))) throw new Error('An uploaded statement is present. Remove it explicitly before resetting demo evidence.');
   const before = measureStoredIntegrityDemo();
   const config = getConfig();
   const priorAudits = getApprovalLogs().filter(log => log.target_id === 'demo-integrity-scenarios');
@@ -243,6 +291,8 @@ export const resetIntegrityDemoScenario = (actor: DemoScenarioActor, confirmed: 
   Object.keys(localStorage).filter(key => key.startsWith(`${DEMO_KEY_PREFIX}dawm_bank_statement:demo-`)
     || key.startsWith(`${DEMO_KEY_PREFIX}bank_evidence_initialized:demo-`)).forEach(key => localStorage.removeItem(key));
   loadDemoData();
+  const generatedIds = new Set(scenarioCases().map(record => record.id));
+  localStorage.setItem(resolutionKey, JSON.stringify(getAgencyResolutionCases().filter(record => !generatedIds.has(record.id))));
   sessionStorage.removeItem('dawm_integrity_scenario');
   window.dispatchEvent(new CustomEvent('demo-scenario-changed'));
   const logs = getApprovalLogs().filter(log => log.target_id !== 'demo-integrity-scenarios');
@@ -253,6 +303,6 @@ export const resetIntegrityDemoScenario = (actor: DemoScenarioActor, confirmed: 
   saveApprovalLogs([...logs, ...priorAudits, audit]);
   const after = measureStoredIntegrityDemo();
   saveApprovalLogs([...logs, ...priorAudits, { ...audit, description: `${audit.description} Measured before=${before.score}/${before.level}, after=${after.score}/${after.level}.` }]);
-  window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+  refreshScenario();
   return { before, after };
 };

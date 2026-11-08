@@ -132,7 +132,7 @@ const AdminChatViewer: React.FC<AdminChatViewerProps> = ({ candidate }) => {
 
   return (
     <Card className="flex h-full flex-col overflow-hidden rounded-3xl border-cyan-500/25">
-      <CandidateCheckpoint eyebrow="Candidate conversation checkpoint" title="Conversation History" description={`Keep replies and supporting documents together. Replying as: ${senderName}.`} icon={MessageSquare} />
+      <CandidateCheckpoint eyebrow="Messages with the candidate" title="Conversation History" description={`Read messages, reply and attach documents. Replying as: ${senderName}.`} icon={MessageSquare} />
       <CardContent className="flex flex-grow flex-col p-5 sm:p-7">
         
         {/* Chat History Area */}

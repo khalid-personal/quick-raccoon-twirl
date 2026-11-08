@@ -9,8 +9,8 @@ describe('visual integrity score', () => {
     const review = vi.fn();
     await act(async () => root.render(<IntegrityScore score={94} candidateCount={435} counts={{ critical: 1, high: 2, medium: 0, low: 1 }} onReview={review} />));
     expect(container.textContent).toContain('94');
-    expect(container.textContent).toContain('Higher is better');
-    expect(container.textContent).toContain('3 critical/high findings still need attention');
+    expect(container.textContent).toContain('A higher score means fewer warnings');
+    expect(container.textContent).toContain('3 urgent issues still need attention');
     expect(container.querySelector('svg circle[stroke-dashoffset]')).not.toBeNull();
     await act(async () => container.querySelector('button')!.click());
     expect(review).toHaveBeenCalledOnce();

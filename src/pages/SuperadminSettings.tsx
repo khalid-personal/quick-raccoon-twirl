@@ -620,8 +620,8 @@ const SuperadminSettings: React.FC = () => {
 
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Integrity score warning levels</CardTitle>
-          <p className="text-sm text-muted-foreground">Scores at or above green are on track. Scores between the thresholds need review. Lower scores show a red warning.</p>
+          <CardTitle>Record check score colors</CardTitle>
+          <p className="text-sm text-muted-foreground">Choose the lowest scores that show green and yellow. Scores below the yellow starting score show red. These colors do not grant approval.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-[1fr_8rem] items-center gap-3">
@@ -632,7 +632,7 @@ const SuperadminSettings: React.FC = () => {
             <Label htmlFor="integrity-yellow-min" className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" />Yellow from</Label>
             <Input id="integrity-yellow-min" type="number" min="0" max="99" value={integrityScoreThresholds.yellowMin} disabled={mutation.isPending} onChange={event => setIntegrityScoreThresholds(value => ({ ...value, yellowMin: Number(event.target.value) }))} />
           </div>
-          <p className="text-xs text-muted-foreground">Red applies below yellow. Scores are calculated from active integrity findings.</p>
+          <p className="text-xs text-muted-foreground">Red applies below yellow. The score is based on current record warnings.</p>
         </CardContent>
       </Card>
 

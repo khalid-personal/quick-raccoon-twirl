@@ -41,7 +41,7 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
   return (
     <div className="space-y-5">
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25 shadow-sm">
-        <CandidateCheckpoint eyebrow="Candidate finance checkpoint" title="Candidate payment overview" description="Stage fees show the candidate’s local charges. The transaction ledger below also includes any agency payment that covers this candidate." icon={Wallet} metric={`${stageRows.filter(stage => stage.paid).length} / ${stageRows.length}`} metricLabel="Stages with fees paid" actions={
+        <CandidateCheckpoint eyebrow="Fees and payments" title="Candidate payment overview" description="See the fees for each application stage. The payment history below also includes agency payments covering this candidate." icon={Wallet} metric={`${stageRows.filter(stage => stage.paid).length} / ${stageRows.length}`} metricLabel="Stages with fees paid" actions={
             <Badge variant={isPaid ? 'default' : candidateDetail.payment_status === 'payment_failed' ? 'destructive' : 'outline'} className="capitalize">
               {candidateDetail.payment_status.replace('_', ' ')}
             </Badge>
@@ -51,12 +51,12 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage fees paid</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatEtb(totalPaid)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Based on completed stage-fee records</p>
+              <p className="mt-1 text-xs text-muted-foreground">Fees marked paid in the candidate’s record</p>
             </div>
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage fees remaining</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatEtb(unpaid)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Due less fees marked paid</p>
+              <p className="mt-1 text-xs text-muted-foreground">Total fees minus those marked paid</p>
             </div>
             <div className="rounded-xl border bg-background p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stages with fees paid</p>
@@ -85,7 +85,7 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
       </Card>
 
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
-        <CandidateCheckpoint eyebrow="Candidate receipt checkpoint" title="Transaction history" description="Every payment record linked to this candidate; totals are grouped by currency, not converted." icon={FileText} metric={transactions.length} metricLabel="Linked transactions" />
+        <CandidateCheckpoint eyebrow="Payment records" title="Payment history" description="Every payment linked to this candidate. Each currency is added separately, without conversion." icon={FileText} metric={transactions.length} metricLabel="Linked transactions" />
         <CardContent className="space-y-4 p-5">
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{transactions.length} {transactions.length === 1 ? 'transaction' : 'transactions'}</Badge>
@@ -114,7 +114,7 @@ const CandidatePayments: React.FC<CandidatePaymentsProps> = ({ candidateDetail }
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">Stage fee status comes from fee records; transaction status comes from the payment ledger. These are related but are not the same dataset.</p>
+          <p className="text-xs text-muted-foreground">A stage marked paid and a confirmed payment are separate records. Check the payment receipt when you need proof that money was received.</p>
         </CardContent>
       </Card>
     </div>

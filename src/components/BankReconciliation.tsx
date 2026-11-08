@@ -22,12 +22,12 @@ import { useSearchParams } from 'react-router-dom';
 import { currentVerifiedPaymentIds } from '@/lib/payment-review-clearance';
 
 const STATUS: Record<MatchStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  matched: { label: 'Bank matched', variant: 'default' },
-  short: { label: 'Short paid', variant: 'destructive' },
-  over: { label: 'Overpaid', variant: 'secondary' },
-  missing: { label: 'Not in bank', variant: 'destructive' },
-  'reference-mismatch': { label: 'Reference not confirmed', variant: 'destructive' },
-  'currency-mismatch': { label: 'Currency not confirmed', variant: 'destructive' },
+  matched: { label: 'Payment entry matched', variant: 'default' },
+  short: { label: 'Amount is lower', variant: 'destructive' },
+  over: { label: 'Amount is higher', variant: 'secondary' },
+  missing: { label: 'No matching bank entry', variant: 'destructive' },
+  'reference-mismatch': { label: 'Reference differs', variant: 'destructive' },
+  'currency-mismatch': { label: 'Currency differs', variant: 'destructive' },
 };
 
 export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymentSource = 'foreign', allowActions = true }: { agencyId: string; payments: Payment[]; paymentSource?: PaymentStatementSource; allowActions?: boolean; onSummaryChange?: (summary: ReconciliationSummary | null) => void }) => {
@@ -60,7 +60,7 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
       setStatement(next);
       setSelection(null);
       setScanInputVersion(version => version + 1);
-      toast.success(`Loaded ${lines.length} deposits from ${selection.file.name}.`);
+      toast.success(`Imported ${lines.length} credit entries from ${selection.file.name}.`);
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -80,9 +80,9 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
   const creditId = (line: BankLine) => `${paymentSource}:credit:${JSON.stringify(line)}`;
   const requests = getEvidenceRequests(events, new Date(), verified);
   const caseState = (id: string) => {
-    if (verified.has(id)) return 'Automatically green-cleared';
+    if (verified.has(id)) return 'Automatically cleared after all checks';
     const request = requests.find(item => item.event.caseId === id);
-    return request ? EVIDENCE_STATUS_LABELS[request.status] : events.filter(event => event.caseId === id).at(-1)?.action ?? 'unreviewed';
+    return request ? EVIDENCE_STATUS_LABELS[request.status] : events.filter(event => event.caseId === id).at(-1)?.action ?? 'Not reviewed';
   };
   const requestedCase = params.get('case');
   useEffect(() => {
@@ -94,13 +94,13 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4" />Discrepancies & bank evidence</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4" />Compare payments with bank records</CardTitle>
         <div className="flex items-center gap-2">
           {statement && allowActions && <Button size="sm" variant="ghost" onClick={clear}><Trash2 className="mr-1 h-4 w-4" />Remove</Button>}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">Imported bank credits compared with settled {paymentSource === 'foreign' ? 'foreign-agency transfers' : 'candidate stage-fee receipts, including ChechePay confirmations'}. Results are evidence comparisons, not bank authentication. References, amounts and currencies must agree.</p>
+        <p className="text-sm text-muted-foreground">We compare payment receipts marked received with credit entries in the uploaded file. A possible match is a clue, not bank confirmation. Check the amount, currency and payment reference before clearing a payment.</p>
         {statement?.synthetic && <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><strong>DEMO / synthetic bank records.</strong> Covers {statement.covered_candidate_ids?.length ?? 0} candidates. Deliberate shortages, overpayments and missing evidence are included. This is not real bank proof; unpaid transfers have no invented deposits.</p>}
         <EvidenceRequestList events={events} source={paymentSource} onReview={event => setEvidence({ caseId: event.caseId, payment: event.evidence.payment, line: event.evidence.line, explanation: event.evidence.explanation, source: paymentSource })} />
         {allowActions && <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
@@ -111,38 +111,38 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
             disabled={false}
             onChange={setSelection}
           />
-          <Button onClick={importStatement} disabled={!selection?.ready}>Check statement</Button>
+          <Button onClick={importStatement} disabled={!selection?.ready}>Compare bank file</Button>
         </div>}
         {!statement || !result ? (
-          <p className="text-sm text-muted-foreground">No statement uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">No bank file uploaded yet. Upload the agency’s file above to compare it with these payment receipts.</p>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Badge variant="outline">{statement.name}</Badge>
               {statement.scan_report && <Badge variant={statement.scan_report.status === 'review' ? 'secondary' : 'outline'}>Screening {statement.scan_report.status}</Badge>}
-              <Badge variant={problems ? 'destructive' : 'default'}>{problems ? `${problems} discrepancies` : 'All payments reconciled'}</Badge>
+              <Badge variant={problems ? 'destructive' : 'default'}>{problems ? `${problems} items to check` : 'All payments checked'}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-3 border-y py-3 text-sm sm:grid-cols-4">
               {[
-                { key: 'matched', label: 'Matched', count: summary?.matched },
-                { key: 'issues', label: 'Amount / currency / reference issues', count: (summary?.short ?? 0) + (summary?.over ?? 0) + (summary?.['currency-mismatch'] ?? 0) + (summary?.['reference-mismatch'] ?? 0) },
-                { key: 'missing', label: 'Missing deposits', count: summary?.missing },
-                { key: 'unassigned', label: 'Unassigned credits', count: summary?.unrecognizedDeposits },
+                { key: 'matched', label: 'Payment entries matched', count: summary?.matched },
+                { key: 'issues', label: 'Amount or details differ', count: (summary?.short ?? 0) + (summary?.over ?? 0) + (summary?.['currency-mismatch'] ?? 0) + (summary?.['reference-mismatch'] ?? 0) },
+                { key: 'missing', label: 'No matching bank entry', count: summary?.missing },
+                { key: 'unassigned', label: 'Bank credits without a payment', count: summary?.unrecognizedDeposits },
               ].map(item => <button type="button" key={item.key} aria-pressed={view === item.key} className={`rounded-lg border p-3 text-left hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring ${view === item.key ? 'border-primary bg-primary/5' : ''}`} onClick={() => setView(view === item.key ? 'all' : item.key)}>
                 <p className="text-muted-foreground">{item.label}</p><p className="text-xl font-semibold">{item.count}</p>
               </button>)}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <ToggleGroup type="single" value={view} onValueChange={value => { if (value) setView(value); }} variant="outline" aria-label="Reconciliation view">
-                <ToggleGroupItem value="discrepancies">Discrepancies · {problems}</ToggleGroupItem>
-                <ToggleGroupItem value="all">All evidence</ToggleGroupItem>
+                <ToggleGroupItem value="discrepancies">Needs review · {problems}</ToggleGroupItem>
+                <ToggleGroupItem value="all">All payment records</ToggleGroupItem>
               </ToggleGroup>
-              <Input aria-label="Search reconciliation evidence" placeholder="Reference, receipt, payer or issue" className="w-full sm:w-80" value={search} onChange={event => setSearch(event.target.value)} />
+              <Input aria-label="Search payment and bank records" placeholder="Reference, receipt, payer or status" className="w-full sm:w-80" value={search} onChange={event => setSearch(event.target.value)} />
             </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow><TableHead>Reference / receipt</TableHead><TableHead>Recorded</TableHead><TableHead>In bank</TableHead><TableHead>Difference</TableHead><TableHead>Result</TableHead><TableHead>Case</TableHead><TableHead>Evidence</TableHead></TableRow>
+                  <TableRow><TableHead>Payment reference / receipt</TableHead><TableHead>On receipt</TableHead><TableHead>In uploaded file</TableHead><TableHead>Difference</TableHead><TableHead>Result</TableHead><TableHead>Review status</TableHead><TableHead>Action</TableHead></TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleMatches.map(m => (
@@ -151,7 +151,7 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
                       <TableCell>{m.payment.amount.toLocaleString()} {m.payment.currency}</TableCell>
                       <TableCell>{m.line ? `${m.line.amount.toLocaleString()} ${m.line.currency || m.payment.currency} · ${m.line.date}` : '—'}</TableCell>
                       <TableCell>{m.currencyMismatch ? 'Not comparable' : `${m.difference.toLocaleString()} ${m.payment.currency}`}</TableCell>
-                      <TableCell><Badge variant={STATUS[m.status].variant}>{m.currencyMismatch ? 'Currency mismatch' : STATUS[m.status].label}</Badge></TableCell>
+                      <TableCell><Badge variant={STATUS[m.status].variant}>{m.currencyMismatch ? 'Currency differs' : STATUS[m.status].label}</Badge></TableCell>
                       <TableCell className="whitespace-nowrap">{caseState(m.payment.id).replace('-', ' ')}</TableCell>
                       <TableCell><Button size="sm" variant="outline" aria-label={`Review payment ${m.payment.provider_reference || m.payment.id}`} onClick={() => setEvidence({ caseId: m.payment.id, match: m, source: paymentSource })}>Review</Button></TableCell>
                     </TableRow>

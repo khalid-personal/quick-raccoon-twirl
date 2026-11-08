@@ -11,24 +11,24 @@ export default function InvestigationGuide({ payment, match, issue, onAction, on
   const amountGap = !!payment && amountDiscrepancies().some(item => item.paymentId === payment.id);
   const exact = payment?.status === 'succeeded' && match?.status === 'matched' && !issue;
   const pending = payment?.status !== 'succeeded';
-  const title = amountGap ? 'Amount gap: escalate for a fair review' : exact ? 'Evidence lines up: record your conclusion' : pending ? 'Settlement is not confirmed yet' : 'Missing or uncertain proof: ask the right person';
+  const title = amountGap ? 'The amounts differ: send this for review' : exact ? 'The details match: record what you checked' : pending ? 'Payment has not been confirmed as received' : 'Ask for the missing payment proof';
   const steps = amountGap ? [
-    'Compare the receipt amount, bank credit, reference and contract allocation. Record which side is short or over.',
-    'Escalate to Resolve & protect. Ask the agency for deposit slips, refunds, fees and allocation explanations before deciding responsibility.',
-    'The superadmin can impose a reasoned operations hold. The agency can appeal; only an explicit reinstatement lifts that case’s hold.',
+    'Compare the receipt with the bank deposit and the amount owed under the contract. Record how much is missing or extra.',
+    'Open Payment issues. Ask the agency to explain the difference and provide deposit slips or refund records before deciding who is responsible.',
+    'A superadmin can suspend the agency for this issue and must record why. The agency can appeal. Only an approved reinstatement lifts this suspension.',
   ] : exact ? [
-    'Verify payer, receiving agency, candidate/stage and dates. A bank match alone does not complete workflow work.',
-    'Record what was checked and how the discrepancy was corrected. Close reminders only when the explanation is supported.',
+    'Check who paid, who received the money, the candidate, stage and dates. A matching deposit does not complete the candidate’s work.',
+    'Record what you checked and how the difference was corrected. Stop reminders only when the supporting records agree.',
     'If a warning remains, check its specific cause. Do not override it just because one receipt matches.',
   ] : [
-    pending ? 'Check provider status and timestamps. Pending, failed or refunded money does not count as received.' : 'Identify the missing item: receipt, saved bank statement, currency, transfer reference or candidate allocation.',
-    'Request the exact missing proof. Choose an owner, submission window and deadline so the follow-up stays visible.',
-    'Recompare when proof arrives. Escalate an unresolved amount gap or repeated missed deadline; never invent evidence to clear a flag.',
+    pending ? 'Check the payment service’s status and date. Pending, failed or refunded payments do not count as received.' : 'Identify what is missing: receipt, bank deposit, currency, transfer reference or the candidate covered by the payment.',
+    'Ask for the missing item. Assign someone to follow up and set a due date.',
+    'Check the records again when proof arrives. Send unexplained payment differences or repeated missed deadlines for review. Never create false proof to remove a warning.',
   ];
   return <section aria-label="Investigation helping hand" className={`space-y-4 rounded-2xl border p-5 ${amountGap ? 'border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-orange-500/5' : 'border-primary/20 bg-gradient-to-br from-primary/10 to-emerald-500/5'}`}>
     <div className="flex items-center gap-3">{amountGap ? <ShieldAlert className="h-7 w-7 text-rose-600" /> : <FileSearch className="h-7 w-7 text-primary" />}<div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your next best step</p><h3 className="text-xl font-bold">{title}</h3></div></div>
     <ol className="grid gap-3 md:grid-cols-3">{steps.map((step, index) => <li key={step} className="rounded-xl border bg-card/80 p-4"><span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">{index + 1}</span><p className="text-sm leading-relaxed">{step}</p></li>)}</ol>
-    <div className="flex flex-wrap gap-2"><Button variant={amountGap ? 'outline' : 'default'} onClick={() => onAction(amountGap ? 'escalate' : exact ? 'resolve' : 'request-evidence')}>{exact ? <CheckCircle2 /> : <ClipboardCheck />}{amountGap ? 'Prepare escalation note' : exact ? 'Document resolution' : 'Ask for proof & set deadline'}</Button>{amountGap && userRole === 'superadmin' && <Button asChild><Link to="/admin/payments#resolution" onClick={onLeave}>Open Resolve & protect<ArrowUpRight /></Link></Button>}</div>
-    <p className="text-xs text-muted-foreground">A rule flag is a lead, not a verdict. Candidate unpaid fees alone do not establish agency misconduct. Appeals and decisions are audit logged; external communication must be sent separately.</p>
+    <div className="flex flex-wrap gap-2"><Button variant={amountGap ? 'outline' : 'default'} onClick={() => onAction(amountGap ? 'escalate' : exact ? 'resolve' : 'request-evidence')}>{exact ? <CheckCircle2 /> : <ClipboardCheck />}{amountGap ? 'Write a review request' : exact ? 'Record how it was fixed' : 'Ask for proof & set a due date'}</Button>{amountGap && userRole === 'superadmin' && <Button asChild><Link to="/admin/payments#resolution" onClick={onLeave}>Open Payment issues<ArrowUpRight /></Link></Button>}</div>
+    <p className="text-xs text-muted-foreground">A warning is a reason to check, not proof of wrongdoing. A candidate’s unpaid fee alone does not prove agency misconduct. Appeals and decisions are saved in the activity history. Contact the agency separately; saving here does not send a message.</p>
   </section>;
 }

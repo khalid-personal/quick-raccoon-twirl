@@ -58,7 +58,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       label: 'Administration',
       items: [
         { to: '/admin/users', label: 'User Management', icon: <UserCog />, hidden: !isSuperAdmin },
-        { to: '/admin/integrity', label: 'Integrity', icon: <ShieldAlert /> },
+        { to: '/admin/integrity', label: 'Record checks', icon: <ShieldAlert /> },
         { to: '/admin/profile-approvals', label: 'Profile Approvals', icon: <UserCheck />, hidden: !isSuperAdmin },
         { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key />, hidden: !isSuperAdmin },
         { to: '/admin/settings', label: 'Settings', icon: <Settings />, hidden: !isSuperAdmin },

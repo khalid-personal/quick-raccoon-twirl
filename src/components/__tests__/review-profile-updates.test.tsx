@@ -47,19 +47,24 @@ describe('colored controls, ministry QR and paired evidence', () => {
     expect(container.querySelector<HTMLInputElement>('#submission-start')?.value).toBe('');
     expect(container.textContent).toContain('Enter a corrected window below');
   });
-  it('renders five larger uniquely colored animated tabs with reduced-motion support', async () => {
+  it('renders a premium five-section navigation with restrained icons and accessible selection', async () => {
     await act(async () => root.render(<Tabs defaultValue="overview"><ControlRoomTabs /></Tabs>));
     const tabs = [...container.querySelectorAll('[role="tab"]')];
-    expect(tabs.map(tab => tab.getAttribute('aria-label'))).toEqual(['Command', 'Portfolio', 'Finance', 'Compliance', 'Candidates']);
+    expect(tabs.map(tab => tab.getAttribute('aria-label'))).toEqual(['Overview', 'Workforce', 'Payments', 'Document checks', 'Candidates']);
     tabs.forEach(tab => {
-      expect(tab.className).toContain('min-h-24');
-      expect(tab.className).toContain('control-nav-shine');
-      expect(tab.querySelector('.control-nav-signal')).not.toBeNull();
-      expect(tab.className).toContain('motion-safe:hover:-translate-y-1');
+      expect(tab.className).toContain('min-h-[104px]');
+      expect(tab.className).toContain('dashboard-nav-item');
+      expect(tab.querySelector('.dashboard-nav-glyph')).not.toBeNull();
+      expect(tab.querySelector('.control-nav-signal')).toBeNull();
       expect(tab.className).toContain('motion-reduce:transition-none');
     });
-    expect(tabs[0].className).toContain('text-sky-700');
-    expect(tabs[4].className).toContain('text-rose-700');
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(new Set(tabs.map(tab => (tab as HTMLElement).style.getPropertyValue('--nav-color'))).size).toBe(5);
+    await act(async () => {
+      tabs[2].dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    });
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true');
+    expect(tabs[0].getAttribute('aria-selected')).toBe('false');
   });
   it('shows pending QR explicitly, then a persisted demo QR without official clearance', async () => {
     sessionStorage.setItem('dawm_demo_session', '1'); saveCandidates([candidate]);
@@ -92,8 +97,8 @@ describe('colored controls, ministry QR and paired evidence', () => {
     expect(paired.querySelectorAll('article')).toHaveLength(2);
     expect(paired.textContent).toContain('Download comparison PDF');
     expect(paired.textContent).not.toContain('Download statement CSV');
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Settled / evidence matched');
-    expect(document.querySelector('[aria-label="Payment comparison summary"]')?.textContent).toContain('The money and reference match');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment marked received · details match');
+    expect(document.querySelector('[aria-label="Payment comparison summary"]')?.textContent).toContain('Payment and bank-file details match');
     await act(async () => button('View comparison').click());
     expect(paired.querySelector('[hidden]')).toBeNull();
     expect(paired.querySelector('tbody')?.textContent).toContain('REF');
@@ -103,30 +108,30 @@ describe('colored controls, ministry QR and paired evidence', () => {
     saveCompleteFee();
     saveBankStatement('local-a', { name: 'DEMO / synthetic', synthetic: true, lines: [] }, 'candidate');
     await act(async () => renderReview());
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pending / needs evidence review');
-    await act(async () => { button('Simulate matching demo deposit').click(); await new Promise(resolve => setTimeout(resolve, 100)); });
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Settled / evidence matched');
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Match confirmed');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment not yet confirmed · review needed');
+    await act(async () => { button('Add a matching demo bank entry').click(); await new Promise(resolve => setTimeout(resolve, 100)); });
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment marked received · details match');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Details match');
   });
   it('does not green-clear an incomplete candidate allocation just because a bank row matches', async () => {
     savePayments([payment]);
     saveBankStatement('local-a', { name: 'Existing bank statement', lines: [{ amount: 100, currency: 'ETB', reference: 'REF', date: '2026-11-07', description: 'Incoming credit' }] }, 'candidate');
     await act(async () => renderReview());
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pending / needs evidence review');
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Final green clearance still needs');
-    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Automatically green-cleared');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment not yet confirmed · review needed');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Full clearance also depends on');
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Automatically cleared after all checks');
   });
   it('refreshes retained reviews from current receipts and never presents deleted snapshots as green', async () => {
     savePayments([payment]); saveCompleteFee();
     saveBankStatement('local-a', { name: 'Bank', lines: [{ amount: 100, currency: 'ETB', reference: 'REF', date: '2026-11-07', description: 'Credit' }] }, 'candidate');
     await act(async () => renderReview());
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Automatically green-cleared');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Automatically cleared after all checks');
     await act(async () => {
       savePayments([{ ...payment, amount: 150 }]);
       saveBankStatement('local-a', { name: 'Bank', lines: [{ amount: 150, currency: 'ETB', reference: 'REF', date: '2026-11-07', description: 'Credit' }] }, 'candidate');
     });
     expect(document.querySelector('[aria-label="Receipt and bank statement side by side"]')?.textContent).toContain('150 ETB');
-    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Automatically green-cleared');
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Automatically cleared after all checks');
     await act(async () => { savePayments([]); window.dispatchEvent(new Event('supabase-data-changed')); });
     expect(document.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain('no longer in the current payment records');
   });
@@ -147,25 +152,25 @@ describe('colored controls, ministry QR and paired evidence', () => {
     expect(click).toHaveBeenCalledTimes(1);
     const { removeBankStatement } = await import('@/lib/bank-statement-store');
     await act(async () => removeBankStatement('local-a', 'candidate'));
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pending / needs evidence review');
-    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('The money and reference match');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment not yet confirmed · review needed');
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Payment and bank-file details match');
   });
   it('records a superadmin override separately from a real match and hides controls from staff', async () => {
     savePayments([payment]);
     await act(async () => renderReview());
     await act(async () => button('Choose the next action').click());
-    expect(button('Accept exception').disabled).toBe(true);
+    expect(button('Accept this exception').disabled).toBe(true);
     await act(async () => {
       const input = document.querySelector<HTMLTextAreaElement>('[data-field="case-note"]')!;
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Finance approved this exception');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await act(async () => { button('Accept exception').click(); await new Promise(resolve => setTimeout(resolve, 100)); });
+    await act(async () => { button('Accept this exception').click(); await new Promise(resolve => setTimeout(resolve, 100)); });
     expect(loadReconciliationEvents('local-a')[0].override?.actorId).toBe('superadmin');
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Superadmin accepted exception');
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Pending / needs evidence review');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Payment not yet confirmed · review needed');
     auth.role = 'staff';
     await act(async () => renderReview());
-    expect(button('Accept exception')).toBeUndefined();
+    expect(button('Accept this exception')).toBeUndefined();
   });
 });

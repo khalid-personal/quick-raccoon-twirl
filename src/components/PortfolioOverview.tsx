@@ -37,7 +37,7 @@ export const PortfolioLifecycle: React.FC<{ localAgencyId?: string }> = ({ local
   const items = useScoped(localAgencyId);
   const counts = LIFECYCLE.map(name => ({ name, value: items.filter(item => item.phase === name).length }));
   return (
-    <WidgetShell title="Candidate lifecycle" description="Where every candidate is today, from registration to working abroad and back home" icon={Users2} accent="violet" className="h-full">
+    <WidgetShell title="Candidate journeys" description="Where every candidate is today, from registration to working abroad and back home" icon={Users2} accent="violet" className="h-full">
       <div className="flex flex-col items-center gap-4 sm:flex-row">
         <div className="relative h-[190px] w-[190px] shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -72,7 +72,7 @@ export const PortfolioWorkforce: React.FC<{ localAgencyId?: string }> = ({ local
   return (
     <WidgetShell title="Working abroad" description="Candidates already employed, by time on the job and country" icon={PlaneTakeoff} accent="emerald" className="h-full" bodyClassName="space-y-4">
       <div className="grid grid-cols-3 gap-3 text-center">
-        {[['Working now', String(working.length)], ['Avg. tenure', `${avgMonths.toFixed(1)} mo`], ['Countries', String(countries.length)]].map(([label, value]) => (
+        {[['Working now', String(working.length)], ['Average time abroad', `${avgMonths.toFixed(1)} months`], ['Countries', String(countries.length)]].map(([label, value]) => (
           <div key={label} className="rounded-xl bg-emerald-500/5 p-3"><p className="text-xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{value}</p><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p></div>
         ))}
       </div>
@@ -96,7 +96,7 @@ export const PortfolioMix: React.FC<{ localAgencyId?: string }> = ({ localAgency
   const females = items.filter(item => item.candidate.gender === 'female').length;
   const ages = tally(items, item => { const age = ageOf(item.candidate.dob); return age < 25 ? '18 to 24' : age < 30 ? '25 to 29' : age < 35 ? '30 to 34' : '35 and over'; });
   return (
-    <WidgetShell title="Portfolio mix" description="Occupations, gender and age across the portfolio" icon={BriefcaseBusiness} accent="sky" className="h-full" bodyClassName="space-y-5">
+    <WidgetShell title="Candidate backgrounds" description="Jobs, gender and age of the selected candidates" icon={BriefcaseBusiness} accent="sky" className="h-full" bodyClassName="space-y-5">
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Occupations</p>
         <Bars data={tally(items, item => item.candidate.occupation)} color="#0ea5e9" limit={6} />

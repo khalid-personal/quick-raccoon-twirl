@@ -46,7 +46,7 @@ describe('consistent candidate checkpoints', () => {
     await act(async () => root.render(<ContractVisaPanel candidateDetail={{ ...candidate, external_status: { work_contract: true, visa: false } }} refetch={vi.fn()} />));
     expect(container.textContent).toContain('1 / 2');
     expect(container.textContent).toContain('Not received');
-    expect(container.textContent).toContain('Received records do not replace official clearance');
+    expect(container.textContent).toContain('Having these documents does not replace official clearance');
     await act(async () => root.render(<ContractVisaPanel candidateDetail={{ ...candidate, external_status: { work_contract: false, visa: false } }} refetch={vi.fn()} />));
     expect(container.textContent).toContain('0 / 2');
   });

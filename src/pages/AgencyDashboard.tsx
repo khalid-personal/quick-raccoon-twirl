@@ -407,7 +407,7 @@ const AgencyDashboard: React.FC = () => {
     <div className="space-y-6">
       <ControlRoomHeader
         scope={`Foreign agency · ${agencyName}`}
-        description="Monitor your candidate pipeline, agency settlements, introductions, and deployment readiness."
+        description="Review candidate progress, agency payments, introductions and what is needed before departure."
         icon={Building}
       />
       <div data-tour="agency-pipeline" className="space-y-6">
@@ -474,7 +474,7 @@ const AgencyDashboard: React.FC = () => {
           <Card>
             <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  Candidate pipeline ({candidates.length})
+                  Candidate progress ({candidates.length})
                 <div className="flex items-center space-x-2">
                     <Button size="sm" variant="ghost" onClick={() => { setIsSliderOpen(true); setSliderIndex(0); }}>
                       <User className="h-4 w-4 mr-2" /> Open Slider
@@ -553,7 +553,7 @@ const AgencyDashboard: React.FC = () => {
                           onSort={handleSort} 
                         />
                         <TableHead>Progress</TableHead>
-                        <TableHead>Profile / passport / integrity</TableHead>
+                        <TableHead>Profile / passport / record checks</TableHead>
                         <TableHead>Local Agency</TableHead>
                         <TableHead>Payment Status</TableHead>
                         <SortableHeader 

@@ -139,7 +139,7 @@ const AgencyClearance: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Clearance & Visa"
-        description={`Validate visas and clear ${isLocal ? `${userLocalAgencyName ?? 'your'}` : 'all'} candidates through Enjaz and Tasheer.`}
+        description={`Check visas and required travel approvals for ${isLocal ? `${userLocalAgencyName ?? 'your agency’s'}` : 'all'} candidates.`}
         actions={<Button variant="outline" onClick={download}><Download className="mr-2 h-4 w-4" />Export</Button>}
       />
       <StatCards items={stats} />
@@ -148,14 +148,14 @@ const AgencyClearance: React.FC = () => {
         <CardHeader>
           <CardTitle className="text-base">How clearance works</CardTitle>
           <CardDescription>
-            Validate a visa with the configured provider, then confirm Enjaz and Tasheer. Once local checks pass, the certificate remains locked until the Labour Ministry returns its official certificate number and QR.
-            Reopening a step voids any previous ministry result.
+            Check the visa, then confirm the required Enjaz and Tasheer travel checks. The official certificate stays locked until the Labour Ministry provides its certificate number and QR code.
+            Reopening a completed step cancels the previous ministry result and requires a new check.
           </CardDescription>
           <div className="flex flex-wrap gap-2 pt-1">
             {modeBadge('visa', serviceInfo?.providerName ?? 'Visa provider')}{modeBadge('enjaz', 'Enjaz')}{modeBadge('tasheer', 'Tasheer')}
             {!serviceInfo && !isDemoMode() && <span className="text-xs text-destructive">Live clearance checks are unavailable; provider integration is not configured.</span>}
             {serviceInfo && Object.values(serviceInfo.modes).includes('sandbox') && (
-              <span className="text-xs text-muted-foreground">Sandbox answers are simulated until the provider credentials are configured.</span>
+              <span className="text-xs text-muted-foreground">Practice results are made up, not official approvals. Real checks require a connected service.</span>
             )}
           </div>
         </CardHeader>

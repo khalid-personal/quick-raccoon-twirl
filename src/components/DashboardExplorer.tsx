@@ -24,7 +24,7 @@ function Ranking({ rows, label, onSelect, tone = 'bg-emerald-500' }: { rows: Arr
       <div className="mb-2 flex items-center gap-2 text-sm"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-background/70 text-xs font-semibold text-muted-foreground">{index + 1}</span><span className="min-w-0 flex-1 truncate font-semibold">{row.name}</span><span className="text-lg font-bold tabular-nums">{row.count}</span><ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" /></div>
       <div className="ml-8 h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${tone}`} style={{ width: `${row.count / max * 100}%` }} /></div>
     </button>)}
-    {!rows.length && <p className="py-6 text-sm text-muted-foreground">No records in this scope.</p>}
+    {!rows.length && <p className="py-6 text-sm text-muted-foreground">No records match this selection.</p>}
   </div>;
 }
 
@@ -85,7 +85,7 @@ export default function DashboardExplorer({ localAgencyId, candidateBasePath, se
       })}
     </div></section>
     <Dialog open={!!selection} onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
-      <DialogHeader><DialogTitle>{selection?.name}</DialogTitle><DialogDescription>{selectedCandidates.length} candidates · {localAgencyId ? 'Selected local-agency scope' : 'Portal-wide scope'}</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{selection?.name}</DialogTitle><DialogDescription>{selectedCandidates.length} candidates · {localAgencyId ? 'Selected local agency' : 'All agencies'}</DialogDescription></DialogHeader>
       {(selection?.kind === 'local-agency' || selection?.kind === 'foreign-agency' || selection?.kind === 'coc') && <EntityProfileButton kind={selection.kind} entityId={selection.id} className="w-fit rounded-xl border bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">Open complete agency / center profile →</EntityProfileButton>}
       {selection?.kind === 'city' && selection.region && <Button variant="ghost" size="sm" className="w-fit" onClick={() => onSelect({ kind: 'region', name: selection.region! })}><ArrowLeft className="mr-2 h-4 w-4" />{selection.region}</Button>}
       <Tabs value={tab} onValueChange={setTab} className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="candidates">Candidates</TabsTrigger><TabsTrigger value="payments">Payments · {selectedPayments.length}</TabsTrigger><TabsTrigger value="compliance">Flags · {flags.length}</TabsTrigger></TabsList>

@@ -102,7 +102,7 @@ const DocumentScanInput: React.FC<DocumentScanInputProps> = ({ id, accept, disab
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{file?.name ?? 'Choose a file or drop it here'}</span>
-          <span className="mt-1 block text-xs text-muted-foreground">Automated screening checks file type, signature, size, and suspicious content.</span>
+          <span className="mt-1 block text-xs text-muted-foreground">We check the file format, size and signs of unsafe content before upload.</span>
         </span>
         <input
           id={id}
@@ -118,14 +118,14 @@ const DocumentScanInput: React.FC<DocumentScanInputProps> = ({ id, accept, disab
         <div className={`space-y-2 rounded-md border p-3 text-sm ${statusStyle[report.status]}`} role="status" aria-live="polite">
           <div className="flex items-center gap-2 font-medium">
             {report.status === 'clear' ? <FileCheck2 className="h-4 w-4" /> : report.status === 'review' ? <AlertTriangle className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
-            <span>{report.status === 'clear' ? 'Screening passed' : report.status === 'review' ? 'Compliance review recommended' : 'Upload blocked'}</span>
-            <Badge variant="outline" className="ml-auto capitalize">{report.status}</Badge>
+            <span>{report.status === 'clear' ? 'File checks passed' : report.status === 'review' ? 'This file needs a closer look' : 'Upload blocked'}</span>
+            <Badge variant="outline" className="ml-auto">{report.status === 'clear' ? 'Ready to upload' : report.status === 'review' ? 'Needs review' : 'Blocked'}</Badge>
           </div>
           {report.findings.length > 0 && <ul className="list-disc space-y-1 pl-5 text-xs">{report.findings.map(finding => <li key={finding}>{finding}</li>)}</ul>}
           {report.status === 'review' && (
             <div className="flex items-start gap-2 border-t border-current/15 pt-2">
               <Checkbox id={`${id}-review`} checked={acknowledged} onCheckedChange={acknowledgeReview} disabled={disabled} />
-              <Label htmlFor={`${id}-review`} className="text-xs leading-relaxed">I reviewed these findings and want to submit this file for compliance review.</Label>
+              <Label htmlFor={`${id}-review`} className="text-xs leading-relaxed">I have read the warnings and want to submit this file for someone to review.</Label>
             </div>
           )}
           {detectStage && stageDetection.detectedStageId !== undefined && (
@@ -137,7 +137,7 @@ const DocumentScanInput: React.FC<DocumentScanInputProps> = ({ id, accept, disab
           {detectStage && stageDetection.detectionError && <p className="text-xs text-amber-700 dark:text-amber-300" role="status">Automatic stage matching failed: {stageDetection.detectionError} Choose a stage manually or use the stage you opened.</p>}
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Screening highlights risk indicators; it does not prove a document is authentic.</p>
+      <p className="text-xs text-muted-foreground">File checks can find possible problems. Passing them does not prove the document is genuine.</p>
     </div>
   );
 };

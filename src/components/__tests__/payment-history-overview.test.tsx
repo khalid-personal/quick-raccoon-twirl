@@ -36,8 +36,8 @@ afterEach(async () => { await act(async () => root.unmount()); client.clear(); c
 describe('payment history finance-first view', () => {
   it('uses large animated color-coded flow controls without changing source filtering', async () => {
     await render('/admin/payments?tab=ledger');
-    const foreign = container.querySelector<HTMLButtonElement>('[aria-label="Foreign agency to local agency · 4"]')!;
-    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate to local agency · 1"]')!;
+    const foreign = container.querySelector<HTMLButtonElement>('[aria-label="Foreign agency payments to local agencies · 4"]')!;
+    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate payments to local agencies · 1"]')!;
     for (const control of [foreign, candidate]) {
       expect(control.className).toContain('min-h-28');
       expect(control.className).toContain('control-nav-shine');
@@ -48,8 +48,8 @@ describe('payment history finance-first view', () => {
     expect(foreign.className).toContain('text-sky-800');
     expect(candidate.className).toContain('text-emerald-800');
     await act(async () => candidate.click());
-    expect(container.textContent).toContain('Local transfers · ETB final');
-    expect(container.textContent).not.toContain('Foreign receipts · USD estimate');
+    expect(container.textContent).toContain('Candidate payments received · ETB');
+    expect(container.textContent).not.toContain('Foreign agency payments · estimated USD total');
     expect(candidate.getAttribute('aria-checked')).toBe('true');
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
     expect(container.querySelector('tbody')?.textContent).toContain('300 ETB');
@@ -59,17 +59,17 @@ describe('payment history finance-first view', () => {
   });
   it('shows final ETB money received in the candidate overview and drills down to local receipts', async () => {
     await render();
-    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate to local agency · 1"]')!;
+    const candidate = container.querySelector<HTMLButtonElement>('[aria-label="Candidate payments to local agencies · 1"]')!;
     await act(async () => candidate.click());
     const overview = container.querySelector('[aria-label="Finance overview"]')!;
-    expect(overview.textContent).toContain('Local transfers · ETB final');
+    expect(overview.textContent).toContain('Candidate payments marked received · ETB');
     expect(overview.querySelector('h2')?.textContent).toBe('300.00 ETB');
     expect(overview.textContent).not.toContain('USD reference estimate');
     const explore = [...overview.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Explore settled local transfers'))!;
     await act(async () => explore.click());
     expect(candidate.getAttribute('aria-checked')).toBe('true');
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
-    expect(container.querySelector('[aria-label="Payment overview"]')?.textContent).toContain('Local transfers · ETB final');
+    expect(container.querySelector('[aria-label="Payment overview"]')?.textContent).toContain('Candidate payments received · ETB');
   });
   it('opens an actionable overview, keeps currency sources separate and drills down to pending receipts', async () => {
     await render();
@@ -78,7 +78,7 @@ describe('payment history finance-first view', () => {
     expect(container.textContent).toContain('$100.00');
     expect(container.textContent).toContain('300 ETB');
     expect(container.textContent).toContain('Oldest');
-    const pending = [...container.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Waiting to settle'))!;
+    const pending = [...container.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.includes('Waiting for confirmation'))!;
     await act(async () => pending.click());
     expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Payments list');
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
@@ -91,7 +91,7 @@ describe('payment history finance-first view', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(5);
     await act(async () => root.unmount()); root = createRoot(container); client.clear();
     await render('/admin/payments#resolution');
-    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Resolve & protect');
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Payment issues');
     expect(container.textContent).toContain('Resolution inbox');
   });
   it('uses the foreign agency API scope and never offers superadmin resolution controls', async () => {

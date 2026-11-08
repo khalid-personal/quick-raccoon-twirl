@@ -14,7 +14,7 @@ import { DEMO_CANDIDATE_COUNT } from '@/lib/demo-dataset';
 import { CursorGlow, WorkflowIllustration } from '@/components/LandingExperience';
 
 const highlights = [
-  { icon: Workflow, title: 'End-to-end pipeline', text: 'Track every candidate from registration to departure.' },
+  { icon: Workflow, title: 'Every step in one place', text: 'Track every candidate from registration to departure.' },
   { icon: ShieldCheck, title: 'Role-based access', text: 'Each agency sees only the candidates it is responsible for.' },
   { icon: Wallet, title: 'Stage payments', text: 'Transparent fees and receipts for every deployment stage.' },
 ];
@@ -86,7 +86,7 @@ const AuthPage: React.FC = () => {
                 <h3 className="text-sm font-semibold">Explore the demo</h3>
                 <p className="text-sm text-muted-foreground">
                   A full portal with {DEMO_CANDIDATE_COUNT} candidates, 4 CoC centers, local and foreign agencies, and integrity flags at every priority.
-                  It is a separate sandbox, so your real data is never touched. Use the eye icon to view it as any agency or candidate.
+                  Demo records are kept separate from your real data. Use the eye icon to preview what an agency or candidate sees.
                 </p>
               </div>
               <div className="rounded-xl bg-sidebar p-1 lg:hidden"><WorkflowIllustration /></div>

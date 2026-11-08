@@ -193,8 +193,8 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Kpi label="Avg. Time to Deploy" value={t.avgDaysToDeploy ? `${t.avgDaysToDeploy}d` : '—'} icon={Timer} tone="bg-sky-500/10 text-sky-600" sub="From registration to departure" />
-        <Kpi label="Avg. Active Age" value={t.avgDaysActive ? `${t.avgDaysActive}d` : '—'} icon={Clock} tone="bg-amber-500/10 text-amber-600" sub="Candidates still in the pipeline" />
+        <Kpi label="Average time to departure" value={t.avgDaysToDeploy ? `${t.avgDaysToDeploy} days` : '—'} icon={Timer} tone="bg-sky-500/10 text-sky-600" sub="From registration to departure" />
+        <Kpi label="Average time waiting" value={t.avgDaysActive ? `${t.avgDaysActive} days` : '—'} icon={Clock} tone="bg-amber-500/10 text-amber-600" sub="Since registration, for candidates not yet deployed" />
         <Kpi label="Unread Messages" value={t.unreadMessages} icon={MessageSquare} tone="bg-violet-500/10 text-violet-600" sub="From candidates" />
       </div>
 

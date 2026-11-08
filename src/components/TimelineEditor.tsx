@@ -76,7 +76,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25 shadow-sm">
-        <CandidateCheckpoint eyebrow="Candidate workflow checkpoint" title="Candidate journey" description="Select any stage to review its status, update details, or manage documents. Follow Registration → Training → Medical → Deployment." icon={ListChecks} metric={`${completed} / ${stages.length}`} metricLabel="Stages complete" />
+        <CandidateCheckpoint eyebrow="Application progress" title="Candidate journey" description="Open a stage to check its progress, update details or add documents. Complete the steps in order: Registration → Training → Medical → Deployment." icon={ListChecks} metric={`${completed} / ${stages.length}`} metricLabel="Stages complete" />
         <CardContent className="space-y-5 p-5 md:p-6">
           <div className="space-y-2" aria-label={`${progress}% of candidate stages complete`}>
             <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Journey progress</span><span className="font-semibold tabular-nums text-foreground">{progress}%</span></div>

@@ -12,7 +12,7 @@ interface CandidateIntroductionMediaProps {
 
 const CandidateIntroductionMedia: React.FC<CandidateIntroductionMediaProps> = ({ candidate, compact = false }) => {
   return <Card className={compact ? undefined : 'overflow-hidden rounded-3xl border-cyan-500/25'}>
-    {!compact && <CandidateCheckpoint eyebrow="Candidate introduction checkpoint" title="Candidate introduction" description="Bring the candidate's experience, skills and languages together with their introduction recording." icon={Video} />}
+    {!compact && <CandidateCheckpoint eyebrow="Meet the candidate" title="Candidate introduction" description="Bring the candidate's experience, skills and languages together with their introduction recording." icon={Video} />}
     <CardContent className={compact ? 'space-y-3 p-0' : 'grid gap-5 p-5 sm:grid-cols-2 sm:p-7'}>
       <div><p className="text-xs font-medium uppercase text-muted-foreground">Work / job type</p><p className="mt-1 text-sm">{candidateWorkType(candidate)}</p></div>
       <div><p className="text-xs font-medium uppercase text-muted-foreground">Professional summary</p><p className="mt-1 text-sm leading-6">{candidate.professional_summary || 'Required — not added yet.'}</p></div>

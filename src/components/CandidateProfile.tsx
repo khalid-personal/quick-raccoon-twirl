@@ -24,7 +24,7 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit, 
   const progress = calculateProgress(candidate.stages);
   return (
     <Card data-tour="candidate-profile" className="overflow-hidden rounded-3xl border-cyan-500/25">
-      <CandidateCheckpoint eyebrow="Candidate identity checkpoint" title="Candidate Profile" description="Review identity, agency connections and submission readiness. Keep this record complete before sharing or deployment." icon={UserRound} metric={`${progress}%`} metricLabel="Journey progress" actions={
+      <CandidateCheckpoint eyebrow="Candidate details" title="Candidate Profile" description="Check personal details, linked agencies and submission dates. Complete this profile before sharing it or preparing the candidate to travel." icon={UserRound} metric={`${progress}%`} metricLabel="Journey progress" actions={
         <Button variant="outline" className="h-12 rounded-xl px-5" onClick={onEdit}>
           <Pencil className="h-4 w-4 mr-2" /> Edit Details
         </Button>

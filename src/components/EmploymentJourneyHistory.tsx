@@ -15,7 +15,7 @@ const displayDate = (value: string): string => {
 };
 
 const EmploymentJourneyHistory: React.FC<EmploymentJourneyHistoryProps> = ({ candidate, showMap = true }) => <Card data-tour="return-history" className="overflow-hidden rounded-3xl border-cyan-500/25">
-  <CandidateCheckpoint eyebrow="Candidate journey checkpoint" title="Employment journey" description="Follow recorded departures, destinations and returns without losing earlier employment history." icon={Route} metric={candidate.employment_history?.length ?? 0} metricLabel="Recorded journeys" />
+  <CandidateCheckpoint eyebrow="Past work and travel" title="Employment journey" description="Follow recorded departures, destinations and returns without losing earlier employment history." icon={Route} metric={candidate.employment_history?.length ?? 0} metricLabel="Recorded journeys" />
   <CardContent className="space-y-4 p-5 sm:p-7">
     {candidate.employment_history?.length ? candidate.employment_history.map((journey, index) => {
       const destination = [journey.destination_city, journey.destination_country].filter(Boolean).join(', ');

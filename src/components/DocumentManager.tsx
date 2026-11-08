@@ -89,11 +89,11 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
-        <CandidateCheckpoint eyebrow="Candidate evidence checkpoint" title="Upload New Document" description="Screen the original file, confirm its stage and add it to the candidate's evidence record." icon={Upload} />
+        <CandidateCheckpoint eyebrow="Add a document" title="Upload New Document" description="Choose the original file, check any warnings and select the application stage it belongs to." icon={Upload} />
         <CardContent className="space-y-4 p-5 sm:p-7">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="space-y-2">
-              <Label htmlFor="stage-select">Associate with Stage</Label>
+              <Label htmlFor="stage-select">Which stage is this for?</Label>
               <Select
                 value={detectedStage ? String(detectedStage.id) : selectedStageId}
                 onValueChange={setSelectedStageId}
@@ -113,7 +113,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
             </div>
             
             <div className="space-y-2 md:col-span-2">
-              <Label>Screen and select file</Label>
+              <Label>Choose and check the file</Label>
               <DocumentScanInput id="file-input" detectStage existingDocuments={candidateDetail.documents} disabled={isUploading} onChange={setScanSelection} />
             </div>
             {scanSelection?.ready && detectedStage && <p className="text-sm text-primary md:col-span-3" role="status">Detected <span className="font-semibold">{detectedStage.title}</span> from the {scanSelection.detectionSource ?? 'document'}. This document will be added to that stage.</p>}
@@ -131,7 +131,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
       </Card>
 
       <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
-        <CandidateCheckpoint eyebrow="Candidate document checkpoint" title={`Existing Documents (${candidateDetail.documents.length})`} description="Review or download the available originals, grouped by stage. A missing original still requires a new upload." icon={FileText} metric={candidateDetail.documents.length} metricLabel="Saved documents" />
+        <CandidateCheckpoint eyebrow="Saved documents" title={`Existing Documents (${candidateDetail.documents.length})`} description="Open or download original files for each stage. If the original is missing, upload it again." icon={FileText} metric={candidateDetail.documents.length} metricLabel="Saved documents" />
         <CardContent className="space-y-6 p-5 sm:p-7">
           {Object.entries(documentsByStage).length === 0 ? (
             <p className="text-muted-foreground">No documents uploaded yet.</p>

@@ -84,7 +84,7 @@ const FinancialOverview: React.FC<{ localAgencyId?: string }> = ({ localAgencyId
   const methodTotal = Math.max(1, model.methods.reduce((sum, item) => sum + item.value, 0));
 
   return (
-    <WidgetShell title="Financial overview" description="Candidate fees in ETB, foreign agency receipts in USD equivalent, and settlement health" icon={Wallet} accent="indigo" className="h-full" bodyClassName="space-y-5">
+    <WidgetShell title="Payment overview" description="Candidate fees in ETB, estimated foreign transfers in USD, and payment issues" icon={Wallet} accent="indigo" className="h-full" bodyClassName="space-y-5">
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-5 text-white">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
@@ -106,14 +106,14 @@ const FinancialOverview: React.FC<{ localAgencyId?: string }> = ({ localAgencyId
         </div>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
           <Stat label="Outstanding fees" value={`ETB ${compact(Math.max(0, due - collected))}`} sub={`${100 - rate}% of fees due`} icon={<Banknote className="h-5 w-5" />} tone="bg-amber-500/10 text-amber-600" />
-          <Stat label="Foreign receipts" value={`$${compact(model.foreignUsd)}`} sub="Last 12 months, USD eq." icon={<Globe2 className="h-5 w-5" />} tone="bg-emerald-500/10 text-emerald-600" />
-          <Stat label="Discrepancies" value={String(recon.flagged)} sub={`of ${recon.contracts} contracts`} icon={<ShieldAlert className="h-5 w-5" />} tone={recon.flagged ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'} />
+          <Stat label="Foreign receipts" value={`$${compact(model.foreignUsd)}`} sub="12 months · USD estimate" icon={<Globe2 className="h-5 w-5" />} tone="bg-emerald-500/10 text-emerald-600" />
+          <Stat label="Payment differences" value={String(recon.flagged)} sub={`of ${recon.contracts} contracts`} icon={<ShieldAlert className="h-5 w-5" />} tone={recon.flagged ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'} />
         </div>
       </div>
 
       <div className="rounded-2xl border p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold">Monthly inflow</p>
+          <p className="text-sm font-semibold">Payments received each month</p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-500" />Candidate fees (ETB)</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Foreign receipts (USD)</span>

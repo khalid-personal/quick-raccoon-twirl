@@ -36,7 +36,7 @@ afterEach(async () => {
 describe('interactive status summaries', () => {
   it('keeps empty local scopes in final ETB and warns about non-ETB records instead of converting them', async () => {
     await act(async () => root.render(<PaymentLedgerSummary payments={[]} source="candidate" status="all" onStatusChange={vi.fn()} />));
-    expect(container.textContent).toContain('Local transfers · ETB final');
+    expect(container.textContent).toContain('Candidate payments received · ETB');
     expect(container.textContent).toContain('0.00 ETB');
     expect(container.textContent).not.toContain('USD estimate');
     await act(async () => root.render(<PaymentLedgerSummary payments={[{ ...payments[0], currency: 'USD', payer_type: 'candidate' }]} source="candidate" status="all" onStatusChange={vi.fn()} />));

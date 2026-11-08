@@ -56,10 +56,10 @@ export default function PaymentEvidenceDocuments({ payment, statement, match }: 
     </div>
     <div id={comparisonId} hidden={!expanded} className="grid items-start gap-4 md:grid-cols-2">
       <article className="min-w-0 space-y-3 rounded-xl border bg-card p-4">
-        <h3 className="flex items-center gap-2 font-semibold"><ReceiptText className="h-5 w-5 text-sky-600" />1. Full saved payment receipt</h3>
+        <h3 className="flex items-center gap-2 font-semibold"><ReceiptText className="h-5 w-5 text-sky-600" />1. Saved payment receipt</h3>
         {payment ? <>
           <p className="text-2xl font-semibold">{payment.amount.toLocaleString()} {payment.currency}</p>
-          {payment.provider === 'mock' && <Badge variant="outline">DEMO / synthetic receipt</Badge>}
+          {payment.provider === 'mock' && <Badge variant="outline">DEMO / synthetic receipt · not real payment proof</Badge>}
           {payment.demo_evidence && <div className="space-y-2 rounded-xl border border-sky-500/25 bg-sky-500/5 p-3" aria-label="Demo investigator identity links">
             <h4 className="font-semibold">{payment.demo_evidence.bank_name} · synthetic confirmation</h4>
             {payment.demo_evidence.identities.map(identity => <div key={identity.candidate_id} className="text-sm"><p className="font-medium">{identity.name}</p><p className="text-xs text-muted-foreground">{identity.tracking_code} · Passport {identity.passport_number}</p></div>)}
@@ -67,15 +67,15 @@ export default function PaymentEvidenceDocuments({ payment, statement, match }: 
           </div>}
           <dl className="space-y-2 text-sm">{comparison.receiptRows.map(([label, value]) => <div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="break-all whitespace-pre-wrap">{value}</dd></div>)}</dl>
         </> : <p className="text-sm text-amber-700">No payment receipt is recorded. Request it; do not invent one.</p>}
-        <p className="text-xs text-muted-foreground">Portal transaction record, not a provider-issued original document.</p>
+        <p className="text-xs text-muted-foreground">This is the portal’s saved payment record, not an original document from the payment provider.</p>
       </article>
       <article className="min-w-0 space-y-3 rounded-xl border bg-card p-4">
-        <h3 className="flex items-center gap-2 font-semibold"><Landmark className="h-5 w-5 text-violet-600" />2. Full imported bank statement</h3>
+        <h3 className="flex items-center gap-2 font-semibold"><Landmark className="h-5 w-5 text-violet-600" />2. Bank records from the uploaded file</h3>
         {statement ? <>
           <p className="break-words text-sm font-medium">{statement.name}</p>
           {statement.synthetic && <Badge variant="outline">DEMO / synthetic evidence</Badge>}
           <dl className="space-y-2 text-sm">{comparison.statementRows.map(([label, value]) => <div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="break-all">{value}</dd></div>)}</dl>
-          <p className="text-sm">All imported credit rows ({statement.lines.length}); the comparison row is highlighted below.</p>
+          <p className="text-sm">All {statement.lines.length} credit entries from this file are shown below. The highlighted entry is the one compared with this receipt; the comparison does not confirm it with the bank.</p>
           <div className="max-h-[36rem] overflow-auto"><table className="w-full text-left text-xs">
             <caption className="sr-only">All imported statement credits; highlighted row is the linked comparison, not authentication.</caption>
             <thead><tr><th scope="col" className="p-2">Date</th><th scope="col" className="p-2">Description / reference</th><th scope="col" className="p-2">Credit / currency</th></tr></thead>
@@ -86,7 +86,7 @@ export default function PaymentEvidenceDocuments({ payment, statement, match }: 
             </tr>)}</tbody>
           </table></div>
         </> : <p className="text-sm text-amber-700">No statement uploaded for this agency and payment source.</p>}
-        <p className="text-xs text-muted-foreground">{statement?.synthetic && statement.demo_original?.complete ? 'Complete fictional demo statement. All generated credits and zero simulated debits are recorded; currencies have separate balances. Not bank-authenticated.' : 'Imported credit-row data, not a bank-authenticated statement or original PDF. Original debits and omitted source rows are unavailable.'}</p>
+        <p className="text-xs text-muted-foreground">{statement?.synthetic && statement.demo_original?.complete ? 'Complete fictional demo statement. All generated credits and zero simulated debits are recorded; currencies have separate balances. Not real bank proof.' : 'These are credit entries imported from a file, not a bank-confirmed statement or original PDF. Original debits and rows left out of the file are not available here.'}</p>
       </article>
     </div>
     <div className="space-y-1 text-xs text-muted-foreground" aria-label="Evidence limitations">
