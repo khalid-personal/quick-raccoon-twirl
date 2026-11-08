@@ -193,7 +193,15 @@ const PaymentHistoryPage: React.FC = () => {
       {reviewAgency ? <>
         {statementSource === 'foreign' && userRole !== 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency} />}
         <BankReconciliation key={`${reviewAgency}:${statementSource}`} agencyId={reviewAgency} paymentSource={statementSource} allowActions={canReview} payments={(statementSource === 'foreign' ? foreignPayments : candidatePayments).filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
-      </> : <p className="text-sm text-muted-foreground">Choose a local agency to compare payments with its work contracts and uploaded bank records.</p>}
+      </> : statementSource === 'foreign' ? <section aria-label="Foreign transfer bank differences" className="space-y-5">
+        <div><h2 className="text-xl font-semibold">Foreign transfers compared with bank records</h2><p className="text-sm text-muted-foreground">Check short payments, extra amounts and missing bank entries by receiving local agency. Contract checks above are separate from these bank differences.</p></div>
+        {agencies.filter(item => foreignPayments.some(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === item.id)).map(item =>
+          <section key={item.id} aria-label={`${item.name} foreign transfer checks`} className="space-y-3 rounded-2xl border p-4">
+            <h3 className="text-lg font-semibold">{item.name}</h3>
+            <BankReconciliation agencyId={item.id} paymentSource="foreign" allowActions={canReview} payments={foreignPayments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === item.id)} />
+          </section>)}
+        {!foreignPayments.some(payment => payment.status === 'succeeded') && <p className="text-sm text-muted-foreground">No settled foreign transfers to compare in this view.</p>}
+      </section> : <p className="text-sm text-muted-foreground">Choose a local agency to compare payments with its work contracts and uploaded bank records.</p>}
     </TabsContent>}
     {userRole === 'superadmin' && <TabsContent value="resolution"><div id="resolution"><AgencyResolutionCenter /></div></TabsContent>}
     </Tabs>

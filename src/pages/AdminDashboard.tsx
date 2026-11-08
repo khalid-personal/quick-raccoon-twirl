@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePageMemory } from '@/hooks/use-page-memory';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { CandidateSummary, CandidateSortField, SortDirection } from '@/lib/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -55,6 +55,17 @@ const DashSection: React.FC<{ title: string; subtitle: string; icon: LucideIcon 
 
 const AdminDashboard: React.FC = () => {
   const { userRole, userLocalAgencyName, userLocalAgencyId, user, viewAs } = useAuth();
+  const queryClient = useQueryClient();
+  React.useEffect(() => {
+    const refresh = () => {
+      for (const key of ['adminCandidates', 'presenceCandidates', 'staffUsers', 'dashboardLocalAgencies', 'dashboardForeignAgencies']) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    };
+    window.addEventListener('supabase-data-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); };
+  }, [queryClient]);
   const staffId = viewAs ? viewAs.userId : user?.id;
   const isSuperAdmin = userRole === 'superadmin';
   const isLocalAgency = userRole === 'local-agency';
@@ -64,7 +75,6 @@ const AdminDashboard: React.FC = () => {
   const [listStatus, setListStatus] = usePageMemory<CandidateListStatus | null>('status', null);
   const [filterBatch, setFilterBatch] = usePageMemory('batch', ALL_BATCHES_FILTER);
   const [filterForeignAgencyId, setFilterForeignAgencyId] = usePageMemory('foreign', ALL_AGENCIES_FILTER);
-  const [filterLocalAgencyId, setFilterLocalAgencyId] = usePageMemory('local', ALL_AGENCIES_FILTER);
   const [visualLocalAgencyId, setVisualLocalAgencyId] = usePageMemory('visual-local', ALL_AGENCIES_FILTER);
   const [activeSection, setActiveSection] = usePageMemory('section', 'overview');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -83,7 +93,7 @@ const AdminDashboard: React.FC = () => {
     : undefined;
   const effectiveLocalAgencyFilter = isLocalAgency
     ? userLocalAgencyName ?? undefined
-    : isSuperAdmin ? localAgencies.find(agency => agency.id === filterLocalAgencyId)?.name : undefined;
+    : isSuperAdmin ? localAgencies.find(agency => agency.id === visualLocalAgencyId)?.name : undefined;
 
   const { data: candidates, isLoading, refetch } = useQuery<CandidateSummary[]>({
     queryKey: ['adminCandidates', currentQuery, effectiveFilterBatch, effectiveForeignAgencyFilter, effectiveLocalAgencyFilter, sortBy, sortDirection, isLocalAgency ? userLocalAgencyId : undefined],
@@ -194,27 +204,25 @@ const AdminDashboard: React.FC = () => {
         )}
       />
 
+      {isSuperAdmin && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+        <span className="text-sm font-medium">Dashboard view</span>
+        <Select value={visualLocalAgencyId} onValueChange={setVisualLocalAgencyId}>
+          <SelectTrigger aria-label="Filter dashboard by local agency" className="w-64"><SelectValue placeholder="Local agency" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_AGENCIES_FILTER}>All local agencies</SelectItem>
+            {localAgencies.map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">Applies to the agency score, totals, charts, payment issues and candidate lists across dashboard sections.</span>
+      </div>}
       <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-5">
         <ControlRoomTabs />
 
         <TabsContent value="overview" className="space-y-6">
       <DashSection title="Today’s overview" subtitle="Candidate progress, issues and assigned work" icon={LayoutDashboard} />
       <EditableGrid pageId="dash-overview" title="Overview" items={[
-      { id: 'view', title: 'Dashboard view', node: isSuperAdmin && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
-          <span className="text-sm font-medium">Dashboard view</span>
-          <Select value={visualLocalAgencyId} onValueChange={setVisualLocalAgencyId}>
-            <SelectTrigger aria-label="Filter dashboard by local agency" className="w-64"><SelectValue placeholder="Local agency" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_AGENCIES_FILTER}>All local agencies</SelectItem>
-              {localAgencies.map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">Applies to the totals and charts below. The integrity score stays system-wide.</span>
-        </div>
-      ) },
-      { id: 'integrity', title: 'Record check score', node: !isLocalAgency && <IntegrityCard /> },
-      { id: 'resolution', title: 'Resolve & protect', node: isSuperAdmin && <AgencyResolutionCenter /> },
+      { id: 'integrity', title: 'Record check score', node: !isLocalAgency && <IntegrityCard localAgencyId={visualLocalId} /> },
+      { id: 'resolution', title: 'Payment issues', node: isSuperAdmin && <AgencyResolutionCenter agencyScope={visualLocalId ? { type: 'local', id: visualLocalId } : undefined} /> },
       { id: 'assigned', title: 'Assigned candidates', node: userRole === 'staff' && <section className="space-y-3">
         <div><h2 className="text-lg font-semibold">Your assigned candidates</h2>
           <p className="text-sm text-muted-foreground">Your assigned work. All candidate stages are available below.</p></div>
@@ -230,9 +238,9 @@ const AdminDashboard: React.FC = () => {
       { id: 'presence', title: 'Live roster', node: <PresenceRoster
         snapshot={presence}
         scope={isLocalAgency ? 'local' : 'admin'}
-        staff={staffUsers}
-        candidates={rosterCandidates}
-        localAgencyId={userLocalAgencyId}
+        staff={staffUsers.filter(person => !visualLocalId || person.local_agency_id === visualLocalId)}
+        candidates={rosterCandidates.filter(candidate => !visualLocalId || candidate.local_agency_id === visualLocalId)}
+        localAgencyId={visualLocalId}
         candidateBasePath={isLocalAgency ? '/local-agency/candidate' : '/admin/candidate'}
       /> },
       ]} />
@@ -316,7 +324,7 @@ const AdminDashboard: React.FC = () => {
                 {foreignAgencies.map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filterLocalAgencyId} onValueChange={setFilterLocalAgencyId}>
+            <Select value={visualLocalAgencyId} onValueChange={setVisualLocalAgencyId}>
               <SelectTrigger aria-label="Filter by local agency"><SelectValue placeholder="Local agency" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL_AGENCIES_FILTER}>All local agencies</SelectItem>

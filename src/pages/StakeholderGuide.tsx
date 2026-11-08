@@ -136,7 +136,7 @@ const StakeholderGuide: React.FC = () => {
       <header className="space-y-2">
         <p className="flex items-center gap-2 text-sm font-medium text-primary"><BookOpen className="h-4 w-4" />Getting started</p>
         <h1 className="text-3xl font-semibold">Your work, made clear</h1>
-        <p className="max-w-2xl text-muted-foreground">A short walkthrough of the tools available for your role. Choose a step to open the feature.</p>
+        <p className="max-w-2xl text-muted-foreground">Follow one task at a time. The portal walkthrough opens each feature, explains what to do and shows what to check before continuing.</p>
         {isDemoMode() && <div className="flex flex-wrap gap-2 pt-2"><Button onClick={() => startWalkthrough(true)}>{canResume ? 'Resume portal walkthrough' : 'Start portal walkthrough'} <ArrowRight className="ml-2 h-4 w-4" /></Button>{canResume && <Button variant="outline" onClick={() => startWalkthrough(false)}>Start over</Button>}</div>}
       </header>
       <div className="space-y-2">

@@ -13,6 +13,7 @@ import { getPayments } from '../data-store';
 import { agencyIsSuspended, amountDiscrepancies, decideAgencyCase, getAgencyResolutionCases } from '../agency-resolution';
 import { loadBankStatement, saveBankStatement } from '../bank-statement-store';
 import { stageFeeCovered, stageProgressBlockers } from '../stage-readiness';
+import { reconcile } from '../bank-reconciliation';
 
 const now = new Date('2026-11-07T12:00:00Z').getTime();
 const fees = { 1: 500, 3: 2200, 2: 2000, 4: 6000 };
@@ -46,7 +47,17 @@ describe('DEMO integrity scenario data, not score overrides', () => {
       expect(findings.filter(f => f.rule === 'stale-stage')).toHaveLength(risky);
       expect(findings.filter(f => f.rule === 'fee-mismatch')).toHaveLength(risky);
       expect(findings.filter(f => f.rule === 'manual-no-reference')).toHaveLength(risky);
-      expect(data.measured.bank.short + data.measured.bank.over + data.measured.bank.missing).toBe(risky);
+      expect(data.measured.bank.short + data.measured.bank.over + data.measured.bank.missing).toBe(risky * 2);
+      for (const source of ['foreign', 'candidate'] as const) {
+        const events = data.evidence.filter(item => item.source === source).flatMap(item => item.events);
+        expect(events).toHaveLength(risky);
+        if (risky) {
+          expect(events.every(event => isForeignPayment(event.evidence!.payment!) === (source === 'foreign'))).toBe(true);
+          const differences = data.evidence.filter(item => item.source === source).flatMap(item =>
+            reconcile(data.payments.filter(payment => payment.payee_local_agency_id === item.agencyId && isForeignPayment(payment) === (source === 'foreign')), item.statement.lines).matches);
+          for (const status of ['short', 'over', 'missing']) expect(differences.some(match => match.status === status)).toBe(true);
+        }
+      }
       expect(data.measured.candidates).toBe(435);
       expect(data.documents.length).toBeGreaterThan(0);
       expect(data.documents.every(document => document.file_name.startsWith('DEMO') && document.public_url?.startsWith('data:text/plain,'))).toBe(true);
@@ -225,7 +236,7 @@ it.each(INTEGRITY_DEMO_SCENARIOS)('applies $id to the actual payment and agency 
       // switching preserves these rather than secretly fixing passport edits.
       expect(result.after.score).toBeLessThanOrEqual([36, 66, 71, 91, 78, 100][index]);
       expect(result.after.score).toBeGreaterThanOrEqual([36, 66, 71, 91, 78, 100][index] - 5);
-      expect(result.after.flaggedPayments).toBe([44, 18, 15, 4, 11, 0][index]);
+      expect(result.after.flaggedPayments).toBe([88, 36, 30, 8, 22, 0][index]);
       expect(open).toHaveLength([2, 2, 1, 1, 1, 0][index]);
       if (scenario.id !== 'high') {
         expect(result.after.openPaymentCases).toBeGreaterThan(0);

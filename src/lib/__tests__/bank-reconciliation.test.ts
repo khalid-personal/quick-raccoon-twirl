@@ -11,6 +11,13 @@ const pay = (over: Partial<Payment>): Payment => ({
 });
 
 describe('bank reconciliation', () => {
+  it('does not let a missing receipt steal an exact referenced bank credit from a later receipt', () => {
+    const missing = pay({ id: 'missing', provider_reference: 'MISSING', created_at: '2026-10-09' });
+    const linked = pay({ id: 'linked', provider_reference: 'LINKED' });
+    const line = { date: '2026-10-10', reference: 'LINKED', description: '', amount: linked.amount, currency: 'SAR' };
+    expect(reconcile([missing, linked], [line]).matches.map(match => [match.payment.id, match.status])).toEqual([['missing', 'missing'], ['linked', 'matched']]);
+    expect(reconcile([missing, linked], [{ ...line, reference: '', description: 'Bank credit LINKED' }]).matches.map(match => match.status)).toEqual(['missing', 'matched']);
+  });
   it('detects reused saved reference aliases across settled receipts, not aliases within one receipt or historical failures', () => {
     const first = pay({ receipt_number: 'SWIFT-1' });
     expect(paymentsWithReusedReferences([first])).toEqual(new Set());

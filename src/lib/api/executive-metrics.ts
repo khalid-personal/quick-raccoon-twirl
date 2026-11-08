@@ -21,14 +21,15 @@ const topCounts = (values: Array<string | undefined>, limit: number) => {
 };
 
 // GET /api/admin/executive-metrics
-export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgencyName?: string): Promise<ExecutiveMetrics> => {
+export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgencyName?: string, localAgencyId?: string): Promise<ExecutiveMetrics> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     const now = Date.now();
-    const localAgency = localAgencyName ? getLocalAgencies().find(l => l.name === localAgencyName) : undefined;
+    const localAgency = localAgencyId ? getLocalAgencies().find(l => l.id === localAgencyId)
+        : localAgencyName ? getLocalAgencies().find(l => l.name === localAgencyName) : undefined;
     const foreignAgency = foreignAgencyName ? getForeignAgencies().find(agency => agency.name === foreignAgencyName) : undefined;
 
     let candidates = getCandidates();
-    if (localAgencyName) candidates = localAgency ? candidates.filter(c => c.local_agency_id === localAgency.id) : [];
+    if (localAgencyName || localAgencyId) candidates = localAgency ? candidates.filter(c => c.local_agency_id === localAgency.id) : [];
     if (foreignAgencyName) candidates = foreignAgency ? candidates.filter(c => c.foreign_agency_id === foreignAgency.id) : [];
     const ids = new Set(candidates.map(c => c.id));
 
@@ -116,8 +117,8 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         return { key: monthKey(d), label: monthLabel(d) };
     });
      const payments = getPayments().filter(p => p.status === 'succeeded' && !isForeignPayment(p) && // foreign payments are in other currencies
-         (!localAgency || p.payee_local_agency_id === localAgency.id)
-         && (!foreignAgency || p.candidate_ids.some(id => ids.has(id))));
+         (!(localAgencyName || localAgencyId) || !!localAgency && p.payee_local_agency_id === localAgency.id)
+         && (!foreignAgencyName || !!foreignAgency && p.candidate_ids.some(id => ids.has(id))));
     const trend = months.map(m => ({
         month: m.label,
         registered: candidates.filter(c => monthKey(new Date(c.created_at)) === m.key).length,
@@ -168,7 +169,11 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
     const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 
     const unread = getChatMessages().filter(m => ids.has(m.candidate_id) && m.sender === 'candidate' && !m.is_read_by_admin).length;
-    const activity = getApprovalLogs().filter(log => ids.has(log.target_id) || log.target_type !== 'Candidate')
+    const scopedPaymentIds = new Set(getPayments().filter(payment => payment.candidate_ids.some(id => ids.has(id))
+        || !!localAgency && payment.payee_local_agency_id === localAgency.id).map(payment => payment.id));
+    const activity = getApprovalLogs().filter(log => localAgencyName || localAgencyId || foreignAgencyName
+        ? ids.has(log.target_id) || scopedPaymentIds.has(log.target_id)
+        : ids.has(log.target_id) || log.target_type !== 'Candidate')
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 6)
         .map(l => ({ id: l.id, timestamp: l.timestamp, actor: actorDisplayName(l.actor_id, l.actor_email, candidates), description: l.description, action: l.action, target_id: l.target_id }));

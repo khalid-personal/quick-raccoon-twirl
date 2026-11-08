@@ -1,6 +1,6 @@
 import { ALL_STAGES } from './types';
 import { checkForeignPayment, isForeignPayment } from './currency';
-import type { ApprovalLog, IntegrityOverride, Candidate, CandidateStage, Document, MedicalResult, Payment, PaymentStatus } from './types';
+import type { ApprovalLog, IntegrityOverride, Candidate, CandidateStage, Document, MedicalResult, Payment, PaymentStatus, StaffUser } from './types';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
@@ -25,6 +25,18 @@ export interface IntegrityInput {
   logs: ApprovalLog[];
   stageFees?: Record<number, number>;
   now?: number;
+}
+
+export function scopeIntegrityFindings(findings: Finding[], candidates: Candidate[], payments: Payment[], localAgencyId?: string, staff: StaffUser[] = []): Finding[] {
+  if (!localAgencyId) return findings;
+  const candidateIds = new Set(candidates.filter(candidate => candidate.local_agency_id === localAgencyId).map(candidate => candidate.id));
+  const paymentIds = new Set(payments.filter(payment => payment.payee_local_agency_id === localAgencyId
+    || payment.candidate_ids.some(id => candidateIds.has(id))).map(payment => payment.id));
+  const actors = new Set(staff.filter(person => person.local_agency_id === localAgencyId).flatMap(person => [person.id, person.email]));
+  actors.add(localAgencyId);
+  return findings.filter(finding => !!finding.candidateId && candidateIds.has(finding.candidateId)
+    || !!finding.paymentId && paymentIds.has(finding.paymentId)
+    || !!finding.actor && actors.has(finding.actor));
 }
 
 export const SEVERITY_WEIGHT: Record<Severity, number> = { critical: 25, high: 10, medium: 4, low: 1 };

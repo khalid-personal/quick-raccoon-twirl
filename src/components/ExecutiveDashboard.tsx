@@ -166,10 +166,16 @@ const PipelineFunnel: React.FC<{ m: ExecutiveMetrics }> = ({ m }) => {
 
 const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: string; candidateBasePath?: string }> = ({ localAgencyName, localAgencyId, candidateBasePath = '/admin/candidate' }) => {
   const [selection, setSelection] = React.useState<DashboardSelection | null>(null);
-  const { data: m, isLoading } = useQuery<ExecutiveMetrics>({
-    queryKey: ['executiveMetrics', localAgencyName],
-    queryFn: () => api.getExecutiveMetrics(localAgencyName),
+  const { data: m, isLoading, refetch } = useQuery<ExecutiveMetrics>({
+    queryKey: ['executiveMetrics', localAgencyName, localAgencyId],
+    queryFn: () => api.getExecutiveMetrics(localAgencyName, undefined, localAgencyId),
   });
+  React.useEffect(() => {
+    const refresh = () => void refetch();
+    window.addEventListener('supabase-data-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); };
+  }, [refetch]);
 
   if (isLoading || !m) {
     return <Card className="flex h-[300px] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></Card>;

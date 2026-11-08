@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertOctagon, AlertTriangle, CheckCircle2, Download, Eye, Info, Loader2, ShieldAlert, ShieldCheck, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
-import { getApprovalLogs, getCandidates, getDocuments, getIntegrityOverrides, getStaffUsers, getCandidateStages, getConfig, getMedicalResults, getPaymentStatuses, getPayments } from '@/lib/data-store';
-import { analyzeIntegrity, applyOverrides, countBySeverity, riskScore } from '@/lib/integrity';
+import { getApprovalLogs, getCandidates, getDocuments, getIntegrityOverrides, getStaffUsers, getCandidateStages, getConfig, getMedicalResults, getPaymentStatuses, getPayments, getLocalAgencies } from '@/lib/data-store';
+import { analyzeIntegrity, applyOverrides, countBySeverity, riskScore, scopeIntegrityFindings } from '@/lib/integrity';
 import { MIN_OVERRIDE_REASON, overrideFinding, revokeOverride } from '@/lib/integrity-overrides';
 import type { Finding, Severity } from '@/lib/integrity';
 import { buildElmisCsv, getElmisMode, verifyCandidateWithElmis } from '@/lib/elmis';
@@ -64,6 +64,8 @@ const useDataVersion = () => {
 const AdminIntegrity: React.FC = () => {
   const openCandidate = useCandidateWorkspace();
   const { user, userRole } = useAuth();
+  const [params] = useSearchParams();
+  const localAgencyId = params.get('agency') || undefined;
   const canOverride = userRole === 'superadmin';
   const isAuditor = userRole === 'auditor';
   const version = useDataVersion();
@@ -81,9 +83,10 @@ const AdminIntegrity: React.FC = () => {
 
   useEffect(() => { void getElmisMode().then(setMode); }, []);
 
-  const candidates = useMemo(() => getCandidates(), [version, checking, bulkRunning]);
+  const allCandidates = useMemo(() => getCandidates(), [version, checking, bulkRunning]);
+  const candidates = useMemo(() => allCandidates.filter(candidate => !localAgencyId || candidate.local_agency_id === localAgencyId), [allCandidates, localAgencyId]);
   const allFindings = useMemo(() => analyzeIntegrity({
-    candidates,
+    candidates: allCandidates,
     stages: getCandidateStages(),
     documents: getDocuments(),
     payments: getPayments(),
@@ -91,9 +94,13 @@ const AdminIntegrity: React.FC = () => {
     medicals: getMedicalResults(),
     logs: getApprovalLogs(),
     stageFees: getConfig().stageFees,
-  }), [candidates, version, overrideVersion]);
+  }), [allCandidates, version, overrideVersion]);
   const overrides = useMemo(() => getIntegrityOverrides(), [version, overrideVersion]);
-  const { active: findings, overridden } = useMemo(() => applyOverrides(allFindings, overrides), [allFindings, overrides]);
+  const { active: findings, overridden } = useMemo(() => {
+    const results = applyOverrides(allFindings, overrides);
+    return { active: scopeIntegrityFindings(results.active, allCandidates, getPayments(), localAgencyId, getStaffUsers()),
+      overridden: results.overridden.filter(item => scopeIntegrityFindings([item.finding], allCandidates, getPayments(), localAgencyId, getStaffUsers()).length) };
+  }, [allFindings, overrides, allCandidates, localAgencyId]);
 
   const counts = countBySeverity(findings);
   const score = riskScore(findings, candidates.length);
@@ -113,9 +120,13 @@ const AdminIntegrity: React.FC = () => {
   const logs = useMemo(() => {
     const superadmins = new Set(getStaffUsers().filter(u => u.role === 'superadmin').map(u => u.email.toLowerCase()));
     const all = [...getApprovalLogs()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-    const scoped = auditScope === 'superadmin' ? all.filter(l => superadmins.has(l.actor_email.toLowerCase())) : all;
+    const candidateIds = new Set(candidates.map(candidate => candidate.id));
+    const paymentIds = new Set(getPayments().filter(payment => payment.payee_local_agency_id === localAgencyId || payment.candidate_ids.some(id => candidateIds.has(id))).map(payment => payment.id));
+    const actors = new Set(getStaffUsers().filter(person => person.local_agency_id === localAgencyId).map(person => person.email.toLowerCase()));
+    const agencyLogs = localAgencyId ? all.filter(log => candidateIds.has(log.target_id) || paymentIds.has(log.target_id) || actors.has(log.actor_email.toLowerCase())) : all;
+    const scoped = auditScope === 'superadmin' ? agencyLogs.filter(l => superadmins.has(l.actor_email.toLowerCase())) : agencyLogs;
     return scoped.slice(0, 200);
-  }, [version, overrideVersion, auditScope]);
+  }, [version, overrideVersion, auditScope, localAgencyId, candidates]);
 
   const actor = { id: user?.id ?? '', email: user?.email ?? '' };
   const submitOverride = async () => {
@@ -178,9 +189,11 @@ const AdminIntegrity: React.FC = () => {
         icon={ShieldAlert}
         actions={isAuditor ? <Badge variant="outline" className="gap-1 !border-white/30 !text-white"><Eye className="h-3.5 w-3.5" />Read-only</Badge> : <Button variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10" onClick={() => downloadFile('integrity-findings.csv', ['severity,rule,title,detail', ...findings.map(f => [f.severity, f.rule, f.title, f.detail].map(v => `"${v.replace(/"/g, '""')}"`).join(','))].join('\n'))}><Download className="mr-2 h-4 w-4" />Export findings</Button>}
       />
+      {localAgencyId && <p className="rounded-xl border bg-muted/30 p-3 text-sm">Reviewing {getLocalAgencies().find(agency => agency.id === localAgencyId)?.name ?? 'selected agency'} · {candidates.length} candidates. <Link className="text-primary underline" to="/admin/integrity">View all agencies</Link></p>}
 
       <div className="grid gap-3 md:grid-cols-[1.2fr_2fr]">
-        <IntegrityScore score={score} counts={counts} candidateCount={candidates.length} onReview={() => { setSeverity(counts.critical ? 'critical' : counts.high ? 'high' : 'all'); setActiveTab('findings'); }} />
+        {candidates.length ? <IntegrityScore score={score} counts={counts} candidateCount={candidates.length} onReview={() => { setSeverity(counts.critical ? 'critical' : counts.high ? 'high' : 'all'); setActiveTab('findings'); }} />
+          : <p className="rounded-xl border p-5 text-sm text-muted-foreground">No candidate records in this view. A score is not available yet.</p>}
         <StatCards items={[
           { label: 'Critical', value: counts.critical, icon: <AlertOctagon className="h-5 w-5 text-red-600" />, onClick: () => { setSeverity(severity === 'critical' ? 'all' : 'critical'); setActiveTab('findings'); }, active: severity === 'critical' },
           { label: 'High', value: counts.high, icon: <AlertTriangle className="h-5 w-5 text-orange-600" />, onClick: () => { setSeverity(severity === 'high' ? 'all' : 'high'); setActiveTab('findings'); }, active: severity === 'high' },
@@ -189,11 +202,11 @@ const AdminIntegrity: React.FC = () => {
         ]} />
       </div>
 
-      {canOverride && <AgencyResolutionCenter />}
+      {canOverride && <AgencyResolutionCenter agencyScope={localAgencyId ? { type: 'local', id: localAgencyId } : undefined} />}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList aria-label="Record check sections">
           <TabsTrigger value="findings"><ShieldAlert aria-hidden="true" />Issues to review ({findings.length})</TabsTrigger>
-          <TabsTrigger value="overrides"><CheckCircle2 aria-hidden="true" />Accepted exceptions ({overrides.filter(o => !o.revoked_at).length})</TabsTrigger>
+          <TabsTrigger value="overrides"><CheckCircle2 aria-hidden="true" />Accepted exceptions ({overridden.length})</TabsTrigger>
           {!isAuditor && <TabsTrigger value="elmis"><ShieldCheck aria-hidden="true" />Identity checks (ELMIS)</TabsTrigger>}
           <TabsTrigger value="audit"><Eye aria-hidden="true" />Activity history</TabsTrigger>
         </TabsList>

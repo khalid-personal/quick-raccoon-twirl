@@ -177,17 +177,21 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
     });
     data.logs = [];
     const riskyIds = new Set(data.candidates.slice(0, risky).map(candidate => candidate.id));
+    const foreignRisk = new Map(data.payments.filter(isForeignPayment).slice(0, risky).map((payment, index) => [payment.id, index]));
     const evidence: ScenarioEvidence[] = data.localAgencies.flatMap(agency => (['candidate', 'foreign'] as const).map(source => {
       const payments = data.payments.filter(p => p.payee_local_agency_id === agency.id && isForeignPayment(p) === (source === 'foreign'));
       const statement: BankStatement = withDemoStatementOriginal({ name: '', synthetic: true,
         covered_candidate_ids: data.candidates.filter(c => c.local_agency_id === agency.id).map(c => c.id),
         lines: payments.flatMap(payment => {
           const index = data.candidates.findIndex(candidate => candidate.id === payment.candidate_ids[0]);
-          const bad = riskyIds.has(payment.candidate_ids[0]) && payment.stage_id === ALL_STAGES[currentOrder(index)].id;
-          if (bad && index % 3 === 2) return [];
+          const foreignIndex = foreignRisk.get(payment.id);
+          const riskIndex = source === 'foreign' ? foreignIndex ?? 0 : index;
+          const bad = source === 'foreign' ? foreignIndex !== undefined
+            : riskyIds.has(payment.candidate_ids[0]) && payment.stage_id === ALL_STAGES[currentOrder(index)].id;
+          if (bad && riskIndex % 3 === 2) return [];
           return [{ date: payment.created_at.slice(0, 10), description: `Practice / synthetic credit for ${paymentCandidateSummary(payment, data.candidates)}; ${agency.name}; not real bank proof`,
             reference: payment.provider_reference || payment.receipt_number!, currency: payment.currency,
-            amount: payment.amount * (bad ? (index % 3 === 0 ? 0.8 : 1.2) : 1) }];
+            amount: payment.amount * (bad ? (riskIndex % 3 === 0 ? 0.8 : 1.2) : 1) }];
         }) }, agency.name, source);
       const events: ReconciliationCaseEvent[] = reconcile(payments, statement.lines).matches.filter(match => match.status !== 'matched').map(match => ({
         id: `demo-integrity-evidence-${match.payment.id}`, caseId: match.payment.id, source, synthetic: true,
@@ -288,7 +292,8 @@ export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, ac
     // Escalate a representative set through the real audited workflow. All other
     // gaps stay visible as payment evidence requests, without creating holds.
     const represented = new Set<string>();
-    const caseLimit = Math.min(2, Math.ceil(data.measured.flaggedPayments / 15));
+    const candidateDifferences = data.evidence.filter(item => item.source === 'candidate').reduce((count, item) => count + item.events.length, 0);
+    const caseLimit = Math.min(2, Math.ceil(candidateDifferences / 15));
     for (const issue of amountDiscrepancies().filter(issue => issue.basis === 'bank' && issue.paymentId.startsWith('demo-integrity-'))) {
       if (represented.size >= caseLimit) break;
       const group = `${issue.agencyId}:${issue.source}:${issue.kind}`;

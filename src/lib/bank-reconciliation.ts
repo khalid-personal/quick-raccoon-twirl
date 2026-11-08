@@ -108,6 +108,10 @@ export const reconcile = (payments: Payment[], lines: BankLine[]): Reconciliatio
   const used = new Set<number>();
   const matches: PaymentMatch[] = [];
   const ordered = [...payments].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const knownReferences = new Set(payments.flatMap(paymentReferences).map(reference => reference.trim().toLowerCase()));
+  const referencedLines = new Set(lines.flatMap((line, index) => (line.reference.trim()
+    ? knownReferences.has(line.reference.trim().toLowerCase())
+    : line.description.toLowerCase().split(/\s+/).some(word => knownReferences.has(word))) ? [index] : []));
 
   for (const payment of ordered) {
     const references = paymentReferences(payment);
@@ -116,7 +120,7 @@ export const reconcile = (payments: Payment[], lines: BankLine[]): Reconciliatio
     let matchBasis: PaymentMatch['matchBasis'] = idx >= 0 ? 'reference' : 'none';
     if (idx < 0) {
       const at = new Date(payment.created_at).getTime();
-      idx = lines.findIndex((l, i) => !used.has(i) && l.currency.toUpperCase() === payment.currency.toUpperCase()
+      idx = lines.findIndex((l, i) => !used.has(i) && !referencedLines.has(i) && l.currency.toUpperCase() === payment.currency.toUpperCase()
         && Math.abs(l.amount - payment.amount) <= payment.amount * TOLERANCE && Math.abs(new Date(l.date).getTime() - at) <= 7 * DAY);
       if (idx >= 0) matchBasis = 'amount-date';
     }

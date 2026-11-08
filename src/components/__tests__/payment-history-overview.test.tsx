@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => ({
   all: vi.fn(), foreign: vi.fn(), local: vi.fn(),
 }));
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => mocks.auth }));
-vi.mock('@/lib/api', () => ({ default: { getAllPayments: mocks.all, getPaymentsByForeignAgency: mocks.foreign, getPaymentsByLocalAgency: mocks.local, getLocalAgencyList: async () => [] } }));
+vi.mock('@/lib/api', () => ({ default: { getAllPayments: mocks.all, getPaymentsByForeignAgency: mocks.foreign, getPaymentsByLocalAgency: mocks.local, getLocalAgencyList: async () => [{ id: 'local', name: 'Local partner', created_at: '2026-11-07' }] } }));
+vi.mock('../AgencyPaymentReconciliation', () => ({ default: () => <p>Contract payment checks</p> }));
+vi.mock('../BankReconciliation', () => ({ BankReconciliation: ({ agencyId, paymentSource, payments }: { agencyId: string; paymentSource: string; payments: Payment[] }) => <p>Bank comparison {agencyId} {paymentSource} {payments.map(payment => payment.id).join(',')}</p> }));
 vi.mock('../AgencyResolutionCenter', () => ({ default: () => <p>Resolution inbox</p> }));
 vi.mock('../PaymentEvidenceReview', () => ({ default: ({ evidence }: { evidence: { payment?: Payment } | null }) => evidence ? <p>Inspect {evidence.payment?.id}</p> : null }));
 const base: Payment = { id: 'settled-foreign', amount: 100, currency: 'USD', status: 'succeeded', payer_type: 'foreign-agency', payer_foreign_agency_id: 'foreign', payee_local_agency_id: 'local', candidate_ids: [], created_at: '2026-11-05', updated_at: '2026-11-05' };
@@ -34,6 +36,16 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); client.clear(); container.remove(); vi.restoreAllMocks(); });
 describe('payment history finance-first view', () => {
+  it('shows foreign bank comparisons for all receiving agencies without requiring an agency selection', async () => {
+    await render('/admin/payments?tab=discrepancies&source=foreign');
+    expect(container.querySelector('[aria-label="Foreign transfer bank differences"]')?.textContent).toContain('Bank comparison local foreign settled-foreign');
+    expect(container.textContent).toContain('Contract payment checks');
+    expect(container.querySelector('[aria-label="Foreign transfer bank differences"]')?.textContent).not.toContain('candidate-fee');
+    await act(async () => root.unmount()); root = createRoot(container); client.clear();
+    await render('/admin/payments?tab=discrepancies&source=foreign&agency=local');
+    expect(container.querySelector('[aria-label="Foreign transfer bank differences"]')).toBeNull();
+    expect(container.textContent).toContain('Bank comparison local foreign settled-foreign');
+  });
   it('uses compact static rail controls without changing source filtering', async () => {
     await render('/admin/payments?tab=ledger');
     const foreign = container.querySelector<HTMLButtonElement>('[aria-label="Foreign agency payments to local agencies · 4"]')!;
