@@ -19,13 +19,14 @@ const ViewerDashboard: React.FC = () => {
   ] }]}>
     <div className="space-y-6">
       <ControlRoomHeader
+        title="Public tracking"
         scope="Viewer · view only"
         description="Look up a candidate using their tracking code. Results depend on the portal's public tracking configuration."
         icon={Eye}
-        actions={<Button asChild variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10"><Link to="/guide"><BookOpen className="mr-2 h-4 w-4" />Getting started</Link></Button>}
+        actions={<Button asChild variant="outline"><Link to="/guide"><BookOpen className="mr-2 h-4 w-4" />Getting started</Link></Button>}
       />
       <Card className="max-w-xl">
-        <CardHeader>
+        <CardHeader className="portal-card-heading mb-4">
           <CardTitle>Candidate tracking</CardTitle>
           <CardDescription>Viewer accounts do not have general access to candidate records. Information shown and tracking availability depend on the portal's public tracking configuration.</CardDescription>
         </CardHeader>

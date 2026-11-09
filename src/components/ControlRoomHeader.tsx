@@ -11,21 +11,19 @@ interface ControlRoomHeaderProps {
 }
 
 const ControlRoomHeader: React.FC<ControlRoomHeaderProps> = ({ scope, description, title = 'Dashboard', icon: Icon = Activity, actions }) => (
-  <header className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-br from-[#123b36] via-[#174b43] to-[#1d5a4f] text-white shadow-lg">
-    <div aria-hidden="true" className="absolute -right-10 -top-20 h-72 w-72 rounded-full border-[36px] border-white/[0.04]" />
-    <div aria-hidden="true" className="absolute bottom-0 right-[28%] top-0 hidden w-px bg-white/10 xl:block" />
+  <header className="portal-dashboard-hero relative overflow-hidden rounded-2xl border">
     <div className="relative flex flex-col gap-5 p-5 sm:p-7 xl:flex-row xl:items-end xl:justify-between">
       <div className="max-w-2xl">
-        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-lime-200">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/10"><Icon className="h-3.5 w-3.5" /></span>
+        <p className="portal-dashboard-scope flex items-center gap-2 font-semibold">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg"><Icon className="h-4 w-4" /></span>
           {scope}
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">{description}</p>
+        <p className="portal-dashboard-description mt-2 max-w-xl text-sm leading-relaxed">{description}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs text-white/65">Snapshot · {new Date().toLocaleDateString('en-ET', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-        {actions}
+      <div className="flex flex-col items-start gap-3 xl:items-end">
+        <span className="portal-dashboard-date text-xs">Today · {new Date().toLocaleDateString('en-ET', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+        <div className="portal-dashboard-actions flex flex-wrap items-center gap-2">{actions}</div>
       </div>
     </div>
   </header>

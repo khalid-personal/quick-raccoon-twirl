@@ -52,32 +52,28 @@ describe('colored controls, ministry QR and paired evidence', () => {
     const tabs = [...container.querySelectorAll('[role="tab"]')];
     expect(tabs.map(tab => tab.getAttribute('aria-label'))).toEqual(['Overview', 'Workforce', 'Payments', 'Document checks', 'Candidates']);
     tabs.forEach(tab => {
-      expect(tab.className).toContain('min-h-[104px]');
+      expect(tab.className).toContain('min-h-[88px]');
       expect(tab.className).toContain('dashboard-nav-item');
       expect(tab.querySelector('.dashboard-nav-glyph')).not.toBeNull();
       expect(tab.querySelector('.control-nav-signal')).toBeNull();
       expect(tab.className).toContain('motion-reduce:transition-none');
     });
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
-    expect(new Set(tabs.map(tab => (tab as HTMLElement).style.getPropertyValue('--nav-color'))).size).toBe(5);
+    expect(tabs.every(tab => !(tab as HTMLElement).style.getPropertyValue('--nav-color'))).toBe(true);
     await act(async () => {
       tabs[2].dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     });
     expect(tabs[2].getAttribute('aria-selected')).toBe('true');
     expect(tabs[0].getAttribute('aria-selected')).toBe('false');
   });
-  it('shows pending QR explicitly, then a persisted demo QR without official clearance', async () => {
+  it('shows ministry references without local issuance, QR images or downloads', async () => {
     sessionStorage.setItem('dawm_demo_session', '1'); saveCandidates([candidate]);
     const changed = vi.fn();
     await act(async () => root.render(<MinistryQrPanel candidate={candidate} onChanged={changed} />));
-    expect(container.textContent).toContain('Pending ministry QR');
-    expect(container.textContent).toContain('No QR issued yet');
-    await act(async () => { button('Simulate demo ministry QR').click(); await new Promise(resolve => setTimeout(resolve, 100)); });
-    expect(changed).toHaveBeenCalled();
-    await act(async () => root.render(<MinistryQrPanel candidate={getCandidates()[0]} onChanged={changed} />));
-    expect(container.querySelector('img')?.getAttribute('alt')).toContain('DEMO');
-    expect(container.textContent).toContain('DEMO / NOT OFFICIAL');
-    expect(container.querySelector('a[download]')).not.toBeNull();
+    expect(container.textContent).toContain('Awaiting ministry reference');
+    expect(button('Simulate practice ministry QR')).toBeUndefined();
+    expect(changed).not.toHaveBeenCalled();
+    expect(container.querySelector('img, a[download]')).toBeNull();
     expect(isCleared(getCandidates()[0])).toBe(false);
   });
   it('never presents an insecure or rejected QR as official clearance', async () => {
@@ -85,8 +81,8 @@ describe('colored controls, ministry QR and paired evidence', () => {
     expect(container.querySelector('img')).toBeNull();
     expect(container.textContent).not.toContain('Official ministry QR issued');
     await act(async () => root.render(<MinistryQrPanel candidate={{ ...candidate, clearance: { ...candidate.clearance, labour_ministry: { status: 'rejected' } } }} />));
-    expect(container.textContent).toContain('Ministry review failed');
-    expect(button('Simulate demo ministry QR')).toBeUndefined();
+    expect(container.textContent).toContain('rejected');
+    expect(button('Simulate practice ministry QR')).toBeUndefined();
   });
   it('automatically fills comparison from saved evidence and exposes both documents side by side', async () => {
     savePayments([payment]);

@@ -20,8 +20,8 @@ const CandidateMapDialog: React.FC<CandidateMapDialogProps> = ({ candidate }) =>
   });
 
   return <Dialog open={open} onOpenChange={setOpen}>
-    <Button variant="outline" size="icon" aria-label="View candidate journey map" title="View candidate journey map" onClick={() => setOpen(true)}>
-      <MapPin className="h-4 w-4" />
+    <Button variant="outline" aria-label="View candidate journey map" title="View candidate journey map" onClick={() => setOpen(true)}>
+      <MapPin className="mr-2 h-4 w-4" />Journey map
     </Button>
     <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
       <DialogHeader>

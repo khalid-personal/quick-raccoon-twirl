@@ -74,7 +74,7 @@ const EditableGrid: React.FC<{ pageId: string; title?: string; items: GridItem[]
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12 lg:grid-flow-row-dense">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:grid-flow-row-dense">
         {visible.map((id, index) => {
           const item = byId.get(id);
           if (!item) return null;
@@ -110,7 +110,7 @@ const EditableGrid: React.FC<{ pageId: string; title?: string; items: GridItem[]
                   <div className="absolute inset-0 z-10" aria-hidden="true" />
                 </>
               )}
-              <div className={cn('h-full [&>*]:h-full', editing && 'pointer-events-none select-none')}>{item.node}</div>
+              <div className={cn('min-w-0', editing && 'pointer-events-none select-none')}>{item.node}</div>
             </div>
           );
         })}

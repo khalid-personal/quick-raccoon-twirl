@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCandidates, initializeDataStore, saveCandidates } from '../../data-store';
-import { attachCandidatePassport, createCandidate, updateCandidateDetails } from '../candidate-crud';
+import { attachCandidatePassport, createCandidate, updateCandidateDetails, updateCandidateCredentials } from '../candidate-crud';
+import { MINISTRY_PROFILE_FIELDS, MINISTRY_JOURNEY_FIELDS, MINISTRY_STAGE_MESSAGE } from '../../ministry-candidates';
 import { getApiPrincipal } from '../auth';
 import { parsePassportMrz } from '../../passport-mrz';
 import { generateDemoDataset } from '../../demo-dataset';
@@ -28,9 +29,13 @@ describe('passport registration persistence', () => {
     expect(getCandidates()).toHaveLength(1);
     expect(updated).toMatchObject({
       id: candidate.id, tracking_code: candidate.tracking_code, first_name: candidate.first_name, country_of_origin: candidate.country_of_origin,
-      passport_nationality: 'United States', passport_issuing_country: 'United States',
-      passport_expiry_date: '2012-04-15', passport_document_type: 'P',
     });
+    expect(updated.passport_identity).toMatchObject({ passport_nationality: 'United States', passport_issuing_country: 'United States',
+      passport_expiry_date: '2012-04-15', passport_document_type: 'P' });
+    expect(updated.passport_nationality).toBe(candidate.passport_nationality);
+    expect(updated.passport_issuing_country).toBe(candidate.passport_issuing_country);
+    expect(updated.passport_expiry_date).toBe(candidate.passport_expiry_date);
+    expect(updated.passport_document_type).toBe(candidate.passport_document_type);
     expect(updated.passport_identity?.first_name).toBe(scanned.first_name);
   });
   it('rejects all manual candidate creation without modifying stored records', async () => {
@@ -57,12 +62,33 @@ describe('passport registration persistence', () => {
     await expect(attachCandidatePassport(scan)).rejects.toThrow('Several records');
     expect(getCandidates()).toHaveLength(2);
   });
-  it('protects ministry identity, Labor ID and local assignment while leaving contact support editable', async () => {
+  it('protects ministry identity, Labor ID, contact and CoC assignments while keeping operational evidence available', async () => {
     const candidate = { ...getCandidates()[0], elmis: { candidate_id: 'MIN-1', labor_id: 'LAB-1', mode: 'live' as const, status: 'verified' as const, checked_at: '2026-11-08' } };
     saveCandidates([candidate]);
-    await expect(updateCandidateDetails(candidate.id, { first_name: 'Changed' }, 'operator', 'operator@test.test')).rejects.toThrow('through ELMIS');
-    await expect(updateCandidateDetails(candidate.id, { local_agency_id: 'another' }, 'operator', 'operator@test.test')).rejects.toThrow('ministry record');
+    await expect(updateCandidateDetails(candidate.id, { first_name: 'Changed' }, 'operator', 'operator@test.test')).rejects.toThrow('read-only');
+    await expect(updateCandidateDetails(candidate.id, { local_agency_id: 'another' }, 'operator', 'operator@test.test')).rejects.toThrow('read-only');
     await expect(updateCandidateDetails(candidate.id, { elmis: { ...candidate.elmis, labor_id: 'OTHER' } }, 'operator', 'operator@test.test')).rejects.toThrow('Labor ID');
-    await expect(updateCandidateDetails(candidate.id, { phone_number: 'support-contact' }, 'operator', 'operator@test.test')).resolves.toMatchObject({ phone_number: 'support-contact' });
+    await expect(updateCandidateDetails(candidate.id, { elmis: undefined }, 'operator', 'operator@test.test')).rejects.toThrow('Labor ID');
+    await expect(updateCandidateDetails(candidate.id, { phone_number: 'support-contact' }, 'operator', 'operator@test.test')).rejects.toThrow('read-only');
+    await expect(updateCandidateDetails(candidate.id, { passport_image_url: 'evidence-upload' }, 'operator', 'operator@test.test')).resolves.toMatchObject({ passport_image_url: 'evidence-upload' });
+  });
+  it.each(MINISTRY_PROFILE_FIELDS)('blocks manual %s changes in practice records without modifying evidence', async field => {
+    const candidate = getCandidates()[0];
+    const before = { ...localStorage };
+    const patch = { [field]: typeof candidate[field] === 'string' ? 'changed-source-value' : ['changed-source-value'] };
+    await expect(updateCandidateDetails(candidate.id, patch, 'operator', 'operator@test.test')).rejects.toThrow('through the ministry / ELMIS');
+    expect({ ...localStorage }).toEqual(before);
+  });
+  it('does not let a credentials update change the ministry-owned email', async () => {
+    const candidate = getCandidates()[0];
+    const before = { ...localStorage };
+    await expect(updateCandidateCredentials(candidate.id, 'changed@test.test', '123456', 'operator', 'operator@test.test')).rejects.toThrow('read-only');
+    expect({ ...localStorage }).toEqual(before);
+  });
+  it.each(MINISTRY_JOURNEY_FIELDS)('blocks manual %s journey updates without modifying source or evidence', async field => {
+    const candidate = getCandidates()[0];
+    const before = { ...localStorage };
+    await expect(updateCandidateDetails(candidate.id, { [field]: 'changed-source-value' }, 'operator', 'operator@test.test')).rejects.toThrow(MINISTRY_STAGE_MESSAGE);
+    expect({ ...localStorage }).toEqual(before);
   });
 });

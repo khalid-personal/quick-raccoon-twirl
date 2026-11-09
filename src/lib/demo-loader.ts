@@ -4,7 +4,7 @@ import {
   saveLocalAgencies, saveMedicalResults, savePaymentStatuses, savePayments, getStaffUsers, saveStaffUsers,
 } from './data-store';
 import { clearDemoStorage, getDemoScenario, isDemoMode, setDemoScenario, type DemoScenario } from './demo-mode';
-import { DEMO_PREFIX, buildMergedStore, isDemoLoaded, demoConfigPatch, generateDemoDataset } from './demo-dataset';
+import { DEMO_PREFIX, buildMergedStore, isDemoLoaded, demoConfigPatch, generateDemoDataset, demoMedicalLocationFor, demoStageLocationFor } from './demo-dataset';
 import { ensureDemoBankEvidence } from './demo-bank-evidence';
 import { migrateDemoIdentities } from './demo-identity-migration';
 
@@ -25,7 +25,7 @@ export const loadDemoData = (scenario: DemoScenario = getDemoScenario()): { cand
   saveDocuments(buildMergedStore(getDocuments(), demo.documents));
   savePayments(buildMergedStore(getPayments(), demo.payments));
   savePaymentStatuses([...getPaymentStatuses().filter(p => !isDemoId(p.candidateId)), ...demo.paymentStatuses]);
-  saveCandidateStages([...priorStages, ...demo.stages]);
+  saveCandidateStages([...priorStages, ...demo.stages], { recordHistory: false });
   saveApprovalLogs(buildMergedStore(getApprovalLogs(), demo.logs));
   ensureDemoBankEvidence();
   window.dispatchEvent(new CustomEvent('supabase-data-changed'));
@@ -71,6 +71,34 @@ const DEMO_VERSION = '12';
 const VERSION_KEY = 'dawm_demo_version';
 const PARTNERSHIPS_KEY = 'dawm_demo_partnerships_initialized';
 const WORKFLOW_EXAMPLES_KEY = 'dawm_demo_workflow_examples_v1';
+
+export const ensureDemoMedicalLocations = (): number => {
+  if (!isDemoMode()) return 0;
+  let changed = 0;
+  const medicals = getMedicalResults().map(result => {
+    const location = demoMedicalLocationFor(result.candidate_id);
+    if (!/^demo-(med-|integrity-medical-)/.test(result.id) || !location || !result.exam_date || result.location || result.recorded_at || result.history?.length) return result;
+    changed++;
+    return { ...result, location };
+  });
+  if (changed) {
+    saveMedicalResults(medicals);
+    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+  }
+  const candidates = getCandidates();
+  const facilities = getCocFacilities();
+  let stagesChanged = false;
+  const stages = getCandidateStages().map(stage => {
+    const candidate = candidates.find(item => item.id === stage.candidate_id);
+    if (!candidate || stage.location || stage.history?.length) return stage;
+    const location = demoStageLocationFor(candidate, stage, facilities);
+    if (!location) return stage;
+    stagesChanged = true;
+    return { ...stage, location };
+  });
+  if (stagesChanged) saveCandidateStages(stages, { recordHistory: false });
+  return changed;
+};
 
 const ensureDemoWorkflowExamples = () => {
   if (localStorage.getItem(WORKFLOW_EXAMPLES_KEY)) return;
@@ -136,6 +164,7 @@ export const bootDemo = () => {
   if (!isDemoMode()) return;
   if (isDemoLoaded(getCandidates())) {
     migrateDemoIdentities();
+    ensureDemoMedicalLocations();
     if (!sessionStorage.getItem('dawm_integrity_scenario')) {
       repairDemoStagePlaceholders(); ensureDemoWorkflowExamples(); ensureDemoPartnerships(); ensureDemoBankEvidence();
     }
@@ -148,4 +177,5 @@ export const bootDemo = () => {
   initializeDataStore();
   ensureDemoPartnerships();
   migrateDemoIdentities();
+  ensureDemoMedicalLocations();
 };

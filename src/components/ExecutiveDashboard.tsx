@@ -19,15 +19,18 @@ import DashboardExplorer from './DashboardExplorer';
 import type { DashboardSelection } from '@/lib/dashboard-drilldown';
 import { CandidateWorkspaceLink } from './CandidateQuickViewProvider';
 import { ALL_STAGES } from '@/lib/types';
-import ActivityRecord from './ActivityRecord';
+import RecentOperations from './RecentOperations';
+import { DASHBOARD_PALETTE } from '@/lib/dashboard-palette';
+import ExecutiveKpiExplorer from './ExecutiveKpiExplorer';
+import type { ExecutiveKpi } from '@/lib/executive-kpi';
 
 const COLORS = {
-  blue: '#2563eb',
-  indigo: '#6366f1',
-  emerald: '#10b981',
-  amber: '#f59e0b',
-  rose: '#f43f5e',
-  slate: '#94a3b8',
+  blue: DASHBOARD_PALETTE.teal,
+  indigo: DASHBOARD_PALETTE.forest,
+  emerald: DASHBOARD_PALETTE.sage,
+  amber: DASHBOARD_PALETTE.amber,
+  rose: DASHBOARD_PALETTE.rose,
+  slate: DASHBOARD_PALETTE.slate,
 };
 const STATUS_COLORS: Record<string, string> = {
   Pending: COLORS.amber,
@@ -48,34 +51,36 @@ interface KpiProps {
   label: string;
   value: string | number;
   icon: LucideIcon;
-  tone: string;
+  tone?: 'brand' | 'warning';
   sub?: React.ReactNode;
   spark?: number[];
   sparkColor?: string;
   delta?: number;
+  onInspect: () => void;
+  action: string;
 }
 
-const Kpi: React.FC<KpiProps> = ({ label, value, icon: Icon, tone, sub, spark, sparkColor = COLORS.blue, delta }) => (
-  <Card className="relative overflow-hidden">
-    <CardContent className="p-5">
+const Kpi: React.FC<KpiProps> = ({ label, value, icon: Icon, tone = 'brand', sub, spark, sparkColor = COLORS.blue, delta, onInspect, action }) => (
+  <Card className="portal-kpi executive-interactive-kpi relative overflow-hidden">
+    <button type="button" aria-label={`Explore ${label}`} aria-haspopup="dialog" onClick={onInspect} className="w-full p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
+          <p className="portal-kpi-value font-semibold tabular-nums">{value}</p>
         </div>
-        <div className={cn('rounded-lg p-2', tone)}><Icon className="h-5 w-5" /></div>
+        <div data-accent={tone === 'warning' ? 'amber' : undefined} className="portal-widget-icon rounded-xl p-2.5"><Icon className="h-5 w-5" /></div>
       </div>
       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
         {delta !== undefined && (
           <span className={cn('inline-flex items-center font-medium', delta >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
             {delta >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-            {Math.abs(delta)}%
+            {delta > 0 ? '+' : delta < 0 ? '−' : ''}{Math.abs(delta)}%
           </span>
         )}
         {sub}
       </div>
       {spark && (
-        <div className="mt-2 h-10 -mx-1">
+        <div aria-hidden="true" className="pointer-events-none mt-2 h-10 -mx-1">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={spark.map((v, i) => ({ i, v }))}>
               <defs>
@@ -89,7 +94,8 @@ const Kpi: React.FC<KpiProps> = ({ label, value, icon: Icon, tone, sub, spark, s
           </ResponsiveContainer>
         </div>
       )}
-    </CardContent>
+      <span className="executive-kpi-action mt-4 flex items-center justify-between gap-2 border-t pt-3 text-sm font-semibold text-primary">{action}<ArrowUpRight className="h-4 w-4" /></span>
+    </button>
   </Card>
 );
 
@@ -133,12 +139,12 @@ const PipelineFunnel: React.FC<{ m: ExecutiveMetrics }> = ({ m }) => {
           const width = Math.max(6, (f.reached / top) * 100);
           const dropped = i > 0 ? m.funnel[i - 1].reached - f.reached : 0;
           return (
-            <div key={f.stageTitle} className="grid grid-cols-[110px_1fr_auto] items-center gap-3">
+            <div key={f.stageTitle} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 xl:grid-cols-[125px_minmax(0,1fr)]">
               <div className="text-sm font-medium">
                 <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">{f.ordinal}</span>
                 {f.stageTitle}
               </div>
-              <div className="relative h-9 rounded-md bg-muted/60">
+              <div className="relative col-span-2 h-9 rounded-md bg-muted/60 xl:col-span-1">
                 <div
                   className="flex h-9 items-center justify-between rounded-md px-3 text-sm font-semibold text-white shadow-sm transition-all"
                   style={{ width: `${width}%`, background: `linear-gradient(90deg, ${COLORS.indigo}, ${COLORS.blue})` }}
@@ -147,7 +153,7 @@ const PipelineFunnel: React.FC<{ m: ExecutiveMetrics }> = ({ m }) => {
                   {f.blocked > 0 && <span className="rounded bg-rose-500/90 px-1.5 py-0.5 text-[10px]">{f.blocked} failed</span>}
                 </div>
               </div>
-              <div className="flex w-44 items-center justify-end gap-2 text-xs text-muted-foreground">
+              <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
                 {i > 0 && (
                   <Badge variant="outline" className={cn('font-medium', f.conversion >= 70 ? 'text-emerald-600' : f.conversion >= 40 ? 'text-amber-600' : 'text-rose-600')}>
                     {f.conversion}% conv.
@@ -166,6 +172,7 @@ const PipelineFunnel: React.FC<{ m: ExecutiveMetrics }> = ({ m }) => {
 
 const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: string; candidateBasePath?: string }> = ({ localAgencyName, localAgencyId, candidateBasePath = '/admin/candidate' }) => {
   const [selection, setSelection] = React.useState<DashboardSelection | null>(null);
+  const [metric, setMetric] = React.useState<ExecutiveKpi | null>(null);
   const { data: m, isLoading, refetch } = useQuery<ExecutiveMetrics>({
     queryKey: ['executiveMetrics', localAgencyName, localAgencyId],
     queryFn: () => api.getExecutiveMetrics(localAgencyName, undefined, localAgencyId),
@@ -174,7 +181,9 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
     const refresh = () => void refetch();
     window.addEventListener('supabase-data-changed', refresh);
     window.addEventListener('storage', refresh);
-    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); };
+    window.addEventListener('agency-resolution-changed', refresh);
+    window.addEventListener('bank-statement-changed', refresh);
+    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); window.removeEventListener('agency-resolution-changed', refresh); window.removeEventListener('bank-statement-changed', refresh); };
   }, [refetch]);
 
   if (isLoading || !m) {
@@ -193,17 +202,20 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Kpi label="Total Candidates" value={t.candidates} icon={Users} tone="bg-blue-500/10 text-blue-600"
-          delta={growth} sub={`${t.newLast30} new in 30 days`} spark={m.trend.map(x => x.registered)} sparkColor={COLORS.blue} />
-        <Kpi label="Deployed" value={t.deployed} icon={PlaneTakeoff} tone="bg-emerald-500/10 text-emerald-600"
+        <Kpi label="Total Candidates" value={t.candidates} icon={Users}
+          onInspect={() => setMetric('candidates')} action="Explore roster & recent intake"
+          delta={t.newPrev30 ? growth : undefined} sub={`${t.newLast30} new in 30 days`} spark={m.trend.map(x => x.registered)} sparkColor={COLORS.blue} />
+        <Kpi label="Deployed" value={t.deployed} icon={PlaneTakeoff}
+          onInspect={() => setMetric('deployed')} action="Inspect deployed journeys"
           sub={`${t.deploymentRate}% deployment rate`} spark={m.trend.map(x => x.deployed)} sparkColor={COLORS.emerald} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Kpi label="Average time to departure" value={t.avgDaysToDeploy ? `${t.avgDaysToDeploy} days` : '—'} icon={Timer} tone="bg-sky-500/10 text-sky-600" sub="From registration to departure" />
-        <Kpi label="Average time waiting" value={t.avgDaysActive ? `${t.avgDaysActive} days` : '—'} icon={Clock} tone="bg-amber-500/10 text-amber-600" sub="Since registration, for candidates not yet deployed" />
-        <Kpi label="Unread Messages" value={t.unreadMessages} icon={MessageSquare} tone="bg-violet-500/10 text-violet-600" sub="From candidates" />
+        <Kpi label="Average time to departure" value={t.deployed ? `${t.avgDaysToDeploy} days` : '—'} icon={Timer} sub="From registration to departure" onInspect={() => setMetric('departure')} action="Compare shortest & longest" />
+        <Kpi label="Average time waiting" value={t.active ? `${t.avgDaysActive} days` : '—'} icon={Clock} tone="warning" sub="Since registration, for candidates not yet deployed" onInspect={() => setMetric('waiting')} action="Find longest waits & follow up" />
+        <Kpi label="Unread Messages" value={t.unreadMessages} icon={MessageSquare} sub="From candidates" onInspect={() => setMetric('messages')} action="Review candidate conversations" />
       </div>
+      {metric && <ExecutiveKpiExplorer key={`${metric}-${localAgencyId}-${localAgencyName}`} metric={metric} localAgencyId={localAgencyId} localAgencyName={localAgencyName} candidateBasePath={candidateBasePath} generatedAt={m.generatedAt} onClose={() => setMetric(null)} onMetricChange={setMetric} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <PipelineFunnel m={m} />
@@ -271,8 +283,8 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="overflow-hidden border-teal-500/25 bg-gradient-to-br from-teal-500/10 via-card to-card">
-          <CardHeader className="pb-0"><div className="flex items-center gap-3"><span className="rounded-2xl bg-teal-500/15 p-3 text-teal-700 dark:text-teal-300"><HeartPulse className="h-6 w-6" /></span><div><CardTitle>Medical Results</CardTitle><CardDescription>{m.medical.total} exams recorded</CardDescription></div></div></CardHeader>
+        <Card className="overflow-hidden">
+          <CardHeader className="portal-card-heading mb-4"><div className="flex items-center gap-3"><span className="portal-widget-icon rounded-2xl p-3"><HeartPulse className="h-6 w-6" /></span><div><CardTitle>Medical Results</CardTitle><CardDescription>{m.medical.total} exams recorded</CardDescription></div></div></CardHeader>
           <CardContent>
             {m.medical.total === 0 ? <Empty /> : (
               <div className="h-[200px]">
@@ -291,8 +303,8 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden border-violet-500/25 bg-gradient-to-br from-violet-500/10 via-card to-indigo-500/5">
-          <CardHeader><div className="flex items-center gap-3"><span className="rounded-2xl bg-violet-500/15 p-3 text-violet-700 dark:text-violet-300"><FileCheck2 className="h-6 w-6" /></span><div><CardTitle>Travel readiness</CardTitle><CardDescription>Contracts &amp; visas · uploads + external system</CardDescription></div></div></CardHeader>
+        <Card className="overflow-hidden">
+          <CardHeader className="portal-card-heading mb-4"><div className="flex items-center gap-3"><span className="portal-widget-icon rounded-2xl p-3"><FileCheck2 className="h-6 w-6" /></span><div><CardTitle>Travel readiness</CardTitle><CardDescription>Contracts &amp; visas · uploads + external system</CardDescription></div></div></CardHeader>
           <CardContent className="space-y-4">
             {[
               { label: 'Work contracts received', value: m.documents.contractCount, rate: m.documents.contractRate, color: COLORS.blue },
@@ -303,7 +315,7 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
                 <div><p className="text-2xl font-bold tabular-nums">{d.value}<span className="ml-1 text-sm font-normal text-muted-foreground">/ {t.candidates}</span></p><p className="text-sm font-semibold">{d.label}</p></div>
               </div>
             ))}
-            <p className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-violet-500" />{m.documents.totalFiles} supporting files stored</p>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-primary" />{m.documents.totalFiles} supporting files stored</p>
           </CardContent>
         </Card>
 
@@ -334,11 +346,10 @@ const ExecutiveDashboard: React.FC<{ localAgencyName?: string; localAgencyId?: s
 
       <DashboardExplorer localAgencyId={localAgencyId} candidateBasePath={candidateBasePath} selection={selection} onSelect={setSelection} onClose={() => setSelection(null)} />
 
-      <Card className="overflow-hidden border-sky-500/25">
-        <CardHeader className="border-b bg-gradient-to-r from-sky-500/10 to-transparent pb-4"><CardTitle className="flex items-center text-xl"><span className="mr-3 rounded-xl bg-sky-500/15 p-2 text-sky-700 dark:text-sky-300"><Activity className="h-6 w-6" /></span>Recent Activity</CardTitle><CardDescription>Recorded actions, their authors and dates.</CardDescription></CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="portal-card-heading pb-4"><CardTitle className="flex items-center text-xl"><span className="portal-widget-icon mr-3 rounded-xl p-2"><Activity className="h-6 w-6" /></span>Recent Activity</CardTitle><CardDescription>Recorded actions, their authors and dates.</CardDescription></CardHeader>
         <CardContent className="space-y-4 pt-5">
-          {m.activity.length === 0 && <Empty text="No recorded activity yet" />}
-          {m.activity.map(activity => <ActivityRecord key={activity.id} activity={activity} />)}
+          <RecentOperations activity={m.activity} localAgencyId={localAgencyId} paymentPath={`${candidateBasePath.startsWith('/local-agency') ? '/local-agency' : '/admin'}/payments${localAgencyId ? `?agency=${encodeURIComponent(localAgencyId)}` : ''}`} />
         </CardContent>
       </Card>
     </div>

@@ -66,7 +66,7 @@ export const greatCirclePath = (from: { lat: number; lon: number }, to: { lat: n
       segment = '';
     }
     const point = projectWorldPoint(lat, lon);
-    segment += `${segment ? ' L' : 'M'}${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    segment += `${segment ? ' L' : 'M'}${point.x.toFixed(3)},${point.y.toFixed(3)}`;
     previousLon = lon;
   }
   if (segment) paths.push(segment);

@@ -66,7 +66,7 @@ const PassportButton: React.FC<Props> = ({ candidate, canEdit = false, onChanged
           <DialogTitle>Passport · {candidate.first_name} {candidate.last_name}</DialogTitle>
           <DialogDescription>Passport no. {candidate.passport_number}</DialogDescription>
         </DialogHeader>
-        {candidate.passport_image_url === 'generated' ? <div className="space-y-2 rounded-xl border border-dashed bg-muted/30 p-6"><Badge variant="outline">DEMO / synthetic record</Badge><p className="text-lg font-semibold">{candidate.first_name} {candidate.last_name}</p><p className="font-mono text-sm">{candidate.passport_number}</p><p className="text-sm">Date of birth: {candidate.dob}</p><p className="text-xs text-muted-foreground">No real passport image is stored for this demo candidate.</p></div> : image ? (
+        {candidate.passport_image_url === 'generated' ? <div className="space-y-2 rounded-xl border border-dashed bg-muted/30 p-6"><Badge variant="outline">Fictional / synthetic record</Badge><p className="text-lg font-semibold">{candidate.first_name} {candidate.last_name}</p><p className="font-mono text-sm">{candidate.passport_number}</p><p className="text-sm">Date of birth: {candidate.dob}</p><p className="text-xs text-muted-foreground">No real passport image is stored for this fictional candidate.</p></div> : image ? (
           <img src={image} alt="Passport" className="w-full rounded-md border bg-muted object-contain" />
         ) : (
           <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">No passport image has been uploaded yet.</div>

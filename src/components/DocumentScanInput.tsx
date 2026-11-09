@@ -39,6 +39,7 @@ const DocumentScanInput: React.FC<DocumentScanInputProps> = ({ id, accept, disab
   const [stageDetection, setStageDetection] = useState<Omit<ScanSelection, 'file' | 'report' | 'ready'>>({});
 
   const scan = async (selected?: File) => {
+    onChange(null);
     setFile(selected ?? null);
     setReport(null);
     setAcknowledged(false);
@@ -55,7 +56,8 @@ const DocumentScanInput: React.FC<DocumentScanInputProps> = ({ id, accept, disab
       let detection: Omit<ScanSelection, 'file' | 'report' | 'ready'> = {};
       if (detectStage && result.status !== 'blocked') {
         try {
-          detection = await detectDocumentStageFromFile(selected);
+          const detected = await detectDocumentStageFromFile(selected);
+          detection = { detectedStageId: detected.stageId, detectionSource: detected.source };
         } catch (error) {
           detection = { detectionError: error instanceof Error ? error.message : 'Could not read the document contents.' };
         }

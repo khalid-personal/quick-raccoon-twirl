@@ -13,7 +13,7 @@ export default function AvatarActivity({ id, kind, lastSeen }: { id?: string; ki
     && !Object.values(snapshot.sessions).some(session => session.subjectId === id && session.kind === kind);
   const online = actual.online || (demo && [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 4 === 0);
   const known = demo || !!actual.lastSeen;
-  const label = `${demo ? 'Demo simulated: ' : ''}${online ? 'Online' : known ? 'Offline' : 'Activity unknown'}${!demo && actual.lastSeen ? `; last seen ${new Date(actual.lastSeen).toLocaleString()}` : ''}`;
+  const label = `${demo ? 'Practice simulated: ' : ''}${online ? 'Online' : known ? 'Offline' : 'Activity unknown'}${!demo && actual.lastSeen ? `; last seen ${new Date(actual.lastSeen).toLocaleString()}` : ''}`;
   const Icon = online ? Wifi : known ? WifiOff : CircleHelp;
   return <span role="img" aria-label={label} title={label} className={cn(
     'absolute -right-0.5 -top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background shadow-sm',

@@ -23,7 +23,7 @@ type Recipient = ContractReminder['recipient'];
 const BAND: Record<ExpiryBand, { label: string; tone: string }> = {
   urgent: { label: 'Under 1 month', tone: 'bg-rose-500/10 text-rose-700 dark:text-rose-300' },
   soon: { label: '1 to 3 months', tone: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-  upcoming: { label: '3 to 6 months', tone: 'bg-sky-500/10 text-sky-700 dark:text-sky-300' },
+  upcoming: { label: '3 to 6 months', tone: 'bg-primary/10 text-primary' },
 };
 
 const ExpiringContracts: React.FC<{ localAgencyId?: string }> = ({ localAgencyId }) => {

@@ -2,7 +2,7 @@ import React from 'react';
 import { ETHIOPIAN_CITIES } from '@/lib/ethiopia';
 import { projectWorldPoint } from '@/lib/world-map';
 import InteractiveMap, { MapMarker } from './InteractiveMap';
-import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
+import MapRouteSignal from './MapRouteSignal';
 import { ETHIOPIA_MAP_HEIGHT_CLASS } from '@/lib/training-map';
 
 export interface MapPoint { lat: number; lon: number; label: string }
@@ -18,7 +18,6 @@ interface EthiopiaMapProps {
 }
 
 const EthiopiaMap: React.FC<EthiopiaMapProps> = ({ facilities, links = [], showCities = true, youAreHere, onLinkClick, animateRoutes = true }) => {
-  const reduced = usePrefersReducedMotion();
   return (
   <InteractiveMap preset="ethiopia" ariaLabel="Map of Ethiopia with training facilities and candidate routes" heightClassName={ETHIOPIA_MAP_HEIGHT_CLASS}>
     {({ u, w }) => {
@@ -36,27 +35,17 @@ const EthiopiaMap: React.FC<EthiopiaMapProps> = ({ facilities, links = [], showC
               </MapMarker>
             );
           })}
-          {links.map((link, index) => {
-            const color = link.color ?? '#059669';
-            const markerId = `ethiopia-network-arrow-${index}`;
+          {links.map(link => {
+            const color = link.color ?? '#285f59';
             const singleRoute = links.length === 1;
-            const width = singleRoute ? 3.2 : 2.3;
             const a = projectWorldPoint(link.from.lat, link.from.lon);
             const b = projectWorldPoint(link.to.lat, link.to.lon);
             const cx = (a.x + b.x) / 2;
-            const cy = Math.min(a.y, b.y) - Math.hypot(b.x - a.x, b.y - a.y) * 0.25;
+            const cy = (a.y + b.y) / 2 - Math.hypot(b.x - a.x, b.y - a.y) * 0.12;
             return (
               <g key={link.id}>
-                <defs>
-                  <marker id={markerId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" markerUnits="strokeWidth" orient="auto">
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
-                  </marker>
-                </defs>
                 <title>{link.label ?? `${link.from.label} → ${link.to.label}`}</title>
-                <path d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`} fill="none" stroke="#064e3b" strokeWidth={width + 3} opacity={0.2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                <path d={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`} fill="none" stroke={color} strokeWidth={width} strokeDasharray={singleRoute ? '8 6' : undefined} strokeLinecap="round" markerEnd={`url(#${markerId})`} opacity={singleRoute ? 1 : 0.82} vectorEffect="non-scaling-stroke">
-                  {singleRoute && animateRoutes && !reduced && <animate attributeName="stroke-dashoffset" from="28" to="0" dur="1.5s" repeatCount="indefinite" />}
-                </path>
+                <MapRouteSignal path={`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`} color={color} u={u} running={animateRoutes} selected={singleRoute} />
                 <MapMarker x={a.x} y={a.y} u={u}>
                   <circle r={5} fill={color} stroke="white" strokeWidth={1.5} />
                 </MapMarker>
@@ -78,8 +67,8 @@ const EthiopiaMap: React.FC<EthiopiaMapProps> = ({ facilities, links = [], showC
             return (
               <MapMarker key={`${f.label}-${f.lat}-${f.lon}`} x={x} y={y} u={u}>
                 <title>{f.label}</title>
-                <circle r={7} className="fill-indigo-600 stroke-card" strokeWidth={2} />
-                <text x={10} y={-8} fontSize={11} fontWeight={700} className="fill-indigo-900 dark:fill-indigo-200 stroke-card" strokeWidth={3} paintOrder="stroke">{f.label}</text>
+                <circle r={7} className="fill-primary stroke-card" strokeWidth={2} />
+                <text x={10} y={-8} fontSize={11} fontWeight={700} className="fill-primary stroke-card" strokeWidth={3} paintOrder="stroke">{f.label}</text>
               </MapMarker>
             );
           })}
@@ -88,7 +77,7 @@ const EthiopiaMap: React.FC<EthiopiaMapProps> = ({ facilities, links = [], showC
             return (
               <MapMarker x={x} y={y} u={u}>
                 <circle r={7} className="fill-rose-600 stroke-card" strokeWidth={2} />
-                <text x={11} y={15} fontSize={12} fontWeight={700} className="fill-rose-700 dark:fill-rose-200 stroke-card" strokeWidth={3} paintOrder="stroke">You are here · {youAreHere.label}</text>
+                <text x={11} y={15} fontSize={12} fontWeight={700} className="fill-primary stroke-card" strokeWidth={3} paintOrder="stroke">Recorded origin · {youAreHere.label}</text>
               </MapMarker>
             );
           })()}

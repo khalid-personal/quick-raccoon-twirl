@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import AuthPasswordInput from './AuthPasswordInput';
 
 const StaffLoginForm: React.FC = () => {
   const { isAuthenticated, login, isLoading: isAuthLoading, userRole } = useAuth();
@@ -23,14 +23,23 @@ const StaffLoginForm: React.FC = () => {
 
     switch (userRole) {
       case 'superadmin':
+      case 'admin':
       case 'staff':
         navigate('/admin', { replace: true });
         break;
       case 'foreign-agency':
+      case 'agency':
+      case 'foreign-agency-staff':
         navigate('/agency', { replace: true });
         break;
       case 'local-agency':
         navigate('/local-agency', { replace: true });
+        break;
+      case 'auditor':
+        navigate('/auditor', { replace: true });
+        break;
+      case 'viewer':
+        navigate('/viewer', { replace: true });
         break;
       default:
         console.warn(`Unhandled role: ${userRole}`);
@@ -73,9 +82,10 @@ const StaffLoginForm: React.FC = () => {
       {/* Email/PIN Login Form */}
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="staff-email">Email</Label>
           <Input 
-            id="email" 
+            id="staff-email"
+            autoComplete="username"
             type="email" 
             placeholder="staff@agency.com"
             value={email}
@@ -85,10 +95,9 @@ const StaffLoginForm: React.FC = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="pin">PIN (Password)</Label>
-          <Input 
-            id="pin" 
-            type="password" 
+          <Label htmlFor="staff-pin">PIN (Password)</Label>
+          <AuthPasswordInput
+            id="staff-pin"
             placeholder="••••••"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
@@ -97,7 +106,7 @@ const StaffLoginForm: React.FC = () => {
           />
         </div>
         <Button type="submit" className="w-full" disabled={isLoggingIn}>
-          {isLoggingIn ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 'Login'}
+          {isLoggingIn && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{isLoggingIn ? 'Signing in…' : 'Sign in to workspace'}
         </Button>
       </form>
       
@@ -105,8 +114,8 @@ const StaffLoginForm: React.FC = () => {
         Don't have an account? <Link to="/signup" className="text-primary hover:underline">Register here</Link>
       </div>
       
-      <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
-        <p className="font-semibold">Email/PIN are used as Email/Password for Supabase.</p>
+      <div className="text-left text-xs text-muted-foreground pt-3 border-t">
+        <p>Use your approved account email and PIN. Your role and agency determine which tools are available.</p>
       </div>
     </CardContent>
   );

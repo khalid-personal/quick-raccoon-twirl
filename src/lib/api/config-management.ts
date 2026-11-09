@@ -10,7 +10,7 @@ export const getAppConfig = async (): Promise<AppConfig> => {
     return getConfig();
 };
 
-const directorySignature = (agencies: (LocalAgency | ForeignAgency)[]) =>
+const directorySignature = (agencies: (LocalAgency | ForeignAgency | CocFacility)[]) =>
     agencies.map(agency => JSON.stringify(Object.entries(agency).sort(([a], [b]) => a.localeCompare(b)))).sort();
 
 // Update configuration
@@ -22,12 +22,24 @@ export const updateAppConfig = async (
     await new Promise(resolve => setTimeout(resolve, 100));
     
     const oldConfig = getConfig();
+    if (!Array.isArray(config.cocFacilities)
+        || JSON.stringify(directorySignature(config.cocFacilities)) !== JSON.stringify(directorySignature(oldConfig.cocFacilities ?? []))) {
+        throw new Error('CoC directory changes must come through the ministry / ELMIS connection. Existing candidate-linked centers are read-only.');
+    }
+    if (JSON.stringify([...(config.countryOptions ?? [])].sort()) !== JSON.stringify([...(oldConfig.countryOptions ?? [])].sort())) {
+        throw new Error('Candidate country reference data is read-only until the ministry / ELMIS connection is configured.');
+    }
     if (!Array.isArray(config.localAgencies) || !Array.isArray(config.foreignAgencies)
         || JSON.stringify(directorySignature(config.localAgencies)) !== JSON.stringify(directorySignature(oldConfig.localAgencies ?? []))
         || JSON.stringify(directorySignature(config.foreignAgencies)) !== JSON.stringify(directorySignature(oldConfig.foreignAgencies ?? []))) {
         throw new Error('Agency directory changes are unavailable until the official ELMIS integration is configured.');
     }
-    const next = { ...config, localAgencies: oldConfig.localAgencies, foreignAgencies: oldConfig.foreignAgencies, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow, foreignUnderpaymentRenewal: oldConfig.foreignUnderpaymentRenewal };
+    const partnershipSignature = (items: AppConfig['agencyPartnerships']) =>
+        (items ?? []).map(item => JSON.stringify(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))).sort();
+    if (JSON.stringify(partnershipSignature(config.agencyPartnerships)) !== JSON.stringify(partnershipSignature(oldConfig.agencyPartnerships))) {
+        throw new Error('Agency partner contracts are ministry-assigned and read-only. Changes must come through the official ministry connection.');
+    }
+    const next = { ...config, agencyPartnerships: oldConfig.agencyPartnerships, localAgencies: oldConfig.localAgencies, foreignAgencies: oldConfig.foreignAgencies, ministrySubmissionWindow: oldConfig.ministrySubmissionWindow, foreignUnderpaymentRenewal: oldConfig.foreignUnderpaymentRenewal };
     saveConfig(next);
     
     // --- LOGGING ---

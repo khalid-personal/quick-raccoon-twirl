@@ -1,17 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Candidate, CandidateStage, MedicalResult, Document, ALL_STAGES, StageStatus } from '../types';
-import { SEED_COC_FACILITIES } from './coc-facilities';
-import { SEED_FOREIGN_AGENCIES } from './foreign-agencies';
-import { SEED_LOCAL_AGENCIES } from './local-agencies';
-
-const findLocalAgencyIdOrFallback = (name: string) => {
-  const la = SEED_LOCAL_AGENCIES.find(la => la.name === name);
-  if (!la) {
-    console.warn(`[seed][candidates] Local agency '${name}' not found; falling back to first local agency.`);
-    return SEED_LOCAL_AGENCIES[0]?.id || '';
-  }
-  return la.id;
-};
 
 // --- Updated getStageId to handle missing slugs ---
 const getStageId = (slug: string) => {
@@ -58,7 +46,6 @@ const SPECIFIC_SEED_CANDIDATES: Candidate[] = [
     languages: ['Amharic', 'English'],
     intro_video_url: '/demo-intros/illustrative-introduction.mp4',
     email: 'john.doe@example.test',
-    local_agency_id: findLocalAgencyIdOrFallback('NuraLink'),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     payment_status: 'unpaid',
@@ -78,7 +65,6 @@ const SPECIFIC_SEED_CANDIDATES: Candidate[] = [
     languages: ['Amharic', 'Oromo'],
     intro_video_url: '/demo-intros/illustrative-introduction.mp4',
     email: 'jane.smith@example.test',
-    local_agency_id: findLocalAgencyIdOrFallback('NuraLink'),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     payment_status: 'unpaid',

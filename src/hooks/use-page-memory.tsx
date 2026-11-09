@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 
 interface PageMemory { scope: string; values: Map<string, unknown>; positions: Map<string, number>; previousPath?: string; path?: string; }
@@ -26,15 +26,18 @@ export function usePageMemory<T>(name: string, initial: T): [T, Dispatch<SetStat
 function PageScrollMemory() {
   const memory = useContext(MemoryContext);
   const location = useLocation();
+  const navigationType = useNavigationType();
   const path = location.pathname + location.search + location.hash;
   const last = useRef(path);
   useLayoutEffect(() => {
     if (!memory) return;
     if (last.current.split('?')[0] !== location.pathname) memory.previousPath = last.current;
     last.current = path;
-    const target = memory.positions.get(path) ?? 0;
+    const walkthroughScrollY = location.state?.walkthroughScrollY;
+    const preserveScroll = navigationType !== 'POP' && typeof walkthroughScrollY === 'number' && Number.isFinite(walkthroughScrollY) && walkthroughScrollY >= 0;
+    const target = preserveScroll ? walkthroughScrollY : memory.positions.get(path) ?? 0;
     let active = true;
-    let restoring = target > 0 || !!location.hash;
+    let restoring = preserveScroll || target > 0 || !!location.hash;
     const restore = () => {
       if (!active || !restoring) return;
       if (location.hash) {
@@ -45,7 +48,7 @@ function PageScrollMemory() {
       window.scrollTo(0, Math.min(target, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)));
       if (document.documentElement.scrollHeight - window.innerHeight >= target) restoring = false;
     };
-    window.scrollTo(0, 0);
+    if (!preserveScroll) window.scrollTo(0, 0);
     restore();
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(restore);
     observer?.observe(document.body);
@@ -59,7 +62,7 @@ function PageScrollMemory() {
       active = false; observer?.disconnect(); window.clearTimeout(timer);
       window.removeEventListener('scroll', save); window.removeEventListener('wheel', cancel); window.removeEventListener('touchstart', cancel);
     };
-  }, [path, memory, location.pathname, location.hash]);
+  }, [path, memory, location.pathname, location.hash, location.key, location.state?.walkthroughScrollY, navigationType]);
   return null;
 }
 export function useReturnToPrevious(fallback: string) {

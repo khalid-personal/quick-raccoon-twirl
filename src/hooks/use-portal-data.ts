@@ -14,7 +14,9 @@ export const usePortalData = () => {
     const refresh = () => setData(read());
     window.addEventListener('supabase-data-changed', refresh);
     window.addEventListener('storage', refresh);
-    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); };
+    window.addEventListener('agency-resolution-changed', refresh);
+    window.addEventListener('bank-statement-changed', refresh);
+    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); window.removeEventListener('agency-resolution-changed', refresh); window.removeEventListener('bank-statement-changed', refresh); };
   }, []);
   return data;
 };

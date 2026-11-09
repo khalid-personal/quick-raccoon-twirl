@@ -1,18 +1,22 @@
 import type { ApiPrincipal } from './api/auth';
 import type { AgencyResolutionCase, AmountDiscrepancy } from './agency-resolution';
-import { analyzeIntegrity, applyOverrides, scopeIntegrityFindings, type IntegrityInput, type Severity } from './integrity';
+import { analyzeIntegrity, applyOverrides, scopeIntegrityFindings, type Finding, type IntegrityInput, type Severity } from './integrity';
 import { getActiveStageTasks } from './staff-tasks';
 import type { IntegrityOverride, StaffUser } from './types';
 import { contractWasSent, foreignContractPayment } from './foreign-contract-payment';
+import { EVIDENCE_STATUS_LABELS, getEvidenceRequests } from './evidence-requests';
+import type { ReconciliationCaseEvent } from './bank-statement-store';
+import { isForeignPayment } from './currency';
 
 export interface PortalTask {
   id: string;
   title: string;
   detail: string;
   path: string;
-  category: 'Record review' | 'Payment check' | 'Agency reply' | 'Account approval' | 'Contract follow-up' | 'Document reminder' | 'Tracking';
+  category: 'Record review' | 'Suspicious activity' | 'Statement upload' | 'Payment check' | 'Agency reply' | 'Account approval' | 'Contract follow-up' | 'Document reminder' | 'Tracking';
   severity: Severity;
   dueAt?: string;
+  finding?: Finding;
 }
 
 export function portalTaskPath(role: ApiPrincipal['role']): string {
@@ -23,7 +27,8 @@ export function portalTaskPath(role: ApiPrincipal['role']): string {
   return '/admin/tasks';
 }
 
-export function buildPortalTasks(principal: ApiPrincipal, input: IntegrityInput, staff: StaffUser[], overrides: IntegrityOverride[], cases: AgencyResolutionCase[], differences: AmountDiscrepancy[] = []): PortalTask[] {
+export function buildPortalTasks(principal: ApiPrincipal, input: IntegrityInput, staff: StaffUser[], overrides: IntegrityOverride[], cases: AgencyResolutionCase[], differences: AmountDiscrepancy[] = [],
+  statementRequests: { agencyId: string; events: ReconciliationCaseEvent[] }[] = [], verified = new Set<string>()): PortalTask[] {
   if (principal.role === 'local-agency' && !principal.localAgencyId
     || ['agency', 'foreign-agency', 'foreign-agency-staff'].includes(principal.role) && !principal.foreignAgencyId) throw new Error('Your approved agency assignment is required before loading tasks.');
   if (principal.role === 'viewer') return [{ id: 'tracking-follow-up', title: 'Follow up on a tracking code',
@@ -48,6 +53,20 @@ export function buildPortalTasks(principal: ApiPrincipal, input: IntegrityInput,
   }
   const ids = new Set(candidates.map(candidate => candidate.id));
   const tasks: PortalTask[] = [];
+  if (principal.role === 'staff' || principal.role === 'local-agency') {
+    const email = staff.find(person => person.id === principal.id)?.email.toLowerCase();
+    statementRequests.filter(group => group.agencyId === principal.localAgencyId).forEach(group => {
+      getEvidenceRequests(group.events, input.now === undefined ? new Date() : new Date(input.now), verified)
+        .filter(({ event }) => event.source !== 'candidate' && (!event.evidence.payment || isForeignPayment(event.evidence.payment))
+          && (principal.role === 'local-agency' || [principal.id.toLowerCase(), email].includes(event.owner.trim().toLowerCase())))
+        .forEach(({ event, status }) => tasks.push({
+          id: `statement:${group.agencyId}:${event.id}`, title: 'Upload the requested bank statement',
+          detail: `${EVIDENCE_STATUS_LABELS[status]} · ${event.evidence.payment?.provider_reference || event.evidence.payment?.receipt_number || event.caseId}. Submission window ${event.submissionStart ?? event.createdAt.slice(0, 10)} through ${event.dueDate}, ending at midnight Addis Ababa time. Upload the original statement CSV in Payments and have its candidate, reference, amount and currency reviewed. ${event.synthetic ? 'DEMO / synthetic request.' : ''}`,
+          path: `${principal.role === 'local-agency' ? '/local-agency/payments' : '/admin/payments'}?tab=discrepancies&agency=${encodeURIComponent(group.agencyId)}&case=${encodeURIComponent(event.caseId)}&source=${event.source ?? 'foreign'}`,
+          category: 'Statement upload', severity: status === 'overdue' ? 'high' : status === 'due-soon' ? 'medium' : 'low', dueAt: `${event.dueDate}T23:59:59+03:00`,
+        }));
+    });
+  }
   const isForeign = ['agency', 'foreign-agency', 'foreign-agency-staff'].includes(principal.role);
   const profileBase = isForeign ? '/agency/candidate' : principal.role === 'local-agency' ? '/local-agency/candidate' : '/admin/candidate';
   if (!isForeign) {
@@ -65,10 +84,12 @@ export function buildPortalTasks(principal: ApiPrincipal, input: IntegrityInput,
     grouped.forEach((group, key) => {
       const candidate = candidates.find(item => item.id === group[0].candidateId);
       const severity = (['critical', 'high', 'medium', 'low'] as const).find(value => group.some(finding => finding.severity === value))!;
+      const priorityFinding = group.find(finding => finding.severity === severity)!;
+      const suspicious = group.some(finding => /^(duplicate-passport|duplicate-identity|duplicate-payment-reference|duplicate-receipt|self-approval|payment-edits|bulk-stage-changes|after-hours-activity|repeated-deletions|frequent-overrides|candidate-deletions)$/.test(finding.rule));
       tasks.push({ id: `review:${key}`, title: candidate ? `Review ${candidate.first_name} ${candidate.last_name}` : group[0].title,
         detail: `${candidate ? `${candidate.tracking_code} · ` : ''}${group.length} warning${group.length === 1 ? '' : 's'}: ${group.slice(0, 2).map(finding => finding.title).join('; ')}. Check the evidence; a warning does not prove wrongdoing.`,
         path: principal.role === 'auditor' ? '/auditor' : principal.role === 'local-agency' ? candidate ? `${profileBase}/${candidate.id}` : '/local-agency/payments' : `/admin/integrity${principal.localAgencyId ? `?agency=${encodeURIComponent(principal.localAgencyId)}` : ''}`,
-        category: 'Record review', severity });
+        category: principal.role === 'superadmin' && suspicious ? 'Suspicious activity' : 'Record review', severity, ...(principal.role === 'superadmin' ? { finding: priorityFinding } : {}) });
     });
   }
   if (['superadmin', 'admin', 'staff', 'local-agency'].includes(principal.role)) {

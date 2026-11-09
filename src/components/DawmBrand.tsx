@@ -18,22 +18,22 @@ const LogoMark: React.FC<{ className?: string }> = ({ className }) => {
       viewBox="0 0 160 160"
       role="img"
       aria-label="DAWM logo"
-      className={cn('shrink-0 drop-shadow-[0_8px_16px_rgba(27,52,194,0.28)]', className)}
+      className={cn('shrink-0 drop-shadow-[0_8px_16px_rgba(14,34,37,0.22)]', className)}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#5B8CFF" />
-          <stop offset="1" stopColor="#1B34C2" />
+          <stop offset="0" stopColor="#328078" />
+          <stop offset="1" stopColor="#12282A" />
         </linearGradient>
       </defs>
       <rect width="160" height="160" rx="40" fill={`url(#${gradientId})`} />
-      <rect x="1" y="1" width="158" height="158" rx="39" fill="none" stroke="#fff" strokeOpacity="0.22" strokeWidth="2" />
-      <path d="M46 42 H78 C104 42 122 59 122 80 C122 101 104 118 78 118 H46 Z" fill="none" stroke="#fff" strokeWidth="14" strokeLinejoin="round" />
-      <polyline points="64,98 79,84 94,70" fill="none" stroke="#C7D6FF" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="64" cy="98" r="5" fill="#fff" />
-      <circle cx="79" cy="84" r="5" fill="#fff" />
-      <circle cx="94" cy="70" r="9" fill="#FCDD09" fillOpacity="0.3" />
-      <circle cx="94" cy="70" r="6" fill="#FCDD09" />
+      <rect x="1" y="1" width="158" height="158" rx="39" fill="none" stroke="#C8F575" strokeOpacity="0.28" strokeWidth="2" />
+      <path d="M46 42 H78 C104 42 122 59 122 80 C122 101 104 118 78 118 H46 Z" fill="none" stroke="#F4F4ED" strokeWidth="14" strokeLinejoin="round" />
+      <polyline points="64,98 79,84 94,70" fill="none" stroke="#C8F575" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="64" cy="98" r="5" fill="#F4F4ED" />
+      <circle cx="79" cy="84" r="5" fill="#F4F4ED" />
+      <circle cx="94" cy="70" r="9" fill="#C8F575" fillOpacity="0.3" />
+      <circle cx="94" cy="70" r="6" fill="#C8F575" />
     </svg>
   );
 };
@@ -84,13 +84,13 @@ const DawmBrand: React.FC<DawmBrandProps> = ({
           'font-bold leading-none tracking-[0.07em]',
           compact ? 'text-base' : 'text-2xl sm:text-[30px]',
           'font-["Sora",Inter,ui-sans-serif,sans-serif]',
-          isDark ? 'text-white' : 'text-[#0B1230]',
+          isDark ? 'text-[#F4F4ED]' : 'text-[#12282A]',
         )}>
           DAWM
         </div>
         <div className={cn(
           'mt-1 truncate text-[8px] font-medium uppercase tracking-[0.13em] sm:text-[9px]',
-          isDark ? 'text-white/65' : 'text-[#4A5578]',
+          isDark ? 'text-[#BCD0C3]' : 'text-[#587167]',
         )}>
           {subtitle ?? (compact ? 'Portal' : 'Domestic Agency Workforce Management')}
         </div>
@@ -98,12 +98,12 @@ const DawmBrand: React.FC<DawmBrandProps> = ({
       {showOrigin && (
         <div className={cn(
           'ml-auto hidden shrink-0 items-center gap-2.5 border-l pl-4 sm:flex',
-          isDark ? 'border-white/15' : 'border-[#0B1230]/15',
+          isDark ? 'border-[#F4F4ED]/15' : 'border-[#12282A]/15',
         )}>
           <EthiopiaFlag className="h-8 w-12 rounded-md shadow-sm" />
           <div className="leading-tight">
-            <div className={cn('text-[9px] font-semibold tracking-[0.16em]', isDark ? 'text-white' : 'text-[#0B1230]')}>MADE IN ETHIOPIA</div>
-            <div className={cn('mt-1 text-[11px]', isDark ? 'text-white/65' : 'text-[#4A5578]')} lang="am">በኢትዮጵያ የተሰራ</div>
+            <div className={cn('text-[9px] font-semibold tracking-[0.16em]', isDark ? 'text-[#F4F4ED]' : 'text-[#12282A]')}>MADE IN ETHIOPIA</div>
+            <div className={cn('mt-1 text-[11px]', isDark ? 'text-[#BCD0C3]' : 'text-[#587167]')} lang="am">በኢትዮጵያ የተሰራ</div>
           </div>
         </div>
       )}

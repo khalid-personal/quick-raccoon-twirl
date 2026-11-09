@@ -1,4 +1,4 @@
-import { DEMO_CANDIDATE_COUNT, generateDemoDataset, type DemoDataset } from './demo-dataset';
+import { DEMO_CANDIDATE_COUNT, generateDemoDataset, demoMedicalLocationFor, demoStageLocationFor, type DemoDataset } from './demo-dataset';
 import { bootDemo, loadDemoData } from './demo-loader';
 import { DEMO_KEY_PREFIX, isDemoMode } from './demo-mode';
 import { analyzeIntegrity, getIntegrityScoreLevel, riskScore, type IntegrityScoreLevel } from './integrity';
@@ -9,14 +9,15 @@ import { getApprovalLogs, getCandidates, getCandidateStages, getConfig, getDocum
 import { ALL_STAGES, type Candidate, type CandidateStage, type UserRole } from './types';
 import { withDemoPaymentEvidence, withDemoStatementOriginal } from './demo-payment-evidence';
 import { assignUnassignedStageTasks, getActiveStageTasks } from './staff-tasks';
-import { amountDiscrepancies, escalateAmountDiscrepancy, getAgencyResolutionCases } from './agency-resolution';
+import { amountDiscrepancies, escalateAmountDiscrepancy, getAgencyResolutionCases, type AgencyResolutionCase } from './agency-resolution';
 import { demoAgencyManager, paymentCandidateSummary } from './demo-identities';
 import { LS_CANDIDATES, LS_CANDIDATE_STAGES, LS_DOCUMENTS, LS_MEDICAL_RESULTS, LS_PAYMENTS, LS_PAYMENT_STATUS, LS_APPROVAL_LOGS } from './data-keys';
 import { stageIsComplete, stageProgressBlockers } from './stage-readiness';
 import { airportForCity } from './airports';
+import { backtrackDemoAgencyTimelines } from './demo-agency-timeline';
 
 export const INTEGRITY_DEMO_SCENARIOS = [
-  { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Very few deployments. Most registrations await fees; work is overdue and foreign transfers need follow-up.' },
+  { id: 'low', label: 'Low', risky: 12, start: 12, explanation: 'Very few deployments. Work is overdue, three foreign agencies are paused by ministry decision and two appeals await review.' },
   { id: 'low-medium', label: 'Low→Medium', risky: 5, start: 12, explanation: 'Collections and training are improving, but most files remain unfinished and the backlog is still large.' },
   { id: 'medium', label: 'Medium', risky: 4, start: 4, explanation: 'Steady progress across all stages, some deployments, and a manageable but visible payment and task backlog.' },
   { id: 'medium-high', label: 'Medium→High', risky: 1, start: 4, explanation: 'Most files deployed, fees mostly collected and almost all tasks on time. A few remaining issues need attention.' },
@@ -41,7 +42,7 @@ export interface IntegrityDemoMeasurement {
   overdueTasks: number;
 }
 type ScenarioEvidence = { agencyId: string; source: PaymentStatementSource; statement: BankStatement; events: ReconciliationCaseEvent[] };
-export interface IntegrityDemoDataset extends DemoDataset { evidence: ScenarioEvidence[]; starting: IntegrityDemoMeasurement; measured: IntegrityDemoMeasurement }
+export interface IntegrityDemoDataset extends DemoDataset { evidence: ScenarioEvidence[]; agencyCases: AgencyResolutionCase[]; starting: IntegrityDemoMeasurement; measured: IntegrityDemoMeasurement }
 const DAY = 86_400_000;
 const COUNT = DEMO_CANDIDATE_COUNT;
 const requireActor = (actor: DemoScenarioActor, confirmed: boolean, reason: string) => {
@@ -139,12 +140,12 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
       work_contract_record: { status: currentOrder(index) >= 1 ? 'received' as const : 'not-sent' as const,
         sent_at: currentOrder(index) >= 1 ? stamp(stageAge(index, risky) + (currentOrder(index) - 1) * pace.gap) : undefined,
         received_at: currentOrder(index) >= 1 ? stamp(stageAge(index, risky) + (currentOrder(index) - 1) * pace.gap - 1) : undefined,
-        note: `DEMO synthetic contract. ${caseLabel(index, risky)} ${scenario.explanation}` },
+        note: `DEMO synthetic contract. ${caseLabel(index, risky)}` },
       clearance: { local_ready_at: currentOrder(index) >= 3 ? stamp(stageAge(index, risky) + 1) : undefined,
         enjaz: { status: currentOrder(index) >= 3 ? 'completed' as const : 'pending' as const, mode: 'sandbox' as const, updated_at: stamp(stageAge(index, risky) + 1) },
         tasheer: { status: currentOrder(index) >= 3 ? 'completed' as const : 'pending' as const, mode: 'sandbox' as const, updated_at: stamp(stageAge(index, risky) + 1) },
         labour_ministry: { status: currentOrder(index) === 4 ? 'cleared' as const : 'pending' as const, mode: 'sandbox' as const, simulated: true,
-        message: 'DEMO ONLY: historical practice progress, not official ministry clearance. Simulated records cannot authorize a new deployment.' } },
+        message: 'Practice ministry status.' } },
     }));
     data.stages = data.candidates.flatMap((candidate, index) => ALL_STAGES.map((stage, order) => ({
       assigned_staff_id: assignments.get(`${candidate.id}:${stage.id}`)?.assigned_staff_id,
@@ -157,7 +158,7 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
       date: order < currentOrder(index) ? stamp(completedAge(index, order, risky)) : undefined,
       updated_at: stamp(order < currentOrder(index) ? completedAge(index, order, risky) : stageAge(index, risky)),
       follow_up_due_at: order === currentOrder(index) ? stamp(index < risky || (index * 61) % 100 < pace.overdue ? 2 : -3) : undefined,
-      notes: `DEMO ${stage.title}. ${index < risky ? 'Review evidence.' : 'Evidence checked.'} Historical practice only; no official clearance.`,
+      notes: `DEMO ${stage.title}. ${index < risky ? 'Review.' : 'Checked.'}`,
     })));
     data.stages = assignUnassignedStageTasks(data.candidates, data.stages, data.staffUsers);
     data.medicals = data.candidates.flatMap((candidate, index) => {
@@ -168,7 +169,8 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
         exam_type: exam, status: currentOrder(index) >= 3 ? 'Passed' as const
           : failed && exam === 'Final Agency Medical' ? 'Failed' as const : 'Pending' as const,
         exam_date: currentOrder(index) >= 3 || (failed && exam === 'Final Agency Medical') ? stamp(stageAge(index, risky) + pace.gap).slice(0, 10) : undefined,
-        notes: 'DEMO synthetic examination status, not a real examination.',
+        notes: 'DEMO examination record.',
+        location: currentOrder(index) >= 3 || (failed && exam === 'Final Agency Medical') ? demoMedicalLocationFor(candidate.id) : undefined,
       }));
     });
     data.documents = data.candidates.flatMap((candidate, index) => [
@@ -200,14 +202,16 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
         created_at: stamp(stageAge(index, risky) + (currentOrder(index) - 1) * pace.gap - 2), updated_at: stamp(1),
         payer_display_name: data.foreignAgencies.find(agency => agency.id === candidate.foreign_agency_id)?.name ?? 'Recorded foreign agency' }] : [])];
     });
+    data.paymentStatuses = data.candidates.flatMap((candidate, index) => ALL_STAGES.map((stage, order) => ({
+      candidateId: candidate.id, stageId: stage.id, isPaid: order < currentOrder(index) || (order === currentOrder(index) && currentPaid(index, risky)),
+    })));
+    const pauses = new Map(id === 'low' ? data.foreignAgencies.slice(0, 3).map(agency => [agency.id, stamp(2)] as const) : []);
+    backtrackDemoAgencyTimelines(data, pauses, stageFees);
     data.payments = data.payments.map(payment => withDemoPaymentEvidence({
       ...payment,
       initiated_by: { id: payment.payer_candidate_id ?? demoAgencyManager(payment.payer_foreign_agency_id)!.id },
       recorded_by: { id: demoAgencyManager(payment.payee_local_agency_id)!.id },
     }, data.candidates));
-    data.paymentStatuses = data.candidates.flatMap((candidate, index) => ALL_STAGES.map((stage, order) => ({
-      candidateId: candidate.id, stageId: stage.id, isPaid: order < currentOrder(index) || (order === currentOrder(index) && currentPaid(index, risky)),
-    })));
     data.candidates.forEach(candidate => {
       candidate.last_payment_id = data.payments.filter(payment => payment.payer_candidate_id === candidate.id).at(-1)?.id;
       data.stages.filter(stage => stage.candidate_id === candidate.id).forEach(stage => {
@@ -216,6 +220,18 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
       });
     });
     data.logs = [];
+    const suspiciousGroups = Math.min(3, Math.ceil(risky / 15));
+    for (const agency of data.localAgencies.slice(0, suspiciousGroups)) {
+      const manager = demoAgencyManager(agency.id);
+      const payment = data.payments.find(payment => isForeignPayment(payment) && payment.payee_local_agency_id === agency.id);
+      if (!manager?.id || !manager.email || !payment) throw new Error(`DEMO investigation requires a recorded agency manager and transfer for ${agency.id}.`);
+      data.logs.push(...[0, 1, 2].map(index => ({
+        id: `demo-integrity-suspicious-edit-${agency.id}-${index}`, actor_id: manager.id, actor_email: manager.email!,
+        timestamp: new Date(Date.parse(payment.created_at) + (index + 1) * 60_000).toISOString(),
+        target_type: 'Payment' as const, target_id: payment.id, action: 'Updated' as const,
+        description: `DEMO ONLY suspicious-activity practice: repeated payment-record correction ${index + 1}. Check the original candidate, ${payment.provider_reference}, ${payment.amount} ${payment.currency} against bank evidence. No live receipt was edited; this synthetic history requires investigation, not a finding of fraud.`,
+      })));
+    }
     const foreignRisk = new Map(data.payments.filter(isForeignPayment).slice(0, risky).map((payment, index) => [payment.id, index]));
     const evidence: ScenarioEvidence[] = data.localAgencies.flatMap(agency => (['candidate', 'foreign'] as const).map(source => {
       const payments = data.payments.filter(p => p.status === 'succeeded' && p.payee_local_agency_id === agency.id && isForeignPayment(p) === (source === 'foreign'));
@@ -232,19 +248,53 @@ export const buildIntegrityDemoScenario = (id: IntegrityDemoScenarioId, stageFee
         }) }, agency.name, source);
       const events: ReconciliationCaseEvent[] = reconcile(payments, statement.lines).matches.filter(match => match.status !== 'matched').map(match => ({
         id: `demo-integrity-evidence-${match.payment.id}`, caseId: match.payment.id, source, synthetic: true,
-        action: 'request-evidence', actor: 'DEMO synthetic example, not a real operator', owner: demoAgencyManager(agency.id)!.email!,
+        action: 'request-evidence', actor: 'DEMO synthetic example, not a real operator',
+        owner: data.staffUsers.find(person => person.role === 'staff' && person.is_approved && person.local_agency_id === agency.id)?.email ?? demoAgencyManager(agency.id)!.email!,
         note: `DEMO ONLY: please find the correct pretend bank slip. ${match.explanation}`, submissionStart: stamp(7).slice(0, 10),
         dueDate: stamp(2).slice(0, 10), createdAt: stamp(7),
         evidence: { payment: match.payment, statementName: statement.name, explanation: `DEMO ${match.explanation}` },
       }));
       return { agencyId: agency.id, source, statement, events };
     }));
-    return { ...data, evidence };
+    const agencyCases: AgencyResolutionCase[] = [];
+    for (const [agencyId, pausedAt] of pauses) {
+      const match = evidence.filter(item => item.source === 'foreign').flatMap(item =>
+        reconcile(data.payments.filter(payment => isForeignPayment(payment) && payment.payee_local_agency_id === item.agencyId), item.statement.lines).matches
+          .map(match => ({ ...match, recipientId: item.agencyId })))
+        .find(match => match.status === 'short' && match.payment.payer_foreign_agency_id === agencyId && match.line);
+      if (!match?.line) throw new Error(`Low DEMO needs a candidate-linked bank shortfall for paused agency ${agencyId}.`);
+      const index = agencyCases.length;
+      const manager = demoAgencyManager(agencyId);
+      if (!manager?.id || !manager.email) throw new Error(`DEMO agency manager is missing for ${agencyId}.`);
+      const caseId = `demo-integrity-paused-${agencyId}`;
+      const createdAt = stamp(7);
+      const dueDate = stamp(3).slice(0, 10);
+      const events: AgencyResolutionCase['events'] = [
+        { id: `${caseId}-opened`, action: 'escalated', reason: `${generatedCaseReason} A single synthetic candidate transfer needs a reply before ${dueDate}.`,
+          actorId: 'demo-ministry-reviewer', actor: 'DEMO ministry reviewer', at: createdAt, auditId: `${caseId}-audit-opened` },
+        { id: `${caseId}-paused`, action: 'suspend', reason: `${generatedCaseReason} Ministry explicitly paused this agency after its reply deadline for this one verified candidate-linked shortfall. This is not an automatic third-strike decision.`,
+          actorId: 'demo-ministry-reviewer', actor: 'DEMO ministry reviewer', at: pausedAt, auditId: `${caseId}-audit-paused` },
+      ];
+      if (index > 0) events.push({ id: `${caseId}-appeal`, action: 'appeal',
+        reason: `${generatedCaseReason} ${index === 1 ? 'We ask the ministry to review the bank allocation for this candidate.' : 'We acknowledge the shortfall and request review of our proposed correction.'} The agency stays paused until an explicit decision.`,
+        actorId: manager.id, actor: manager.email, at: stamp(1), auditId: `${caseId}-audit-appeal` });
+      const record: AgencyResolutionCase = { id: caseId, issue: {
+        id: `bank:${match.payment.id}`, caseId: match.payment.id, paymentId: match.payment.id, recipientId: match.recipientId,
+        source: 'foreign', agencyId, agencyType: 'foreign', kind: 'underpayment', basis: 'bank',
+        explanation: `${match.explanation} DEMO: one candidate transfer, one explicit ministry pause.`,
+        snapshot: JSON.stringify({ payment: match.payment, line: match.line }),
+      }, state: index > 0 ? 'appealed' : 'suspended', holdActive: true, dueDate, createdAt, updatedAt: events.at(-1)!.at, events };
+      agencyCases.push(record);
+      data.logs.push(...events.map(event => ({ id: event.auditId, actor_id: event.actorId, actor_email: event.actor, timestamp: event.at,
+        target_type: 'Payment' as const, target_id: match.payment.id, action: 'Updated' as const, description: event.reason })));
+    }
+    data.stages = data.stages.map(stage => ({ ...stage, location: demoStageLocationFor(data.candidates.find(candidate => candidate.id === stage.candidate_id)!, stage, data.cocFacilities) }));
+    return { ...data, evidence, agencyCases };
   };
   const data = make(targetRisk);
   const startingData = startingRisk === targetRisk ? data : make(startingRisk);
-  return { ...data, starting: measure(startingData, startingData.evidence, stageFees, thresholds, now),
-    measured: measure(data, data.evidence, stageFees, thresholds, now) };
+  return { ...data, starting: { ...measure(startingData, startingData.evidence, stageFees, thresholds, now), openAgencyCases: startingData.agencyCases.length },
+    measured: { ...measure(data, data.evidence, stageFees, thresholds, now), openAgencyCases: data.agencyCases.length } };
 };
 
 export const measureStoredIntegrityDemo = (now = Date.now()): IntegrityDemoMeasurement => {
@@ -263,9 +313,12 @@ export const measureStoredIntegrityDemo = (now = Date.now()): IntegrityDemoMeasu
 const generatedCaseReason = 'DEMO ONLY scenario practice:';
 const resolutionKey = 'demo:dawm-agency-resolution';
 const scenarioCases = () => getAgencyResolutionCases().filter(record => record.events[0]?.reason.startsWith(generatedCaseReason));
+const untouchedGeneratedPause = (record: AgencyResolutionCase) => record.id.startsWith('demo-integrity-paused-')
+  && record.events.every(event => event.reason.startsWith(generatedCaseReason)
+    && [`${record.id}-opened`, `${record.id}-paused`, `${record.id}-appeal`].includes(event.id));
 const requireReplaceableCases = () => {
   if (getAgencyResolutionCases().some(record => record.state !== 'resolved' && record.issue.paymentId.startsWith('demo-')
-    && (record.holdActive || !record.events[0]?.reason.startsWith(generatedCaseReason)))) {
+    && (!record.events.every(event => event.reason.startsWith(generatedCaseReason)) || record.holdActive && !untouchedGeneratedPause(record)))) {
     throw new Error('Resolve existing operator agency cases and explicitly reinstate suspended agencies before replacing generated demo payments.');
   }
 };
@@ -318,19 +371,23 @@ export const applyIntegrityDemoScenario = async (id: IntegrityDemoScenarioId, ac
     saveCandidates([...data.candidates, ...extraCandidates]);
     savePayments([...data.payments, ...retainedPayments]);
     savePaymentStatuses([...data.paymentStatuses, ...retainedFlags]);
-    saveCandidateStages([...data.stages, ...retainedStages]);
+    saveCandidateStages([...data.stages, ...retainedStages], { recordHistory: false });
     saveMedicalResults([...data.medicals, ...retainedMedical]);
     saveDocuments([...data.documents, ...retainedDocuments]);
-    saveApprovalLogs(priorAudits);
+    const generatedCases = data.agencyCases.map(record => ({ ...record, events: record.events.map(event =>
+      event.action === 'appeal' ? event : { ...event, actorId: actor.id, actor: actor.email }) }));
+    localStorage.setItem(resolutionKey, JSON.stringify([...getAgencyResolutionCases(), ...generatedCases]));
+    const generatedLogs = data.logs.map(log => log.actor_id === 'demo-ministry-reviewer' ? { ...log, actor_id: actor.id, actor_email: actor.email } : log);
+    saveApprovalLogs([...priorAudits, ...generatedLogs]);
     const audit = { id: `demo-integrity-audit-${crypto.randomUUID()}`, actor_id: actor.id, actor_email: actor.email,
       timestamp: new Date(now).toISOString(), target_type: 'Config', target_id: 'demo-integrity-scenarios', action: 'Updated',
       description: `DEMO ONLY ${id}. Reason: ${reason.trim()}.` } as const;
-    saveApprovalLogs([...priorAudits, audit]);
+    saveApprovalLogs([...priorAudits, ...generatedLogs, audit]);
     // Escalate a representative set through the real audited workflow. All other
     // gaps stay visible as payment evidence requests, without creating holds.
     const represented = new Set<string>();
     const foreignDifferences = data.evidence.filter(item => item.source === 'foreign').reduce((count, item) => count + item.events.length, 0);
-    const caseLimit = Math.min(2, Math.ceil(foreignDifferences / 15));
+    const caseLimit = id === 'low' ? 0 : Math.min(2, Math.ceil(foreignDifferences / 15));
     for (const issue of amountDiscrepancies().filter(issue => issue.basis === 'bank' && issue.paymentId.startsWith('demo-integrity-'))) {
       if (represented.size >= caseLimit) break;
       const group = `${issue.agencyId}:${issue.source}:${issue.kind}`;

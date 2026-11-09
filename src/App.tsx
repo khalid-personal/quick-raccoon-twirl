@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,11 +32,12 @@ import AgencyClearance from '@/pages/AgencyClearance';
 import AgencyClearanceTracker from '@/pages/AgencyClearanceTracker';
 import AgencyCandidateIntroductions from '@/pages/AgencyCandidateIntroductions';
 import AdminProfileApprovals from '@/pages/AdminProfileApprovals';
-import AdminAuthorizationCodes from '@/pages/AdminAuthorizationCodes';
 import SuperadminSettings from '@/pages/SuperadminSettings';
 import AgencyDashboard from '@/pages/AgencyDashboard';
 import LocalAgencyDashboard from '@/pages/LocalAgencyDashboard';
 import AuthPage from '@/pages/AuthPage';
+import LandingPage from '@/pages/LandingPage';
+import DeveloperDocs from '@/pages/DeveloperDocs';
 import Signup from '@/pages/Signup';
 import TrackingPage from '@/pages/TrackingPage';
 import ChechePayReturnPage from '@/pages/ChechePayReturnPage';
@@ -75,11 +76,15 @@ const CandidateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-const AppRoutes = () => (
+const AppRoutes = () => {
+  const location = useLocation();
+  const publicSite = location.pathname === '/' || location.pathname === '/developers';
+  return (
   <>
-  <DemoScenarioBar />
+  {!publicSite && <DemoScenarioBar />}
   <Routes>
-    <Route path="/" element={<Navigate to="/login" replace />} />
+    <Route path="/" element={<LandingPage />} />
+    <Route path="/developers" element={<DeveloperDocs />} />
     <Route path="/login" element={<AuthPage />} />
     <Route path="/signup" element={<Signup />} />
     <Route path="/track" element={<Navigate to="/login?tab=candidate" replace />} />
@@ -100,7 +105,7 @@ const AppRoutes = () => (
     <Route path="/admin/attendance" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff']}><AdminLayout><AdminAttendance /></AdminLayout></ProtectedRoute>} />
     <Route path="/admin/training-map" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff']}><AdminLayout><AdminTrainingMap /></AdminLayout></ProtectedRoute>} />
     <Route path="/admin/integrity" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'staff', 'auditor']}><AdminLayout><AdminIntegrity /></AdminLayout></ProtectedRoute>} />
-    <Route path="/admin/auth-codes" element={<ProtectedRoute allowedRoles={['superadmin']}><AdminLayout><AdminAuthorizationCodes /></AdminLayout></ProtectedRoute>} />
+    <Route path="/admin/auth-codes" element={<Navigate to="/admin/users" replace />} />
     <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminLayout><SuperadminSettings /></AdminLayout></ProtectedRoute>} />
 
     <Route path="/local-agency" element={<ProtectedRoute allowedRoles={['local-agency']}><LocalAgencyLayout><LocalAgencyDashboard /></LocalAgencyLayout></ProtectedRoute>} />
@@ -119,7 +124,7 @@ const AppRoutes = () => (
     <Route path="/agency/training-map" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AdminTrainingMap /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/clearance" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyClearanceTracker /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/payments" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><PaymentHistoryPage /></AgencyLayout></ProtectedRoute>} />
-    <Route path="/agency/users" element={<ProtectedRoute allowedRoles={['foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyUserManagement /></AgencyLayout></ProtectedRoute>} />
+    <Route path="/agency/users" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency']}><AgencyLayout><AgencyUserManagement /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/chat" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AgencyConversationPage /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/candidate-chat" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AdminChatViewer /></AgencyLayout></ProtectedRoute>} />
     <Route path="/agency/candidate/:candidateId" element={<ProtectedRoute allowedRoles={['agency', 'foreign-agency', 'foreign-agency-staff']}><AgencyLayout><AdminCandidateDetail /></AgencyLayout></ProtectedRoute>} />
@@ -133,10 +138,10 @@ const AppRoutes = () => (
     <Route path="/unauthorized" element={<Navigate to="/login" replace />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
-  <PortalWalkthrough />
-  <CandidateChatLauncher />
+  {!publicSite && <><PortalWalkthrough /><CandidateChatLauncher /></>}
   </>
 );
+};
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="dawm-theme">

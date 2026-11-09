@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Loader2, User, Shuffle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api'; // Import api
+import AuthPasswordInput from './AuthPasswordInput';
 
 const CandidateLoginForm: React.FC = () => {
   const { login, isAuthenticated, isLoading: isAuthLoading, candidateTrackingCode } = useAuth();
@@ -78,7 +79,8 @@ const CandidateLoginForm: React.FC = () => {
           <Input 
             id="identifier" 
             type="text" 
-            placeholder="e.g., TRK-ET-0001 or aster.bekele@candidate.com"
+            placeholder="Your email or tracking code"
+            autoComplete="username"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required
@@ -86,10 +88,9 @@ const CandidateLoginForm: React.FC = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="pin">PIN (Password)</Label>
-          <Input 
-            id="pin" 
-            type="password" 
+          <Label htmlFor="candidate-pin">PIN (Password)</Label>
+          <AuthPasswordInput
+            id="candidate-pin"
             placeholder="••••••"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
@@ -97,13 +98,13 @@ const CandidateLoginForm: React.FC = () => {
             disabled={isLoggingIn || isFetchingRandom}
           />
         </div>
-        <Button type="submit" className="w-full text-lg" disabled={isLoggingIn || isFetchingRandom}>
+        <Button type="submit" className="w-full" disabled={isLoggingIn || isFetchingRandom}>
           {isLoggingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <User className="h-5 w-5 mr-2" />} 
-          Login to Status
+          {isLoggingIn ? 'Signing in…' : 'Sign in to your journey'}
         </Button>
       </form>
       
-      <Button 
+      {import.meta.env.DEV && <Button
         onClick={handleRandomCandidate} 
         variant="outline" 
         className="w-full"
@@ -111,10 +112,10 @@ const CandidateLoginForm: React.FC = () => {
       >
         {isFetchingRandom ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Shuffle className="h-4 w-4 mr-2" />}
         Load Random Candidate (Test)
-      </Button>
+      </Button>}
       
-      <div className="text-center text-xs text-gray-500 pt-2 border-t mt-4">
-        <p className="font-semibold">Use your registered email or tracking code and PIN (Default: 123456).</p>
+      <div className="text-left text-xs text-muted-foreground pt-3 border-t">
+        <p>Use your registered email or tracking code and the PIN provided by your agency. Demo tools use practice records only.</p>
       </div>
     </CardContent>
   );

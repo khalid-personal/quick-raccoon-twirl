@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, UserPlus } from 'lucide-react';
+import AuthPasswordInput from '@/components/AuthPasswordInput';
+import DawmBrand from '@/components/DawmBrand';
 
 const Signup: React.FC = () => {
   const { signup, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
-  const [authCode, setAuthCode] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
 
   React.useEffect(() => {
@@ -29,13 +30,9 @@ const Signup: React.FC = () => {
         toast.error("Please enter a valid email and a PIN of at least 6 characters.");
         return;
     }
-    if (!authCode.trim()) {
-        toast.error("Authorization Code is required to register.");
-        return;
-    }
     
     setIsSigningUp(true);
-    const { error } = await signup(email, pin, authCode.trim());
+    const { error } = await signup(email, pin);
     setIsSigningUp(false);
 
     if (error) {
@@ -49,16 +46,17 @@ const Signup: React.FC = () => {
   
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="dawm-auth auth-main min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <Card className="w-[350px]">
-        <CardHeader>
+    <div className="dawm-auth auth-main min-h-screen flex items-center justify-center p-5">
+      <Card className="auth-access-card w-full max-w-md rounded-3xl">
+        <CardHeader className="space-y-3">
+          <DawmBrand compact subtitle="Staff access" />
           <CardTitle>Staff Registration</CardTitle>
           <CardDescription>Create a new staff account. Approval is required by an administrator.</CardDescription>
         </CardHeader>
@@ -73,32 +71,21 @@ const Signup: React.FC = () => {
                 placeholder="new.staff@agency.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
                 required
                 disabled={isSigningUp}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pin">PIN (Min 6 characters)</Label>
-              <Input 
+              <AuthPasswordInput
                 id="pin" 
-                type="password" 
                 placeholder="••••••"
+                autoComplete="new-password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 required
                 minLength={6}
-                disabled={isSigningUp}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="authCode">Authorization Code *</Label>
-              <Input 
-                id="authCode" 
-                type="text" 
-                placeholder="Agency/Station Code"
-                value={authCode}
-                onChange={(e) => setAuthCode(e.target.value)}
-                required
                 disabled={isSigningUp}
               />
             </div>

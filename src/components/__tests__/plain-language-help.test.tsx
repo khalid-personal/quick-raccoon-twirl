@@ -13,9 +13,11 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 describe('plain-language feature help', () => {
   it.each([
     ['Payment issues', 'Compare the receipt with the bank deposit.', 'Saving a note does not send a message or change the payment status.'],
-    ['Medical compliance', 'Review the saved exam results', 'Passing medical exams alone does not give permission to deploy.'],
+    ['Medical compliance', 'Review ministry-supplied exam results', 'Results and stage progress are read-only'],
     ['Record checks', 'A warning means the record needs a closer look', 'it does not prove fraud.'],
-    ['Document checks', 'Review contracts, agency agreements and expiry dates.', 'you must send the reminder there.'],
+    ['Document checks', 'Find sent contracts without a covering payment', 'does not approve a document or authorize departure.'],
+    ['Money sent', 'Open an outbound receipt', 'Candidate fees and bank-audit tools are not part of this view.'],
+    ['Staff accounts', 'Agency managers review and manage their own staff accounts', 'assigning a task does not approve an account.'],
   ])('explains %s and its limits without technical jargon', async (title, explanation, limit) => {
     await act(async () => root.render(<FeatureInfo title={title} />));
     await act(async () => container.querySelector<HTMLButtonElement>(`[aria-label="About ${title}"]`)!.click());

@@ -36,7 +36,7 @@ it('assigns and balances only current tasks within the authenticated manager’s
 it('rejects forged manager roles and keeps paused staff unassigned', async () => {
   vi.mocked(getApiPrincipal).mockResolvedValue({ id: 'staff-a', role: 'staff', localAgencyId: 'a', foreignAgencyId: null });
   await expect(balanceLocalAgencyTasks()).rejects.toThrow('manager');
-  await expect(assignCandidateStageTask(candidates[0].id, 1, 'staff-a', actor)).rejects.toThrow('own local agency');
+  await expect(assignCandidateStageTask(candidates[0].id, 1, 'staff-a', actor)).rejects.toThrow('local agency manager');
   vi.mocked(getApiPrincipal).mockResolvedValue({ id: actor.id, role: 'local-agency', localAgencyId: 'a', foreignAgencyId: null });
   saveConfig({ ...getConfig(), staffTaskWeights: { 'staff-a': 0 } });
   expect(await balanceLocalAgencyTasks()).toMatchObject({ assigned: 0, unassigned: 1 });

@@ -162,7 +162,7 @@ export const sendProfileToForeignAgency = async (
     if (!hasCompleteCandidateIntroduction(candidate)) {
         throw new Error('Complete the candidate gender, introduction, skills, languages, and introduction video before sharing the profile.');
     }
-    const partnerships = normalizePartnerships(getConfig().agencyPartnerships, candidates);
+    const partnerships = normalizePartnerships(getConfig().agencyPartnerships);
     if (!partnerships.some(item => item.local_agency_id === candidate.local_agency_id && item.foreign_agency_id === agency.id && item.status === 'active')) {
         throw new Error('An active agency contract is required before sending this profile.');
     }

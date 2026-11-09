@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Building2, Minus, PanelBottom, UserRound, Users, X } from 'lucide-react';
-import { Link, type LinkProps } from 'react-router-dom';
+import { Link, useLocation, useNavigate, type LinkProps } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { getCandidates, getCocFacilities, getForeignAgencies, getLocalAgencies, getStaffUsers } from '@/lib/data-store';
 import AdminCandidateDetail from '@/pages/AdminCandidateDetail';
@@ -10,6 +10,7 @@ import { PopupDockContext, type PopupDockItem } from './popup-dock-context';
 import EntityProfilePanel, { type EntityKind } from './EntityProfilePanel';
 import { navigationItemClass } from './ui/navigation-rail';
 import { popupCloseClassName, popupMinimizeClassName } from './ui/popup-window';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WorkspaceTab { id: string; entityId?: string; kind?: EntityKind; tab: string; stageId?: number; }
 type OpenCandidate = (candidateId: string, options?: { tab?: string; stageId?: number }) => void;
@@ -21,6 +22,12 @@ export function CandidateQuickViewProvider({ children }: { children: ReactNode }
   return <CandidateWorkspace key={scope}>{children}</CandidateWorkspace>;
 }
 function CandidateWorkspace({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const { pathname } = location;
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const mobile = useIsMobile();
+  const publicSite = pathname === '/' || pathname === '/developers';
   const prefix = useId();
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeId, changeActiveId] = useState<string | null>(null);
@@ -34,6 +41,14 @@ function CandidateWorkspace({ children }: { children: ReactNode }) {
   const setActiveId = (id: string | null) => { if (id) activate(id); changeActiveId(id); };
   const trigger = useRef<HTMLElement | null>(null);
   const openCandidate: OpenCandidate = (id, options) => {
+    if (mobile && ['superadmin', 'admin', 'staff', 'local-agency', 'agency', 'foreign-agency', 'foreign-agency-staff'].includes(userRole ?? '')) {
+      const base = userRole === 'local-agency' ? '/local-agency' : ['agency', 'foreign-agency', 'foreign-agency-staff'].includes(userRole ?? '') ? '/agency' : '/admin';
+      const query = new URLSearchParams({ tab: options?.tab ?? 'profile' });
+      if (options?.stageId) query.set('stage', String(options.stageId));
+      setActiveId(null);
+      navigate(`${base}/candidate/${encodeURIComponent(id)}?${query}`, { state: { candidateReturnTo: location.pathname + location.search + location.hash } });
+      return;
+    }
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setTabs(previous => previous.some(tab => tab.id === id)
       ? previous.map(tab => tab.id === id && options ? { ...tab, ...options } : tab)
@@ -70,14 +85,14 @@ function CandidateWorkspace({ children }: { children: ReactNode }) {
   const candidateOnly = tabs.every(tab => !tab.kind);
   return <PopupDockContext.Provider value={dock}><EntityWorkspaceContext.Provider value={openEntity}><CandidateQuickViewContext.Provider value={openCandidate}>
     {children}
-    {(tabs.length > 0 || popups.length > 0) && <div className="h-20" />}
-    <Dialog workspaceManaged={false} modal={false} open={activeId !== null} onOpenChange={open => { if (!open) setActiveId(null); }}>
-      <DialogContent keepMounted onInteractOutside={event => event.preventDefault()} className="bottom-20 left-1/2 top-auto flex h-[min(80vh,900px)] w-[calc(100%-1rem)] max-w-[1500px] translate-y-0 flex-col gap-0 overflow-hidden rounded-2xl p-0 !animate-none [&>button:last-child]:hidden" onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus(); }}>
-        <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/10 to-emerald-500/5 px-5 py-4">
-          <div className="flex items-center justify-between gap-3"><DialogTitle className="flex items-center gap-2"><PanelBottom className="h-5 w-5 text-primary" />{candidateOnly ? 'Candidate workspace' : 'Profile workspace'}</DialogTitle><div className="flex gap-2"><Button size="sm" variant="outline" className={popupMinimizeClassName} onClick={() => setActiveId(null)}><Minus />Minimize to list</Button><Button size="icon" variant="ghost" className={popupCloseClassName} aria-label={candidateOnly ? 'Close active candidate tab' : 'Close active profile tab'} onClick={() => activeId && close(activeId)}><X /></Button></div></div>
+    {!publicSite && !mobile && (tabs.length > 0 || popups.length > 0) && <div className="h-20" />}
+    {(!mobile || activeId !== null) && <Dialog workspaceManaged={false} modal={false} open={!publicSite && activeId !== null} onOpenChange={open => { if (!open) setActiveId(null); }}>
+      <DialogContent keepMounted onInteractOutside={event => event.preventDefault()} className="candidate-workspace-window bottom-20 left-1/2 top-auto flex h-[min(80vh,900px)] w-[calc(100%-1rem)] max-w-[1500px] translate-y-0 flex-col gap-0 overflow-hidden rounded-2xl p-0 !animate-none [&>button:last-child]:hidden" onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus(); }}>
+        <DialogHeader className="candidate-workspace-header shrink-0 border-b px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3"><DialogTitle className="flex min-w-0 items-center gap-2 pr-0"><PanelBottom className="h-5 w-5 shrink-0" />{candidateOnly ? 'Candidate workspace' : 'Profile workspace'}</DialogTitle><div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" className={mobile ? '' : popupMinimizeClassName} onClick={() => setActiveId(null)}>{mobile ? 'Back to page' : <><Minus />Minimize to list</>}</Button><Button size="icon" variant="ghost" className={popupCloseClassName} aria-label={candidateOnly ? 'Close active candidate tab' : 'Close active profile tab'} onClick={() => activeId && close(activeId)}><X /></Button></div></div>
           <DialogDescription>Switch profiles using the tabs below. Minimize to browse the portal; your open profiles and unsaved edits stay here. Closing a tab discards its drafts.</DialogDescription>
         </DialogHeader>
-        {tabs.map(tab => <div key={tab.id} id={`${prefix}-panel-${tab.id}`} role="tabpanel" aria-labelledby={`${prefix}-tab-${tab.id}`} hidden={tab.id !== activeId} className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+        {tabs.map(tab => <div key={tab.id} id={`${prefix}-panel-${tab.id}`} role="tabpanel" aria-labelledby={`${prefix}-tab-${tab.id}`} hidden={tab.id !== activeId} className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
           {tab.kind ? <EntityProfilePanel kind={tab.kind} entityId={tab.entityId!} section={tab.tab} onSectionChange={value => updateTab(tab.id, { tab: value })} onOpenEntity={openEntity} onOpenCandidate={openCandidate} />
             : <AdminCandidateDetail workspace={{ candidateId: tab.id, tab: tab.tab, stageId: tab.stageId, onTabChange: value => updateTab(tab.id, { tab: value, stageId: undefined }), onStageHandled: () => updateTab(tab.id, { stageId: undefined }), onMinimize: () => setActiveId(null) }} />}
         </div>)}
@@ -87,8 +102,8 @@ function CandidateWorkspace({ children }: { children: ReactNode }) {
           </button><Button size="icon" variant="ghost" className={`navigation-rail-close h-8 w-8 ${popupCloseClassName}`} aria-label={`Close ${name(tab.id)}`} onClick={() => close(tab.id)}><X aria-hidden="true" /></Button>
         </div>)}</div></div>
       </DialogContent>
-    </Dialog>
-    {(tabs.length > 0 || popups.length > 0) && <nav aria-label="Candidate workspace dock" className="navigation-rail-topbar fixed inset-x-0 bottom-0 z-[60] flex items-center gap-2 border-t p-3"><span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Open windows ({tabs.length + popups.length})</span><div className="navigation-rail flex-1">{tabs.map(tab => <div key={tab.id} className="navigation-rail-workspace-entry">
+    </Dialog>}
+    {!publicSite && !mobile && (tabs.length > 0 || popups.length > 0) && <nav aria-label="Candidate workspace dock" className="navigation-rail-topbar fixed inset-x-0 bottom-0 z-[60] flex items-center gap-2 border-t p-3"><span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Open windows ({tabs.length + popups.length})</span><div className="navigation-rail flex-1">{tabs.map(tab => <div key={tab.id} className="navigation-rail-workspace-entry">
       <button type="button" className={navigationItemClass(tab.id === activeId)} aria-pressed={tab.id === activeId} onClick={() => setActiveId(tab.id)}>{tab.kind === 'staff' || tab.kind === 'staff-directory' ? <Users aria-hidden="true" /> : tab.kind ? <Building2 aria-hidden="true" /> : <UserRound aria-hidden="true" />}{name(tab.id)}</button><Button size="icon" variant="ghost" className={`navigation-rail-close h-8 w-8 ${popupCloseClassName}`} aria-label={`Close ${name(tab.id)} from dock`} onClick={() => close(tab.id)}><X aria-hidden="true" /></Button>
     </div>)}{popups.map(popup => <div key={popup.id} className="navigation-rail-workspace-entry"><button type="button" className={navigationItemClass(!popup.minimized)} aria-pressed={!popup.minimized} onClick={popup.resume}><PanelBottom aria-hidden="true" />{popup.title}{popup.minimized && <span className="navigation-rail-detail">Minimized</span>}</button><Button size="icon" variant="ghost" className={`navigation-rail-close h-8 w-8 ${popupCloseClassName}`} aria-label={`Close ${popup.title} from dock`} onClick={popup.close}><X aria-hidden="true" /></Button></div>)}</div></nav>}
   </CandidateQuickViewContext.Provider></EntityWorkspaceContext.Provider></PopupDockContext.Provider>;

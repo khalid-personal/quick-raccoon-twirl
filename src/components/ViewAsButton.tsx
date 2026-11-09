@@ -16,10 +16,12 @@ import UserAvatar from '@/components/UserAvatar';
 
 export const homeFor = (role: UserRole, trackingCode?: string | null): string => {
   switch (role) {
+    case 'agency':
     case 'foreign-agency':
     case 'foreign-agency-staff': return '/agency';
     case 'local-agency': return '/local-agency';
     case 'auditor': return '/auditor';
+    case 'viewer': return '/viewer';
     case 'candidate': return trackingCode ? `/track/${trackingCode}` : '/login?tab=candidate';
     default: return '/admin';
   }

@@ -46,6 +46,9 @@ describe('guided agency resolution UI', () => {
     await render({ type: 'local', id: 'local' });
     expect(document.querySelector('[aria-label="New differences"]')?.querySelectorAll('article')).toHaveLength(1);
     expect(container.textContent).toContain('Sending agency under review');
+    expect(container.querySelector('[aria-label="Payment issue stages"]')?.classList.contains('portal-record-grid')).toBe(true);
+    expect(container.querySelector('[aria-label="Payment issue stages"]')?.className).not.toContain('2xl:grid-cols-4');
+    expect(container.querySelector('.payment-case-card')).not.toBeNull();
     await render({ type: 'local', id: 'other-local' });
     expect(document.querySelector('[aria-label="New differences"]')?.querySelectorAll('article')).toHaveLength(0);
   });
@@ -123,6 +126,8 @@ describe('guided agency resolution UI', () => {
     expect(getAgencyResolutionCases()[0]).toMatchObject({ state: 'appealed', holdActive: true });
     expect(stage('Appeals to review')?.querySelectorAll('article')).toHaveLength(1);
     expect(stage('Appeals to review')?.textContent).not.toContain('Reply overdue');
+    expect(stage('Paused agency summary')?.textContent).toContain('1 agency is paused.');
+    expect(stage('Paused agency summary')?.textContent).toContain('1 paused case has an appeal');
     expect(stage('Agency paused')?.querySelectorAll('article')).toHaveLength(0);
     expect(stage('New differences')).toBeNull();
     await act(async () => root.unmount());

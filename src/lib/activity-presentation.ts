@@ -13,6 +13,27 @@ const text = (value: unknown): string => typeof value === 'string' ? value : '';
 const amount = (value: unknown, currency: string): string | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString()} ${currency}`.trim() : undefined;
 
+export type ActivityCategory = 'Payments' | 'Journey & ministry' | 'Documents' | 'Agency decisions' | 'Accounts & records';
+export const activityCategory = (description: string): ActivityCategory => {
+  const text = description.split(/\s*(?:Snapshot:|Previous receipt|\[Record context:)/i)[0];
+  return /appeal|reinstate|agency resolution|agency pause|suspend/i.test(text) ? 'Agency decisions'
+    : /document|upload|scan/i.test(text) ? 'Documents'
+      : /payment|receipt|bank|transfer|shortfall/i.test(text) ? 'Payments'
+        : /ministry|clearance|stage|training|medical|deployment|arrival|returned|visa|elmis/i.test(text) ? 'Journey & ministry' : 'Accounts & records';
+};
+
+export function activityHighlights<T extends { description: string }>(items: T[], limit = 12): T[] {
+  const counts = new Map<ActivityCategory, number>();
+  const selected = new Set<T>();
+  items.forEach(item => {
+    const category = activityCategory(item.description);
+    const count = counts.get(category) ?? 0;
+    if (count < 2 && selected.size < limit) { selected.add(item); counts.set(category, count + 1); }
+  });
+  items.forEach(item => { if (selected.size < limit) selected.add(item); });
+  return items.filter(item => selected.has(item));
+}
+
 export function presentActivity(description: string, action: string, context: {
   candidates?: Candidate[]; agencies?: LocalAgency[]; payment?: Payment;
 } = {}): ActivityPresentation {
@@ -124,5 +145,9 @@ export function presentActivity(description: string, action: string, context: {
     .replace(/\{[\s\S]*$/, '').replace(/\bDEMO ONLY:?\s*/gi, '').replace(/\bsynthetic\b/gi, 'practice')
     .replace(/\bDEMO\b/gi, 'practice').trim();
   const summary = readable.length > 320 ? `${readable.slice(0, 317)}...` : readable;
-  return { title: `${action || 'Recorded'} activity`, summary: summary || 'Open the original record for the saved details.', practice, facts, warning };
+  const category = activityCategory(readable);
+  const title = category === 'Documents' ? 'Document action recorded'
+    : category === 'Journey & ministry' ? /ministry|clearance|elmis/i.test(readable) ? 'Ministry status action recorded' : 'Candidate journey action recorded'
+      : /candidate.*register|candidate.*creat|register.*candidate/i.test(readable) ? 'Candidate registration recorded' : `${action || 'Recorded'} activity`;
+  return { title, summary: summary || 'Open the original record for the saved details.', practice, facts, warning };
 }

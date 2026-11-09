@@ -10,6 +10,7 @@ import { toLoginEmail } from './identifier';
 import { endAttendanceSession, startPresence } from './presence';
 import { demoSessionUser, effectiveAuthUser } from './auth-identities';
 import { getCandidates, getStaffUsers } from './data-store';
+import { useJourneyStatusSync } from '@/hooks/use-journey-status-sync';
 
 // Auth context and hook live in `src/lib/auth-context.ts`
 
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try { return JSON.parse(sessionStorage.getItem(VIEW_AS_KEY) ?? 'null') as ViewAsTarget | null; } catch { return null; }
   });
   const isDemo = isDemoMode();
+  useJourneyStatusSync(!isLoading && userRole ? user?.id : undefined, isDemo);
 
   const startViewAs = useCallback((target: ViewAsTarget) => {
     sessionStorage.setItem(VIEW_AS_KEY, JSON.stringify(target));
@@ -204,17 +206,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return { error: null };
   };
   
-  const signup = async (email: string, pin: string, authCode: string) => {
-    // The database validates the authorization code and creates the pending staff profile.
-    const { data: codeIsValid } = await supabase.rpc('check_authorization_code', { p_code: authCode });
-    if (!codeIsValid) {
-      return { error: new Error('Invalid or expired authorization code.') };
-    }
-
+  const signup = async (email: string, pin: string) => {
     const { error } = await supabase.auth.signUp({
       email: toLoginEmail(email),
       password: pin,
-      options: { data: { authorization_code: authCode } },
+      options: { data: { role: 'staff' } },
     });
     if (error) {
       console.error('[AUTH] signup: Supabase signup error:', error.message);

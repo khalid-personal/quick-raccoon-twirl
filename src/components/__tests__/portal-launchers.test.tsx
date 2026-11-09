@@ -55,7 +55,7 @@ it('opens new chat and the existing composer, then resets on agency switch', asy
   await click(candidate.first_name);
   expect(container.textContent).toContain('Existing conversation composer');
   await click('Minimize chats');
-  expect(document.body.style.overflow).not.toBe('hidden');
+  expect(document.body.style.overflow).not.toBe('clip');
   await click('Open candidate chats');
   expect(container.textContent).toContain('Existing conversation composer');
   state.auth.userLocalAgencyId = 'different-agency'; await render();
@@ -72,14 +72,14 @@ it('locks while chat or scenario is visible, provides resize controls, and relea
   });
   expect(container.querySelector('[aria-label="Close chats"]')?.className).toContain('text-red-600');
   expect(container.querySelector('[aria-label="Close scenario menu"]')?.className).toContain('text-red-600');
-  expect(document.body.style.overflow).toBe('hidden');
+  expect(document.body.style.overflow).toBe('clip');
   await click('Minimize chats');
-  expect(document.body.style.overflow).toBe('hidden');
+  expect(document.body.style.overflow).toBe('clip');
   await click('Close scenario menu');
-  expect(document.body.style.overflow).not.toBe('hidden');
+  expect(document.body.style.overflow).not.toBe('clip');
   await click('Open candidate chats');
   await act(async () => root.render(null));
-  expect(document.body.style.overflow).not.toBe('hidden');
+  expect(document.body.style.overflow).not.toBe('clip');
 });
 it('hides chat for read-only roles and shows loading failures explicitly', async () => {
   state.auth.userRole = 'auditor'; await render();
@@ -88,4 +88,22 @@ it('hides chat for read-only roles and shows loading failures explicitly', async
   vi.mocked(getCandidateChatInbox).mockRejectedValue(new Error('Account unavailable'));
   await render(); await click('Open candidate chats');
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Could not load candidate chats');
+});
+it('uses the shared mobile dialog layout for custom chat and scenario windows without resize tools', async () => {
+  const width = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(390);
+  try {
+    await render(); await click('Open candidate chats'); await click('Switch scenario');
+    const windows = [...container.querySelectorAll<HTMLElement>('[role="dialog"]')];
+    expect(windows).toHaveLength(2);
+    windows.forEach(window => {
+      expect(window.dataset.popupLayout).toBe('dialog');
+      expect(window.style.getPropertyValue('--popup-viewport-height')).toBe(`${globalThis.innerHeight}px`);
+      expect(window.querySelector('[aria-label="Resize window"]')).toBeNull();
+    });
+    await click('Close chats'); await click('Close scenario menu');
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.style.overflow).not.toBe('clip');
+  } finally {
+    width.mockRestore();
+  }
 });

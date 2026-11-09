@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import ProgressIndicator from './ProgressIndicator';
 import { calculateProgress } from '@/lib/utils-data';
 import { Button } from '@/components/ui/button';
-import { Pencil, UserRound } from 'lucide-react';
+import { LockKeyhole, UserRound } from 'lucide-react';
 import CandidateAvatar from './CandidateAvatar';
 import PassportButton from './PassportButton';
 import MinistryQrPanel from './MinistryQrPanel';
@@ -14,6 +14,7 @@ import CandidateDeploymentPackage from './CandidateDeploymentPackage';
 import { EntityProfileButton } from './CandidateQuickViewProvider';
 import CandidateSubmissionDeadline from './CandidateSubmissionDeadline';
 import { candidateLaborId } from '@/lib/ministry-candidates';
+import { practiceRecordLabel } from '@/lib/practice-record-label';
 
 interface CandidateProfileProps {
   candidate: CandidateDetail;
@@ -24,15 +25,15 @@ interface CandidateProfileProps {
 const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit, onChanged }) => {
   const progress = calculateProgress(candidate.stages);
   return (
-    <Card data-tour="candidate-profile" className="overflow-hidden rounded-3xl border-cyan-500/25">
-      <CandidateCheckpoint eyebrow="Candidate details" title="Candidate Profile" description="Check personal details, linked agencies and submission dates. Complete this profile before sharing it or preparing the candidate to travel." icon={UserRound} metric={`${progress}%`} metricLabel="Journey progress" actions={
+    <Card data-tour="candidate-profile" className="overflow-hidden rounded-3xl border-primary/20">
+      <CandidateCheckpoint eyebrow="Ministry-managed candidate details" title="Candidate Profile" description="Review source details and linked agencies. Profile corrections and CoC assignments must come through the ministry / ELMIS; the official connection is pending." icon={UserRound} metric={`${progress}%`} metricLabel="Journey progress" actions={
         <Button variant="outline" className="h-12 rounded-xl px-5" onClick={onEdit}>
-          <Pencil className="h-4 w-4 mr-2" /> Edit Details
+          <LockKeyhole className="h-4 w-4 mr-2" /> View source details
         </Button>
       } />
       <CardContent className="grid grid-cols-1 gap-6 p-5 sm:p-7 md:grid-cols-3">
         {/* Profile Image */}
-        <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl border bg-cyan-500/5 p-5 md:col-span-1">
+        <div className="flex flex-col items-center justify-center space-y-3 rounded-2xl border bg-primary/5 p-5 md:col-span-1">
           <CandidateAvatar candidate={candidate} className="h-36 w-36 text-4xl" />
           <p className="text-sm text-muted-foreground">Profile Photo</p>
           <PassportButton candidate={candidate} />
@@ -72,7 +73,7 @@ const CandidateProfile: React.FC<CandidateProfileProps> = ({ candidate, onEdit, 
             <p className="text-lg font-mono font-semibold">{candidate.tracking_code}</p>
           </div>
           <div className="text-sm"><p className="font-medium text-muted-foreground">Labor ID</p><p className="font-mono font-semibold">{candidateLaborId(candidate, candidate.stages) || 'Awaiting ministry details'}</p></div>
-          <div className="text-sm"><p className="font-medium text-muted-foreground">ELMIS registration</p><p>{candidate.elmis?.registration_id || 'Awaiting ministry details'}</p><p className="text-xs text-muted-foreground">{candidate.elmis?.mode === 'live' ? 'Ministry record' : 'Official connection pending; existing practice details are not a live ministry record.'}</p></div>
+          <div className="text-sm"><p className="font-medium text-muted-foreground">ELMIS registration</p><p>{practiceRecordLabel(candidate.elmis?.registration_id, candidate.elmis?.mode === 'sandbox') || 'Awaiting ministry details'}</p><p className="text-xs text-muted-foreground">{candidate.elmis?.mode === 'live' ? 'Ministry record' : 'Fictional reference; official ministry connection pending.'}</p></div>
           <div className="text-sm">
             <p className="font-medium text-muted-foreground">COC Training Facility</p> {/* Updated Label */}
             <p className="text-lg font-semibold"><EntityProfileButton kind="coc" entityId={candidate.coc_facility_id}>{candidate.coc_facility_name || 'N/A'}</EntityProfileButton></p>

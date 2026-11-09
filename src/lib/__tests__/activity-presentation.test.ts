@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { presentActivity } from '../activity-presentation';
+import { activityCategory, activityHighlights, presentActivity } from '../activity-presentation';
 
 const snapshot = {
   payment: { id: 'payment', amount: 9000, currency: 'ETB', candidate_ids: ['candidate'],
@@ -9,6 +9,23 @@ const snapshot = {
 };
 
 describe('human-readable activity', () => {
+  it('separates real progress, ministry checks, uploads and agency actions from payment reviews', () => {
+    expect(activityCategory('Ministry clearance response recorded')).toBe('Journey & ministry');
+    expect(activityCategory('Stage 3 completed')).toBe('Journey & ministry');
+    expect(activityCategory('Receipt checked against bank statement')).toBe('Payments');
+    expect(activityCategory('Passport document uploaded')).toBe('Documents');
+    expect(activityCategory('Agency appeal submitted')).toBe('Agency decisions');
+    expect(activityCategory('Candidate registered')).toBe('Accounts & records');
+    expect(activityCategory('Receipt verified. Snapshot: {"candidate":{"training":"complete"}}')).toBe('Payments');
+  });
+  it('keeps different recorded topics visible without inventing events or changing their chronological order', () => {
+    const items = [...Array.from({ length: 20 }, (_, id) => ({ id, description: 'Payment review recorded' })),
+      { id: 20, description: 'Candidate registered' }, { id: 21, description: 'Ministry status response recorded' }];
+    const highlights = activityHighlights(items);
+    expect(highlights).toHaveLength(12);
+    expect(highlights.map(item => item.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21]);
+    expect(activityHighlights(items.slice(0, 3))).toEqual(items.slice(0, 3));
+  });
   it('explains a historical underpayment using saved candidate, amounts and reference, not JSON', () => {
     const description = `Amount discrepancy escalation requested: underpayment, bank. Reason: DEMO ONLY scenario practice. Follow-up: 2026-11-11. Snapshot: ${JSON.stringify(snapshot)}`;
     const result = presentActivity(description, 'Updated');

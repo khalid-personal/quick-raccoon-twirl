@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useReturnToPrevious } from '@/hooks/use-page-memory';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -13,7 +14,7 @@ import CandidateProfile from '@/components/CandidateProfile';
 import TimelineEditor from '@/components/TimelineEditor';
 import DocumentManager from '@/components/DocumentManager';
 import ContractVisaPanel from '@/components/ContractVisaPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CandidateDetailEditor from '@/components/CandidateDetailEditor';
 import CandidateContacts from '@/components/CandidateContacts';
 import CandidateIntroductionMedia from '@/components/CandidateIntroductionMedia';
@@ -44,9 +45,12 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
   const dashboardPath = userRole === 'local-agency' ? '/local-agency'
     : userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' || userRole === 'agency' ? '/agency' : '/admin';
   const returnToPrevious = useReturnToPrevious(dashboardPath);
+  const mobile = useIsMobile();
+  const profileSection = !!workspace || mobile || searchParams.get('tab') === 'profile';
+  const backControl = !workspace && <div className="candidate-mobile-back sticky top-0 z-30 -mx-1 flex items-center gap-3 rounded-xl border bg-card/95 p-2 backdrop-blur md:hidden"><Button variant="ghost" onClick={returnToPrevious} className="min-h-11"><ArrowLeft className="mr-2 h-5 w-5" />Back to previous page</Button></div>;
   const staffId = viewAs?.userId ?? user?.id;
 
-  const activeTab = workspace?.tab ?? searchParams.get('tab') ?? 'timeline';
+  const activeTab = workspace?.tab ?? searchParams.get('tab') ?? (mobile ? 'profile' : 'timeline');
   const setActiveTab = (tab: string) => {
     if (workspace) { workspace.onTabChange(tab); return; }
     const next = new URLSearchParams(searchParams);
@@ -80,22 +84,22 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-12">
+      <div>{backControl}<div className="flex justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      </div></div>
     );
   }
 
   if (error || !candidate) {
     return (
-      <div className="p-8 text-center">
+      <div>{backControl}<div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-red-500">Error Loading Candidate</h1>
         <p role="alert" className="text-muted-foreground">{error instanceof Error ? error.message : `Candidate ID ${candidateId} not found.`}</p>
         {error && <Button variant="outline" className="mt-4" onClick={() => void refetch()}>Retry profile</Button>}
           <Button variant="outline" className="mt-4" onClick={workspace?.onMinimize ?? returnToPrevious}>
             <ArrowLeft className="h-4 w-4 mr-2" />{workspace ? 'Return to list' : 'Back to Dashboard'}
           </Button>
-      </div>
+      </div></div>
     );
   }
 
@@ -117,21 +121,23 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
   const priority = candidate ? getCandidatePriority(candidate.created_at, progressPercent) : 'green';
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-5 rounded-3xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/10 via-card to-emerald-500/10 p-5 sm:p-7">
+    <div className="candidate-detail-view space-y-6">
+      {backControl}
+      <div className="candidate-identity-header flex flex-wrap items-center justify-between gap-5 rounded-3xl border p-5 sm:p-7">
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
           <CandidateAvatar candidate={candidate} className="h-12 w-12" />
-          <span className={priority === 'green' ? 'text-green-700' : priority === 'yellow' ? 'text-yellow-700' : 'text-red-700'}>
+          <span>
             {candidate.first_name} {candidate.last_name}
           </span>
-          <span className="text-lg font-normal text-muted-foreground ml-3">({candidate.tracking_code})</span>
+          <span className="candidate-tracking-code text-sm font-normal break-all">({candidate.tracking_code})</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${priority === 'green' ? 'bg-[#c8f575] text-[#173b32]' : priority === 'yellow' ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-900'}`}>{progressPercent}% stages complete</span>
         </h1>
         <div className="flex flex-wrap gap-2">
             <CandidateMapDialog candidate={candidate} />
             {canSendProfile && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Select value={selectedPartnerId} onValueChange={setPartnerId}>
-                    <SelectTrigger aria-label="Foreign partner" className="w-48"><SelectValue placeholder="Choose partner" /></SelectTrigger>
+                    <SelectTrigger aria-label="Foreign partner" className="w-48 max-w-full"><SelectValue placeholder="Choose partner" /></SelectTrigger>
                     <SelectContent>{partners.map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <Button onClick={handleSendProfile} variant="default" disabled={!introductionComplete}><Send className="h-4 w-4 mr-2" />{candidate.profile_shares?.some(share => share.foreign_agency_id === selectedPartnerId) ? 'Resend profile' : 'Send profile'}</Button>
@@ -148,20 +154,20 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
                 );
               })()
             }
-                <Button variant="outline" onClick={workspace?.onMinimize ?? returnToPrevious}>
+                <Button variant="outline" className={!workspace ? 'hidden md:inline-flex' : undefined} onClick={workspace?.onMinimize ?? returnToPrevious}>
                     <ArrowLeft className="h-4 w-4 mr-2" />{workspace ? 'Return to list' : 'Back to Dashboard'}
                 </Button>
         </div>
       </div>
 
-      {!workspace && <><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} />
+      {!profileSection && <><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} />
       <CandidateIntroductionMedia candidate={candidate} />
       <CandidateContacts key={candidate.updated_at} candidate={candidate} onChanged={refetch} />
       <EmploymentJourneyHistory candidate={candidate} /></>}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList aria-label="Candidate profile sections" data-tour="candidate-stages" className="w-full">
-          {workspace && <TabsTrigger value="profile">Profile</TabsTrigger>}
+          {(profileSection || activeTab === 'profile') && <TabsTrigger value="profile">Profile</TabsTrigger>}
           <TabsTrigger value="timeline"><Clock3 className="h-5 w-5" />Timeline</TabsTrigger>
           <TabsTrigger value="documents"><Files className="h-5 w-5" />Documents</TabsTrigger>
           <TabsTrigger value="contract"><FileCheck2 className="h-5 w-5" />Contract & Visa</TabsTrigger>
@@ -171,7 +177,7 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
           <TabsTrigger value="chat"><MessageSquare className="h-5 w-5" />Chat</TabsTrigger>
         </TabsList>
         
-        {workspace && <TabsContent forceMount value="profile" className="space-y-4 data-[state=inactive]:hidden"><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} /><CandidateIntroductionMedia candidate={candidate} /><CandidateContacts key={candidate.updated_at} candidate={candidate} onChanged={refetch} /><EmploymentJourneyHistory candidate={candidate} /></TabsContent>}
+        {profileSection && <TabsContent forceMount={workspace ? true : undefined} value="profile" className="space-y-4 data-[state=inactive]:hidden"><CandidateProfile candidate={candidate} onEdit={() => setIsEditDialogOpen(true)} onChanged={refetch} /><CandidateIntroductionMedia candidate={candidate} /><CandidateContacts key={candidate.updated_at} candidate={candidate} onChanged={refetch} /><EmploymentJourneyHistory candidate={candidate} /></TabsContent>}
         <TabsContent forceMount={workspace ? true : undefined} value="timeline" className="mt-4 data-[state=inactive]:hidden">
           <TimelineEditor candidateDetail={candidate} refetch={refetch} workspace={workspace ? { stageId: workspace.stageId, onStageHandled: workspace.onStageHandled } : undefined} />
         </TabsContent>
@@ -205,7 +211,8 @@ const AdminCandidateDetail: React.FC<{ workspace?: CandidateWorkspaceOptions }> 
 <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
   <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-auto">
     <DialogHeader>
-      <DialogTitle>Edit Candidate Details</DialogTitle>
+      <DialogTitle>Candidate source details</DialogTitle>
+      <DialogDescription>Ministry-owned profile information is read-only. Review the recorded details without changing source identity or CoC assignments.</DialogDescription>
     </DialogHeader>
     {candidate && (
       <CandidateDetailEditor 

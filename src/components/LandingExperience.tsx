@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { DEMO_CANDIDATE_COUNT } from '@/lib/demo-dataset';
 
 function CursorGlow({ darkOnly = false }: { darkOnly?: boolean }) {
@@ -94,6 +94,7 @@ function DemoCount() {
 }
 
 function WorkflowIllustration() {
+  const gradientId = useId();
   const [animate, setAnimate] = useState(false);
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: no-preference)');
@@ -106,8 +107,8 @@ function WorkflowIllustration() {
   return <section aria-label="Illustrative data flow" className="landing-workflow rounded-xl border border-white/10 bg-white/[0.04] p-4">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-indigo-200">Connected workflow</p>
-        <p className="mt-1 text-xs text-slate-300">One record, moving through the journey</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c8f575]">Connected workflow</p>
+        <p className="mt-1 text-xs text-white/75">One record, moving through the journey</p>
       </div>
       <div className="text-right">
         <p className="text-xl font-semibold tabular-nums text-white"><DemoCount /></p>
@@ -116,23 +117,23 @@ function WorkflowIllustration() {
     </div>
     <svg viewBox="0 0 480 116" className="mt-3 w-full" aria-hidden="true">
       <defs>
-        <linearGradient id="landing-flow-gradient" x1="0" x2="1">
-          <stop stopColor="#818cf8" /><stop offset="1" stopColor="#5eead4" />
+        <linearGradient id={gradientId} x1="0" x2="1">
+          <stop stopColor="#c8f575" /><stop offset="1" stopColor="#74cbb8" />
         </linearGradient>
       </defs>
       <path d="M 75 54 H 405" fill="none" stroke="#64748b" strokeOpacity=".35" strokeWidth="1.5" />
-      <path className="landing-flow-line" d="M 75 54 H 405" fill="none" stroke="url(#landing-flow-gradient)" strokeWidth="2" />
+      <path className="landing-flow-line" d="M 75 54 H 405" fill="none" stroke={`url(#${gradientId})`} strokeWidth="2" />
       {[75, 240, 405].map(x => <g key={x}>
-        <rect x={x - 30} y="24" width="60" height="60" rx="14" fill="#172339" stroke="#6574a1" strokeWidth="1" />
-        <circle cx={x} cy="54" r="13" fill="none" stroke="#a5b4fc" strokeWidth="1.5" />
-        <path d={`M ${x - 5} 54 h 10 M ${x} 49 v 10`} stroke="#a5b4fc" strokeWidth="1.5" strokeLinecap="round" />
+        <rect x={x - 30} y="24" width="60" height="60" rx="14" fill="#173c38" stroke="#48786b" strokeWidth="1" />
+        <circle cx={x} cy="54" r="13" fill="none" stroke="#c8f575" strokeWidth="1.5" />
+        <path d={`M ${x - 5} 54 h 10 M ${x} 49 v 10`} stroke="#c8f575" strokeWidth="1.5" strokeLinecap="round" />
       </g>)}
       <text x="75" y="106" textAnchor="middle" fill="#cbd5e1" fontSize="11">CRM</text>
       <text x="240" y="106" textAnchor="middle" fill="#cbd5e1" fontSize="11">Supply chain</text>
       <text x="405" y="106" textAnchor="middle" fill="#cbd5e1" fontSize="11">Accounting</text>
       {animate && <g>
-        <rect x="-9" y="-11" width="18" height="22" rx="3" fill="#e0e7ff" stroke="#818cf8" />
-        <path d="M -5 -5 H 5 M -5 0 H 5 M -5 5 H 2" stroke="#4f46e5" strokeWidth="1.2" strokeLinecap="round" />
+        <rect x="-9" y="-11" width="18" height="22" rx="3" fill="#f4f4ed" stroke="#c8f575" />
+        <path d="M -5 -5 H 5 M -5 0 H 5 M -5 5 H 2" stroke="#17443e" strokeWidth="1.2" strokeLinecap="round" />
         <animateMotion path="M 75 54 H 405" dur="6s" repeatCount="indefinite" />
       </g>}
     </svg>

@@ -2,17 +2,7 @@ import type { AgencyPartnership, Candidate, ForeignAgency, LocalAgency, ProfileS
 
 export const MAX_AGENCY_PARTNERS = 5;
 
-// Older candidate records already express an agency relationship, so preserve those links until the network is explicitly configured.
-export const normalizePartnerships = (partnerships: AgencyPartnership[] | undefined, candidates: Candidate[] = []): AgencyPartnership[] => {
-  if (partnerships !== undefined) return partnerships;
-  const pairs = new Map<string, AgencyPartnership>();
-  candidates.forEach(candidate => {
-    if (!candidate.local_agency_id || !candidate.foreign_agency_id) return;
-    const key = `${candidate.local_agency_id}|${candidate.foreign_agency_id}`;
-    if (!pairs.has(key)) pairs.set(key, { local_agency_id: candidate.local_agency_id, foreign_agency_id: candidate.foreign_agency_id, status: 'active', agreement_reference: 'Migrated from existing candidate assignments', started_at: candidate.created_at });
-  });
-  return [...pairs.values()];
-};
+export const normalizePartnerships = (partnerships: AgencyPartnership[] | undefined): AgencyPartnership[] => partnerships ?? [];
 
 export const validatePartnerships = (partnerships: AgencyPartnership[], locals: LocalAgency[], foreigns: ForeignAgency[]): string | null => {
   const localIds = new Set(locals.map(agency => agency.id));

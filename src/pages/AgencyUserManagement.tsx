@@ -40,7 +40,8 @@ const AgencyUserManagement: React.FC = () => {
   const actorEmail = user?.email || 'unknown-admin@agency.com';
 
   // Data hooks declared unconditionally; prevent fetch until auth is resolved
-  const { data: users = [], isLoading } = useQuery<StaffUser[]>({ queryKey: ['staffUsers'], queryFn: api.getAllStaffUsers, enabled: !isAuthLoading });
+  const { data: users = [], isLoading } = useQuery<StaffUser[]>({ queryKey: ['staffUsers'], queryFn: api.getAllStaffUsers,
+    enabled: !isAuthLoading && hasRole(userRole ?? undefined, ['agency', 'foreign-agency']) });
   const agencyUsers = users.filter(u => u.foreign_agency_id === userForeignAgencyId);
 
   const [search, setSearch] = useState('');
@@ -57,7 +58,7 @@ const AgencyUserManagement: React.FC = () => {
   const approvalMutation = useMutation({ mutationFn: ({ userId, role, isApproved }: { userId: string, role: Exclude<UserRole,'candidate'>, isApproved: boolean }) => api.updateUserRole(userId, role, isApproved, actorId, actorEmail, userRole ?? undefined, userForeignAgencyId ?? undefined), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staffUsers'] }), onError: (error: Error) => toast.error(error.message) });
 
   if (isAuthLoading) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!hasRole(userRole ?? undefined, ['agency', 'foreign-agency', 'foreign-agency-staff'])) {
+  if (!hasRole(userRole ?? undefined, ['agency', 'foreign-agency'])) {
     toast.error('Access Denied: You do not have permission to view this page.');
     return <Navigate to="/login" replace />;
   }

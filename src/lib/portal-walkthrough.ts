@@ -1,80 +1,120 @@
 import type { UserRole } from './types';
 
-export interface WalkthroughStep { title: string; detail: string; path: string; selector: string; instructions: string[]; instructionSelectors?: string[]; check: string }
-export interface WalkthroughState { role: UserRole; index: number; subIndex?: number; active: boolean; completed: boolean; returnTo: string }
+export interface WalkthroughStep { title: string; detail: string; path: string; selector: string; instructions: string[]; instructionTitles?: string[]; instructionSelectors?: string[]; practiceWindow?: boolean; practiceLayout?: boolean; check: string }
+export interface WalkthroughState { role: UserRole; index: number; subIndex?: number; active: boolean; completed: boolean; returnTo: string; version?: number }
 
 const KEY = 'dawm_demo_walkthrough';
+const VERSION = 2;
 export const readWalkthrough = (): WalkthroughState | null => {
-  try { return JSON.parse(sessionStorage.getItem(KEY) ?? 'null') as WalkthroughState | null; } catch { return null; }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(KEY) ?? 'null') as WalkthroughState | null;
+    return saved && saved.version !== VERSION ? { ...saved, index: 0, subIndex: 0, active: false, completed: false, version: VERSION } : saved;
+  } catch { return null; }
 };
-export const saveWalkthrough = (state: WalkthroughState) => sessionStorage.setItem(KEY, JSON.stringify(state));
+export const saveWalkthrough = (state: WalkthroughState) => sessionStorage.setItem(KEY, JSON.stringify({ ...state, version: VERSION }));
 export const startWalkthrough = (resume: boolean) => window.dispatchEvent(new CustomEvent('start-demo-walkthrough', { detail: { resume } }));
 
 const dashboardSteps = (role: UserRole, path = '/admin'): WalkthroughStep[] => [
-  { title: 'Dashboard · Overview', detail: 'Understand today’s work before leaving the dashboard.', path: `${path}?section=overview`, selector: '[data-tour="dashboard-overview"]',
-    instructions: ['Overview is the first dashboard menu. Read today’s work, then move through each dashboard menu in order.',
-      'Use the executive totals and status cards to understand the current candidate pipeline. Open a total to inspect its records.',
-      ...(role !== 'local-agency' ? ['Read the Record check score and its warnings. The selected agency has its own score; a healthy score is not official clearance.'] : []),
-      ...(role === 'superadmin' ? ['Review Payment issues: new foreign-transfer differences, waiting replies, paused agencies and appeals. Candidate payment failures are not agency discrepancies.'] : []),
-      'Read the live roster. Open a person’s profile to see their role and current availability; presence does not mean a task is complete.'],
+  { title: 'Dashboard · Overview', detail: 'Overview answers: how many candidates are progressing, and what needs attention?', path: `${path}?section=overview`, selector: '[data-tour="dashboard-overview"]',
+    instructions: ['Overview is open. This is the summary page; the next parts explain its individual cards.',
+      'Candidate totals show how many files are active, completed or blocked. Select a total to open the matching records.',
+      ...(role !== 'local-agency' ? ['Record check score summarizes missing or conflicting information. Open a warning to see what needs checking. The score belongs to the selected agency; it is not travel permission.'] : []),
+      ...(role === 'superadmin' ? ['Journey radar shows the next recorded follow-ups. Tap a stage, use Priority lens for overdue work and holds, then open a candidate portrait to inspect the evidence. Ministry handoff is separate from local stage completion; this radar never changes assignments or approves travel.',
+        'Payment issues lists foreign-agency transfers that need review, a reply or a decision. Open a case to read the receipt and history. Candidate fee failures are handled separately in Payments.'] : []),
+      'Live roster shows who was recently active. Open a person to view their profile. An online dot does not prove they finished their work.'],
+    instructionTitles: ['Overview', 'Candidate totals', ...(role !== 'local-agency' ? ['Record score'] : []), ...(role === 'superadmin' ? ['Journey radar', 'Payment issues'] : []), 'Live roster'],
     instructionSelectors: ['[role="tab"][aria-label="Overview"]', '[data-tour="dash-overview-executive"]',
       ...(role !== 'local-agency' ? ['[data-tour="dash-overview-integrity"]'] : []),
-      ...(role === 'superadmin' ? ['[data-tour="dash-overview-resolution"]'] : []), '[data-tour="dash-overview-presence"]'],
-    check: 'You understand candidate totals, record warnings and live presence for the selected agency. Next is Workforce, not My tasks.' },
-  { title: 'Dashboard · Workforce', detail: 'Learn people, journeys and working-abroad information.', path: `${path}?section=portfolio`, selector: '[data-tour="dashboard-workforce"]',
-    instructions: ['Workforce is the second dashboard menu. It describes the candidate portfolio rather than assigning staff tasks.',
-      'Read Candidate journeys: locate candidates at registration, training, medical and deployment. Open a group to inspect its people.',
-      'Review Working abroad: check deployed workers, destinations and employment/return information. Earlier stages still require their own payment and evidence.',
-      'Use Candidate backgrounds to understand occupations, cities and regions. Charts describe the selected agency, not every agency.',
-      ...(role === 'local-agency' ? ['Review Partner contracts for your agency before coordinating work with a foreign partner.'] : [])],
+      ...(role === 'superadmin' ? ['[data-tour="dash-overview-journey-radar"]', '[data-tour="dash-overview-resolution"]'] : []), '[data-tour="dash-overview-presence"]'],
+    check: 'Next: Workforce explains where candidates are in their journey.' },
+  { title: 'Dashboard · Workforce', detail: 'Workforce answers: who is preparing to leave, working abroad or back home?', path: `${path}?section=portfolio`, selector: '[data-tour="dashboard-workforce"]',
+    instructions: ['Workforce is open. These charts describe candidate progress. To assign staff work, use My tasks & team instead.',
+      'Candidate journeys groups people by Registration, Training, Medical and Deployment. Select a group to see its candidates.',
+      'Working abroad shows deployed workers and their destinations. Use their profiles to check contract dates and recorded returns.',
+      'Candidate backgrounds groups people by occupation, home city and region. These charts use the agency selected in Dashboard view.',
+      ...(role === 'local-agency' ? ['Partner contracts shows your agency’s agreements with foreign partners. Check the agreement before arranging a new contract.'] : [])],
+    instructionTitles: ['Workforce', 'Journey stages', 'Working abroad', 'Backgrounds', ...(role === 'local-agency' ? ['Partner contracts'] : [])],
     instructionSelectors: ['[role="tab"][aria-label="Workforce"]', '[data-tour="dash-portfolio-lifecycle"]', '[data-tour="dash-portfolio-workforce"]', '[data-tour="dash-portfolio-mix"]',
       ...(role === 'local-agency' ? ['[data-tour="dash-portfolio-partners"]'] : [])],
-    check: 'You can distinguish the journey pipeline, working-abroad workforce and candidate backgrounds. Payments is next.' },
-  { title: 'Dashboard · Payments', detail: 'Separate candidate fee collections from foreign-to-local transfers.', path: `${path}?section=finance`, selector: '[data-tour="dashboard-payments"]',
-    instructions: ['Payments is the third dashboard menu. Read the financial overview for the agency selected in Dashboard view.',
-      'Check candidate collections and receipts. Only successful linked receipts cover fees; failed, timed-out or missing payments leave the stage unpaid.',
-      'Check foreign agency transfer totals separately. Preserve original currency; any USD estimate is not a bank-confirmed conversion.',
-      'Find Review foreign agency transfers. This opens receipt/reference and bank checks for the sending foreign agency; the detailed transfer review is taught later.'],
+    check: 'Next: Payments separates candidate fees from agency transfers.' },
+  { title: 'Dashboard · Payments', detail: 'Payments answers: what money was received, and what is still unpaid?', path: `${path}?section=finance`, selector: '[data-tour="dashboard-payments"]',
+    instructions: ['Payments is open. The totals belong to the selected agency. Candidate fees and foreign-agency transfers are separate.',
+      'Candidate collections shows stage fees received from candidates. Open a receipt to check its amount and status. Failed, timed-out or missing receipts leave the fee unpaid.',
+      'Foreign-agency transfers shows money sent to local agencies for contracts. Check the original currency; a USD estimate is only for reporting.',
+      'Review foreign agency transfers opens detailed receipts and bank comparisons. There you can check the candidate, transaction ID, amount and currency.'],
+    instructionTitles: ['Payments', 'Candidate fees', 'Agency transfers', 'Bank comparison'],
     instructionSelectors: ['[role="tab"][aria-label="Payments"]', '[data-tour="dash-finance-finance"]', '[data-tour="dash-finance-finance"]', '[data-tour="dashboard-transfer-review"]'],
-    check: 'Candidate ChechePay status and foreign bank discrepancies are different workflows. Continue to Document checks before leaving the dashboard.' },
-  { title: 'Dashboard · Document checks', detail: 'Understand contract requirements, transfer compliance and deadlines.', path: `${path}?section=compliance`, selector: '[data-tour="dashboard-documents"]',
-    instructions: ['Document checks is the fourth dashboard menu. It brings together contract and compliance information.',
-      'Read Foreign to local payment compliance. A sent work contract requires a receipt from the responsible foreign agency; missing payment needs follow-up.',
-      'Inspect the comparison’s candidate, sender, recipient, contract currency and expected amount. A contract estimate alone cannot consume an underpayment chance.',
-      'Review Contracts ending soon. Open the worker’s profile to check the actual contract dates and follow-up instead of assuming renewal.',
-      'Required candidate files are reviewed in each candidate’s Documents tab. Missing documents or ministry clearance must not be skipped to deploy faster.'],
+    check: 'Next: Document checks covers contract payments and deadlines.' },
+  { title: 'Dashboard · Document checks', detail: 'This page highlights contracts that need a payment or a deadline follow-up. Individual files are in each candidate’s Documents tab.', path: `${path}?section=compliance`, selector: '[data-tour="dashboard-documents"]',
+    instructions: ['Document checks is open. Start with the contract-payment card, then check contracts ending soon.',
+      'Foreign to local payment compliance checks whether a sent contract has a covering receipt. If no payment is recorded, follow up with the responsible foreign agency.',
+      'For a contract-payment gap, check the candidate, sending agency, receiving agency, required amount and currency. This is a contract check, not proof of a bank underpayment.',
+      'Contracts ending soon shows workers whose contract dates need attention. Open a profile to check the dates and record the next follow-up.',
+      'To inspect a passport, contract or visa file, open the candidate and choose Documents. A missing file or ministry approval must be resolved before departure.'],
+    instructionTitles: ['Contract checks', 'Missing payment', 'Payment details', 'Ending contracts', 'Candidate files'],
     instructionSelectors: ['[role="tab"][aria-label="Document checks"]', '[data-tour="dash-compliance-foreign-payment-compliance"]', '[data-tour="dash-compliance-foreign-payment-compliance"]', '[data-tour="dash-compliance-expiring"]', '[data-tour="dashboard-documents"]'],
-    check: 'You can find contract-payment blockers and expiry follow-up. Candidates is the last dashboard menu.' },
-  { title: 'Dashboard · Candidates', detail: 'Learn search, filters, status summaries and profile shortcuts.', path: `${path}?section=candidates`, selector: '[data-tour="dashboard-candidates"]',
-    instructions: ['Candidates is the fifth dashboard menu. These are ministry-managed records; staff must not add duplicates.',
-      'Use name, passport or tracking-code search, then batch and status filters. Authorized agency filters further narrow the list without changing the records.',
-      'Choose a status summary to filter the list; choose it again or clear the filter to restore the list. Sort columns to find the right candidate.',
-      'Read each row’s portrait, identity, stage progress and record-check warnings. Open Profile or View passport to inspect the existing candidate.',
-      'Keep the tracking code when reviewing documents, receipts and chats. You have now visited all five dashboard menus; next we teach My tasks and staff workload.'],
+    check: 'Next: Candidates helps you find and open an individual profile.' },
+  { title: 'Dashboard · Candidates', detail: 'Candidates answers: where is the person I need, and what is their next step?', path: `${path}?section=candidates`, selector: '[data-tour="dashboard-candidates"]',
+    instructions: ['Candidates is open. Use these existing ministry-managed profiles; do not create another record for the same person.',
+      'Search by name, passport number or tracking code. Batch and status filters narrow the list; they do not change a candidate’s record.',
+      'Select a status total to show its candidates. Select it again or clear the filter to restore the list. Column headings let you sort the results.',
+      'Each row shows a portrait, identity and progress. Open Profile for full details, or View passport to inspect the saved scan.',
+      'Check the tracking code before reviewing a document, receipt or chat. Next, My tasks explains your assigned work and follow-ups.'],
+    instructionTitles: ['Candidate list', 'Search & filters', 'Status totals', 'Open a profile', 'Correct identity'],
     instructionSelectors: ['[role="tab"][aria-label="Candidates"]', '[data-tour="dash-candidates-filters"]', '[data-tour="dash-candidates-candidates"]', '[data-tour="dash-candidates-candidates"]', '[data-tour="dash-candidates-candidates"]'],
-    check: 'You can find a candidate and open the right evidence without altering identity or bypassing stages.' },
+    check: 'You have visited all five dashboard sections. Next: My tasks.' },
 ];
 
 export const walkthroughSteps = (role: UserRole, trackingCode?: string | null, candidateId = 'demo-cand-0431'): WalkthroughStep[] => {
+  const steps = roleWalkthroughSteps(role, trackingCode, candidateId);
+  return [{
+    title: 'Make the workspace yours', detail: 'Start with window controls. Try them safely without changing a candidate or payment.',
+    path: steps[0].path, selector: '[data-tour="walkthrough-window-practice"]', practiceWindow: true,
+    instructions: ['We opened a practice popup for you. This is how profile and chat windows work: several can stay open together, and the page behind a popup stays still.',
+      'Watch the practice window grow. Drag its bottom-right corner for your preferred size, or use Resize window with arrow keys for precise adjustments.',
+      'We minimized the practice window with the yellow minus. It is still in Open windows at the bottom; your note stays intact.',
+      'We restored it from the bottom dock. Select any open window there to switch between profiles and chats without losing your place.',
+      'We closed the practice window with the red X. Closing ends that window; minimizing keeps it open. No candidate or payment records were changed.'],
+    instructionTitles: ['Open a window', 'Resize', 'Minimize', 'Restore', 'Close'],
+    instructionSelectors: ['[data-tour="walkthrough-window-practice"]', '[data-tour="walkthrough-window-practice"] [aria-label="Resize window"]',
+      '[aria-label="Candidate workspace dock"]', '[data-tour="walkthrough-window-practice"]', '[data-tour="walkthrough-instruction"]'],
+    check: 'Next comes your role’s work. The guide opens the right section and follows the feature, without resetting the page to the top.',
+  }, ...(['superadmin', 'admin', 'staff', 'local-agency'].includes(role) ? [{
+    title: 'Arrange dashboard panels', detail: 'Change the dashboard layout to suit your screen. This affects appearance, not records.',
+    path: steps[0].path, selector: '[aria-label="Layout editor"]', practiceLayout: true,
+    instructions: ['We opened Edit layout so you can see the panel controls. The guide does not change your saved layout.',
+      'Use a panel’s size button to cycle through Full width, Two thirds, Half and One third. Smaller screens keep panels stacked.',
+      'Drag a panel to reorder it, or use its left and right arrows. The minus hides a panel; its name in the layout editor brings it back.',
+      'We finished editing. Select Edit layout to customize again. Reset layout restores the original arrangement. Preferences you change yourself are saved in this browser.'],
+    instructionTitles: ['Edit layout', 'Panel sizes', 'Move & hide', 'Finish & reset'],
+    instructionSelectors: ['[aria-label="Layout editor"]', '[aria-label^="Resize "]:not([aria-label="Resize window"])', '[aria-label="Layout editor"]', '[aria-label="Edit layout"]'],
+    check: 'You can customize the layout again later. The guide never moves or hides your panels for you.',
+  }] : []), ...steps];
+};
+
+const roleWalkthroughSteps = (role: UserRole, trackingCode?: string | null, candidateId = 'demo-cand-0431'): WalkthroughStep[] => {
   const profile = `/admin/candidate/${encodeURIComponent(candidateId)}`;
   if (role === 'superadmin' || role === 'admin' || role === 'staff') return [
     { title: 'Choose the dashboard view', detail: 'First choose whose dashboard you are learning.', path: '/admin?section=overview', selector: '[aria-label="Dashboard sections"]',
       instructions: [role === 'superadmin' ? 'Choose a local agency in Dashboard view, or keep All local agencies.' : 'Review the dashboard information available to your account.', 'The dashboard has five menus: Overview, Workforce, Payments, Document checks and Candidates. We will teach each one before My tasks.'],
       instructionSelectors: [role === 'superadmin' ? '[data-tour="dashboard-agency-scope"]' : '[aria-label="Dashboard sections"]', '[aria-label="Dashboard sections"]'],
-      check: 'The selected agency scopes the dashboard. Next, learn Overview and its functions.' },
+      instructionTitles: ['Choose an agency', 'Dashboard sections'],
+      check: 'The selected agency determines which totals and candidates appear. Next: Overview.' },
     ...dashboardSteps(role),
-    { title: 'Start with My tasks', detail: 'Follow your own work before reviewing the wider candidate pipeline.', path: '/admin/tasks', selector: '[data-tour="workload-manager"]',
+    { title: 'Start with My tasks', detail: role === 'superadmin' ? 'Understand agency flow, then investigate warnings and agency appeals. Local agency admins balance staff work.' : 'My tasks shows your follow-ups. Team workload shows who owns each candidate’s next stage.', path: '/admin/tasks', selector: '[data-tour="workload-manager"]',
       instructions: role === 'staff' ? ['Read your assigned tasks, due dates and payment blockers.', 'Open the earliest task and check the next required stage.', 'Record a follow-up on the candidate; do not skip an unpaid stage.']
-        : ['Read My tasks for warnings, replies and approvals that your role can review.', 'Review work by staff member in Team workload.', role === 'superadmin' ? 'Choose an owner or balance work; the guide will not assign anything automatically.' : 'Follow up with the authorized manager when a task needs assigning.'],
+        : role === 'superadmin' ? ['Read the registration-to-deployment flow and each agency’s blockers.', 'Open Review issue in My tasks and check the underlying evidence.', 'Escalate for ministry review or close with a reason. Open agency replies in Payment issues; appeals never lift a pause automatically.']
+          : ['Read My tasks for warnings, replies and approvals that your role can review.', 'Review work by staff member in Team workload.', 'Follow up with the local agency manager when a task needs assigning.'],
       check: 'Task ownership does not grant extra permissions or complete a stage. Save the underlying record, not a checkbox in the queue.' },
-    { title: 'Understand ministry intake', detail: 'Candidates must be registered and assigned by the ministry, not added by staff.', path: '/admin', selector: '[data-tour="registration"]',
-      instructions: ['Read the ELMIS connection status.', 'Check the candidate’s local agency and Labor ID in the existing profile.', 'Passport upload can attach a scan to one matching existing candidate; no new record is created.'], check: 'The official API is pending. A practice identity check is not live ministry verification.' },
+    { title: 'Understand ministry intake', detail: 'ELMIS is the ministry’s candidate register. Staff use the assigned profile instead of creating another person.', path: '/admin', selector: '[data-tour="registration"]',
+      instructions: ['Read the ministry connection status. The official ELMIS connection is not available yet.', 'Open an existing profile and check its local agency and Labor ID.', 'Upload via passport reads a scan and attaches it to one matching profile. It does not add a new candidate.'],
+      instructionTitles: ['Ministry register', 'Agency & Labor ID', 'Passport upload'], check: 'Demo identity checks are practice only, not confirmation from the live ministry register.' },
     { title: 'Review the candidate identity', detail: 'Follow one existing practice candidate through the next steps.', path: profile, selector: '[data-tour="candidate-profile"]',
       instructions: ['Read the name, tracking code and passport details.', 'Check the local agency and home city.'], check: 'Use the same candidate and tracking code when checking documents and receipts.' },
     { title: 'Check registration payment', detail: 'Registration must be paid and completed before Training starts.', path: `${profile}?tab=payments`, selector: '[role="tabpanel"][data-state="active"]',
       instructions: ['Find the Registration fee and its receipt.', 'Check the paid amount and payment status.'], check: 'If money is missing or only partly paid, await payment; do not advance Training.' },
-    { title: 'Follow the stages in order', detail: 'Registration → Training → Medical Check → Deployment.', path: `${profile}?tab=timeline`, selector: '[role="tabpanel"][data-state="active"]',
-      instructions: ['Find the earliest unfinished stage.', 'Read its payment or document blockers.', 'Check that later stages are still waiting.'], check: 'A completed earlier stage needs its own fee covered. This guide never completes a stage for you.' },
+    { title: 'Follow ministry stage updates', detail: 'Registration → Training → Medical Check → Deployment.', path: `${profile}?tab=timeline`, selector: '[role="tabpanel"][data-state="active"]',
+      instructions: ['Open the current ministry stage record.', 'Read its status, reference, date and location.', 'Follow up on local payment or document issues separately.'], check: 'Stages are read-only. Missing ministry locations remain awaiting an update.' },
     { title: 'Check training documents', detail: 'Keep required evidence linked to the correct candidate and stage.', path: `${profile}?tab=documents`, selector: '[role="tabpanel"][data-state="active"]',
       instructions: ['Review each requested file and its stage.', 'Read any document screening warnings before accepting a file.'], check: 'Missing documents are still requested; a warning is not automatically cleared.' },
     { title: 'Review medical checks', detail: 'All required exams need saved passing results and the medical fee must be paid.', path: `${profile}?tab=medical`, selector: '[role="tabpanel"][data-state="active"]',
@@ -82,11 +122,14 @@ export const walkthroughSteps = (role: UserRole, trackingCode?: string | null, c
     { title: 'Review the contract and visa', detail: 'Travel preparation must not bypass essential records.', path: `${profile}?tab=contract`, selector: '[role="tabpanel"][data-state="active"]',
       instructions: ['Read the employer, destination and contract status.', 'After the contract is sent, check for a successful foreign-to-local receipt.', 'If it is missing or short, follow up with the responsible foreign agency.', 'Check visa details and expiry.'], check: 'No receipt means unpaid. Contract transfers are separate from candidate stage fees.' },
     { title: 'Compare foreign transfers with bank records', detail: 'Contract amounts and bank differences are separate checks.', path: '/admin/payments?tab=discrepancies&source=foreign', selector: '[role="tabpanel"][data-state="active"]',
-      instructions: ['Review the foreign-to-local contract checks.', 'Scroll to bank comparisons for each receiving local agency.', 'Open a short payment, extra amount or missing entry to inspect the candidate and reference.'], check: 'An amount/date suggestion is not a confirmed reference match. A warning does not prove agency fault.' },
+      instructions: ['The contract check shows what the foreign agency should pay for each candidate.',
+        'Bank comparisons show whether the recorded transfer appears in the receiving agency’s uploaded statement.',
+        'Open a short, extra or missing payment. Check the current candidate profile, transaction ID, amount and currency side by side.'],
+      instructionTitles: ['Contract amount', 'Bank entry', 'Compare fields'], check: 'A suggested amount/date match is not a verified transaction ID. A payment warning still needs review.' },
     { title: 'Follow a payment issue', detail: 'Review → agency reply → recorded decision or appeal.', path: '/admin/payments?tab=resolution', selector: 'main h1',
       instructions: ['Open Payment issues and choose a foreign-to-local transfer case.', 'Match the candidate tracking code, transfer reference, currency and bank credit before confirming an underpayment.', 'Read the foreign agency’s remaining chances. The third distinct verified underpayment in the current cycle pauses new operations.', 'Check the ministry renewal date in the countdown; renewal restores chances but never lifts an active pause.', 'Read the reply deadline, agency appeal and recorded ministry decision. A release preserves used chances until the renewal date.'], check: 'Only authorized reviewers make decisions. Candidate ChechePay failures are payment statuses, not agency discrepancies. The guide never changes a case.' },
-    { title: 'Review clearance before departure', detail: 'Official ministry confirmation is required before completing deployment.', path: '/admin/clearance', selector: 'main h1',
-      instructions: ['Find the candidate and read the clearance checklist.', 'Check visa, flight details and ministry QR requirements.'], check: 'A practice confirmation cannot unlock official departure.' },
+    { title: 'Review ministry references', detail: 'Visa and deployment references come from the ministry.', path: '/admin/clearance', selector: 'main h1',
+      instructions: ['Find the candidate or search a reference number.', 'Inspect Visa, Enjaz, Tasheer and ministry issuance status.'], check: 'References are read-only. Certificates remain with the ministry.' },
     { title: 'Follow journeys and returns', detail: 'Previous journeys remain available for later applications.', path: '/admin/training-map', selector: '[data-tour="network-map"]',
       instructions: ['Choose a region or CoC center on the map.', 'Open a candidate route to inspect the journey.'], check: 'A new application keeps its own ordered stages; old deployment history does not skip them.' },
     { title: 'Open candidate conversations', detail: 'Chat is available from the floating icon, not the sidebar.', path: '/admin/tasks', selector: '[data-tour="chat-launcher"]', instructions: ['Click the bottom-right chat icon.', 'Choose an existing thread or New chat.', 'Search for a candidate, open the conversation and check the tracking code before sending.'], check: 'Only candidates available to your account appear. Sending a message does not complete a task or stage.' },
@@ -101,7 +144,14 @@ export const walkthroughSteps = (role: UserRole, trackingCode?: string | null, c
     { title: 'Open candidate conversations', detail: 'Use the floating chat icon on any page.', path: '/local-agency/tasks', selector: '[data-tour="chat-launcher"]', instructions: ['Click the bottom-right chat icon.', 'Choose an existing thread or New chat.', 'Search and open a candidate conversation.'], check: 'Only candidates in your agency appear.' },
   ];
   if (role === 'agency' || role === 'foreign-agency' || role === 'foreign-agency-staff') return [
-    { title: 'Find your agency’s candidates', detail: 'Review linked candidates and their current stages.', path: '/agency', selector: 'main h1', instructions: ['Review the agency candidate list.', 'Open a profile to check its name and tracking code.'], check: 'Candidates awaiting payment must not skip earlier stages.' },
+    { title: 'Find your agency’s candidates', detail: 'Your dashboard shows candidate progress and links to your agency’s work.', path: '/agency', selector: '[data-tour="agency-pipeline"]',
+      instructions: ['Candidate totals show active, completed, failed and waiting-for-clearance files. Select a total to filter the candidate list.',
+        'The stage chart shows progress through Registration, Training, Medical and Deployment. Open a candidate to check the next unfinished stage.',
+        role === 'foreign-agency-staff' ? 'My work opens tasks assigned to you. Start with the earliest follow-up; your manager assigns work.' : 'Staff workload opens My tasks & team. Review follow-ups, choose a staff owner or balance current work.',
+        'Worker selection board builds a shortlist by job type and language. Saving a shortlist does not hire a worker, pay fees or advance a stage.'],
+      instructionTitles: ['Candidate totals', 'Stage progress', 'My tasks', 'Worker shortlist'],
+      instructionSelectors: ['[data-tour="agency-pipeline"]', '[data-tour="agency-pipeline"]', '[data-tour="agency-workload"]', '#worker-selection-board'],
+      check: 'Next: My tasks explains follow-ups and staff assignments. Unpaid earlier stages still block progress.' },
     { title: role === 'foreign-agency-staff' ? 'Review your assigned work' : 'Assign agency work', detail: 'Follow current tasks without changing local stage ownership.', path: '/agency/tasks', selector: 'main h1',
       instructions: role === 'foreign-agency-staff' ? ['Read the tasks assigned to you.', 'Open the candidate and follow up on payment blockers and missing details.'] : ['Read My tasks for contract and agency-reply follow-ups.', 'Read Work by staff member.', 'Assign a current task, or use Balance agency work.'], check: 'Only approved staff in this agency receive work; awaiting payment remains a blocker.' },
     { title: 'Review candidate introductions', detail: 'Check introductions before coordinating a contract.', path: '/agency/introductions', selector: 'main h1', instructions: ['Open a candidate introduction.', 'Compare it with the candidate profile.'], check: 'Use the candidate’s tracking code when coordinating the contract.' },

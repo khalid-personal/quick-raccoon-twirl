@@ -40,9 +40,9 @@ export default function CandidateChatLauncher() {
   if (!allowed) return null;
   const matches = inbox.data?.candidates.filter(candidate => `${candidate.first_name} ${candidate.last_name} ${candidate.passport_number} ${candidate.tracking_code}`.toLowerCase().includes(search.toLowerCase())) ?? [];
   const pick = (id: string) => { setSelected(id); setNewChat(false); };
-  return <div className="fixed bottom-20 right-4 z-[55] sm:right-6">
-    {open && <section id="candidate-chat-popup" data-popup-window="" role="dialog" aria-modal="false" aria-label="Candidate chats" style={{ ...popupWindowStyle, maxHeight: 'calc(100dvh - 10rem)' }} className="relative mb-3 flex w-[calc(100vw-2rem)] max-w-md flex-col rounded-2xl border bg-card pb-8 shadow-2xl">
-      <header className="flex items-center gap-2 border-b bg-primary/5 p-4">
+  return <div data-chat-open={open} className="candidate-chat-launcher fixed bottom-20 right-4 z-[55] sm:right-6">
+    {open && <section id="candidate-chat-popup" data-popup-window="" data-popup-layout="dialog" role="dialog" aria-modal="false" aria-label="Candidate chats" style={{ ...popupWindowStyle, maxHeight: 'calc(100dvh - 10rem)' }} className="portal-popup relative mb-3 flex w-[calc(100vw-2rem)] max-w-md flex-col border bg-card pb-8">
+      <header className="portal-card-heading flex flex-wrap items-center gap-2 p-4 sm:pr-14">
         {(selected || newChat) && <Button variant="ghost" size="icon" aria-label="Back to threads" onClick={() => { setSelected(null); setNewChat(false); }}><ArrowLeft className="h-4 w-4" /></Button>}
         <div className="min-w-0 flex-1"><h2 className="truncate font-semibold">{selected && candidate.data ? `${candidate.data.first_name} ${candidate.data.last_name}` : selected ? 'Conversation' : newChat ? 'New candidate chat' : 'Candidate chats'}</h2>
           {selected && candidate.data && <p className="font-mono text-xs text-muted-foreground">{candidate.data.tracking_code}</p>}</div>

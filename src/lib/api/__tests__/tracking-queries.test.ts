@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getPublicTrackingData, sendProfileToForeignAgency } from '../tracking-queries';
-import { getCandidates, getCandidateStages, getCocFacilities, getForeignAgencies, initializeDataStore, saveCandidates } from '../../data-store';
+import { getCandidates, getCandidateStages, getCocFacilities, getForeignAgencies, initializeDataStore, saveCandidates, saveCocFacilities, saveForeignAgencies } from '../../data-store';
 
 describe('candidate journey tracking response', () => {
-  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); initializeDataStore(); });
+  beforeEach(() => {
+    localStorage.clear(); sessionStorage.clear(); initializeDataStore();
+    saveCocFacilities([{ id: 'ministry-center', name: 'Ministry assessment center', city: 'Adama', created_at: '2026-01-01' }]);
+    saveForeignAgencies([{ id: 'ministry-foreign', name: 'Ministry foreign partner', created_at: '2026-01-01' }]);
+  });
   it('returns home region, assigned CoC details, and a work-contract destination', async () => {
     const center = getCocFacilities()[0];
     const candidate = { ...getCandidates()[0], home_city: 'Adama', home_region: undefined, coc_facility_id: center.id, external_status: { work_contract: true, destination_city: 'Riyadh', destination_country: 'Saudi Arabia' } };

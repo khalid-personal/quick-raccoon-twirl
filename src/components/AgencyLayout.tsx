@@ -8,23 +8,35 @@ const AgencyLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const navGroups: ShellNavGroup[] = [
     {
-      label: 'Workspace',
+      label: 'Daily work',
       items: [
         { to: '/agency', label: 'Dashboard', icon: <LayoutDashboard /> },
         { to: '/agency/tasks', label: userRole === 'foreign-agency-staff' ? 'My tasks' : 'My tasks & team', icon: <ListTodo /> },
-        { to: '/agency/introductions', label: 'Candidate Introductions', icon: <Film /> },
-        { to: '/agency/training-map', label: 'Destination Map', icon: <Map /> },
-        { to: '/agency/clearance', label: 'Clearance Tracker', icon: <BadgeCheck /> },
+      ],
+    },
+    {
+      label: 'Candidates & transfers',
+      items: [
+        { to: '/agency/introductions', label: 'Candidate introductions', icon: <Film /> },
+        { to: '/agency/training-map', label: 'Destination map', icon: <Map /> },
+        { to: '/agency/clearance', label: 'Clearance tracker', icon: <BadgeCheck /> },
         { to: '/agency/payments', label: 'Money sent', icon: <Receipt /> },
-        { to: '/agency/users', label: 'Staff Users', icon: <Users /> },
-        { to: '/agency/chat', label: 'Partner Chat', icon: <MessageSquare /> },
+      ],
+    },
+    {
+      label: 'Communication & help',
+      items: [
+        { to: '/agency/chat', label: 'Partner chat', icon: <MessageSquare /> },
         { to: '/guide', label: 'Getting started', icon: <BookOpen /> },
       ],
     },
+    { label: 'Team management', items: [
+      { to: '/agency/users', label: 'Staff accounts', icon: <Users />, hidden: userRole === 'foreign-agency-staff' },
+    ] },
   ];
 
   return (
-    <AppShell portalName="Foreign Agency" homePath="/agency" navGroups={navGroups}>
+    <AppShell portalName={userRole === 'foreign-agency-staff' ? 'Foreign agency staff' : 'Foreign agency'} homePath="/agency" navGroups={navGroups}>
       {children}
     </AppShell>
   );

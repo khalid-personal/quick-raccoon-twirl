@@ -3,7 +3,7 @@ import { WORLD_CITIES } from '@/lib/geography-data';
 import { PHASE_META, TravelEntry, TravelPhase } from '@/lib/travel-phase';
 import { greatCirclePath, projectWorldPoint } from '@/lib/world-map';
 import InteractiveMap, { cityLod, MapMarker } from './InteractiveMap';
-import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
+import MapRouteSignal from './MapRouteSignal';
 
 interface Props {
   entries: TravelEntry[];
@@ -16,7 +16,6 @@ const phaseOrder: TravelPhase[] = ['failed', 'transit', 'visa', 'contract', 'arr
 
 const TravelOverviewMap: React.FC<Props> = ({ entries, selectedLabel, onSelect }) => {
   const returnArrowId = `return-arrow-${useId().replace(/:/g, '')}`;
-  const reduced = usePrefersReducedMotion();
   const originPoint = projectWorldPoint(origin.lat, origin.lon);
   const groups = new Map<string, { dest: TravelEntry['destination']; from?: TravelEntry['returnOrigin']; byPhase: Partial<Record<TravelPhase, number>>; total: number }>();
   for (const entry of entries) {
@@ -59,19 +58,7 @@ const TravelOverviewMap: React.FC<Props> = ({ entries, selectedLabel, onSelect }
                   role="button"
                   aria-label={`${dest.label}: ${total} candidate${total === 1 ? '' : 's'}`}
                 >
-                  <path
-                    d={greatCirclePath(from ?? origin, dest)}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={active ? 3 : 1.8}
-                    strokeDasharray="7 5"
-                    strokeLinecap="round"
-                    markerEnd={from ? `url(#${returnArrowId})` : undefined}
-                    vectorEffect="non-scaling-stroke"
-                    opacity={0.85}
-                  >
-                    {phase !== 'arrived' && !reduced && <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.4s" repeatCount="indefinite" />}
-                  </path>
+                  <MapRouteSignal path={greatCirclePath(from ?? origin, dest)} color={color} u={u} running={phase !== 'arrived'} selected={active} />
                   <MapMarker x={point.x} y={point.y} u={u}>
                     <circle r={8} fill={color} className="stroke-card" strokeWidth={2} />
                     <text y={3} fontSize={9} fontWeight={700} textAnchor="middle" fill="white">{total}</text>
@@ -82,8 +69,8 @@ const TravelOverviewMap: React.FC<Props> = ({ entries, selectedLabel, onSelect }
               );
             })}
             <MapMarker x={originPoint.x} y={originPoint.y} u={u}>
-              <circle r={6} className="fill-indigo-600 stroke-card" strokeWidth={2} />
-              <text x={9} y={14} fontSize={11} fontWeight={700} className="fill-indigo-900 dark:fill-indigo-200 stroke-card" strokeWidth={3} paintOrder="stroke">Ethiopia</text>
+              <circle r={6} className="fill-primary stroke-card" strokeWidth={2} />
+              <text x={9} y={14} fontSize={11} fontWeight={700} className="fill-primary stroke-card" strokeWidth={3} paintOrder="stroke">Ethiopia</text>
             </MapMarker>
           </>
         );

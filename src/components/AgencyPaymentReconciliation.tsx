@@ -18,7 +18,7 @@ const ISSUE_TONE: Record<ReconIssue, string> = {
   paid: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', awaiting: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
   missing: 'bg-rose-500/10 text-rose-700 dark:text-rose-300', pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
   failed: 'bg-rose-500/10 text-rose-700 dark:text-rose-300', short: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-  over: 'bg-sky-500/10 text-sky-700 dark:text-sky-300', 'wrong-currency': 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
+  over: 'bg-amber-500/10 text-amber-700 dark:text-amber-300', 'wrong-currency': 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
   etb: 'bg-rose-500/10 text-rose-700 dark:text-rose-300', 'wrong-payee': 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
   'wrong-payer': 'bg-orange-500/10 text-orange-700 dark:text-orange-300', 'duplicate-reference': 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
 };
@@ -54,7 +54,7 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
 
   return (
     <WidgetShell title="Foreign agency payments to local agencies" description="We compare each work contract with the payment the foreign agency is expected to make to the local agency." icon={Scale} accent="emerald" className="h-full" bodyClassName="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="portal-metric-grid">
         {[
           ['Contracts checked', String(summary.contracts), 'text-foreground'],
           ['Paid as expected', `${summary.byIssue.paid} (${matchedRate}%)`, 'text-emerald-600'],
@@ -68,7 +68,7 @@ const AgencyPaymentReconciliation: React.FC<{ localAgencyId?: string }> = ({ loc
         ))}
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${settled}% of expected funds received`}>
-        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${settled}%` }} />
+        <div className="h-full rounded-full bg-primary" style={{ width: `${settled}%` }} />
       </div>
 
       <div className="space-y-2">

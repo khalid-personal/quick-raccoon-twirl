@@ -35,6 +35,19 @@ describe('ministry candidate matching', () => {
     expect(() => matchPassportCandidate([original], 'NO-MATCH')).toThrow('no new record');
     expect(() => matchPassportCandidate([original, { ...original, id: 'duplicate' }], original.passport_number)).toThrow('Several records');
   });
+  it('refreshes ministry-owned contact, introduction and CoC fields while preserving DAWM operations', () => {
+    const source = { ...feed, phone_number: 'official-phone', email: 'official@test.test', coc_facility_id: demo.cocFacilities[1].id,
+      professional_summary: 'Official candidate introduction', skills: ['Cooking'], home_region: 'Official region' };
+    const result = mergeMinistryCandidateFeed([original], [source], demo.localAgencies)[0];
+    expect(result).toMatchObject({ phone_number: source.phone_number, email: source.email, coc_facility_id: source.coc_facility_id,
+      professional_summary: source.professional_summary, skills: source.skills, home_region: source.home_region });
+    expect(result.flight).toEqual(original.flight);
+    expect(result.assigned_staff_id).toBe(original.assigned_staff_id);
+    expect(result.tracking_code).toBe(original.tracking_code);
+    expect(result.payment_status).toBe(original.payment_status);
+    expect(mergeMinistryCandidateFeed([result], [{ ...source, phone_number: undefined, coc_facility_id: undefined }], demo.localAgencies)[0])
+      .toMatchObject({ phone_number: source.phone_number, coc_facility_id: source.coc_facility_id });
+  });
   it('keeps multiple identity discrepancy entries visible rather than treating a ministry feed as proof that conflicts cannot happen', () => {
     const findings = analyzeIntegrity({ candidates: [
       { ...feed, passport_identity: { first_name: 'Different', last_name: feed.last_name, dob: feed.dob, gender: feed.gender, passport_number: feed.passport_number } },

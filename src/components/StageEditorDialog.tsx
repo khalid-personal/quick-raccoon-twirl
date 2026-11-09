@@ -1,21 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { CandidateDetail, CandidateStage, Stage, StageStatus } from '@/lib/types';
-import { api } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { toast } from 'sonner';
-import { AlertTriangle, Loader2, Save } from 'lucide-react';
+import type { CandidateDetail, CandidateStage, Stage } from '@/lib/types';
+import { ShieldCheck, MapPin, Clock3 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import StageDocumentUploader from './StageDocumentUploader';
-import { getStatusColor, cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge'; // Added Badge import
-import { usePortalData } from '@/hooks/use-portal-data';
-import { requiredMedicalExams, stageProgressBlockers } from '@/lib/stage-readiness';
+import MedicalResultsEditor from './MedicalResultsEditor';
 
-interface StageEditorDialogProps {
+interface Props {
   candidateDetail: CandidateDetail;
   candidateStage: CandidateStage;
   stage: Stage;
@@ -23,166 +14,22 @@ interface StageEditorDialogProps {
   onClose: () => void;
 }
 
-const statusOptions: StageStatus[] = ['Pending', 'In Progress', 'Passed', 'Failed', 'Issued', 'Completed'];
-
-const StageEditorDialog: React.FC<StageEditorDialogProps> = ({
-  candidateDetail,
-  candidateStage,
-  stage,
-  refetch,
-  onClose,
-}) => {
-  const [isSaving, setIsSaving] = useState(false);
-  const [status, setStatus] = useState<StageStatus>(candidateStage.status);
-  const [notes, setNotes] = useState(candidateStage.notes || '');
-  const [date, setDate] = useState(candidateStage.date ? candidateStage.date.split('T')[0] : '');
-  const [referenceId, setReferenceId] = useState(candidateStage.reference_id || '');
-  const prefix = React.useId();
-  const fieldId = (name: string) => `${prefix}-${name}`;
-  const { paymentStatuses, stageFees, payments, stages } = usePortalData();
-  const progressBlockers = stageProgressBlockers(candidateDetail, stage.id, 'In Progress', stages, stageFees, paymentStatuses, payments);
-  const completionBlockers = stageProgressBlockers(candidateDetail, stage.id, 'Completed', stages, stageFees, paymentStatuses, payments);
-  if (stage.slug === 'medical' && !requiredMedicalExams(candidateDetail.gender).every(exam => candidateDetail.medical_results.some(result => result.exam_type === exam && result.status === 'Passed'))) {
-    completionBlockers.push('Every required medical exam must have a saved passing result before completing Medical Check.');
-  }
-  const completionLocked = completionBlockers.length > 0;
-
-  // Check if any field has been modified
-  const isModified = status !== candidateStage.status ||
-                     notes !== (candidateStage.notes || '') ||
-                     date !== (candidateStage.date ? candidateStage.date.split('T')[0] : '') ||
-                     referenceId !== (candidateStage.reference_id || '');
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await api.updateStageStatus(
-        candidateDetail.id,
-        stage.id,
-        status,
-        notes,
-        date || undefined,
-        referenceId || undefined
-      );
-      toast.success(`${stage.title} status updated.`);
-      refetch();
-      onClose();
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  const documentsForStage = candidateDetail.documents.filter(doc => doc.stage_id === stage.id);
-
-  return (
-    <DialogContent className="sm:max-w-[700px]">
-      <DialogHeader className="border-b pb-4">
-        <div className="flex justify-between items-start">
-          <DialogTitle className="text-2xl font-extrabold">
-            {stage.title} · {candidateDetail.tracking_code}
-          </DialogTitle>
-          <Badge className={cn("text-sm font-semibold px-3 py-1", getStatusColor(candidateStage.status))}>
-            Current Status: {candidateStage.status}
-          </Badge>
-        </div>
-        <DialogDescription>Review {stage.title.toLowerCase()}, attach its evidence, and update progress. Earlier stages must be completed and paid before advancing. This stage’s fee is required before completion.</DialogDescription>
-      </DialogHeader>
-      
-      <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
-        {completionLocked && <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200" role="status">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>{completionBlockers.map(blocker => <p key={blocker}>{blocker}</p>)}<p className="mt-2">Documents and notes can still be collected without advancing the stage.</p></div>
-        </div>}
-        {/* Section 1: Status and Details */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold border-b pb-2 text-gray-700 dark:text-gray-300">Update Status & Details</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Status Select */}
-            <div className="space-y-2">
-              <Label htmlFor={fieldId('status')}>New Status</Label>
-              <Select
-                value={status}
-                onValueChange={(value: StageStatus) => setStatus(value)}
-                disabled={isSaving}
-              >
-                <SelectTrigger id={fieldId('status')}>
-                  <SelectValue placeholder="Select Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map(optStatus => (
-                    <SelectItem key={optStatus} value={optStatus} disabled={optStatus !== 'Pending' && (['Passed', 'Issued', 'Completed'].includes(optStatus) ? completionLocked : progressBlockers.length > 0) && optStatus !== candidateStage.status}>
-                      {optStatus}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Date Input */}
-            <div className="space-y-2">
-              <Label htmlFor={fieldId('date')}>Date of Completion/Update</Label>
-              <Input
-                id={fieldId('date')}
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                disabled={isSaving}
-              />
-            </div>
-          </div>
-          
-          {/* Notes/Reference ID */}
-          <div className="space-y-2 pt-2">
-            <Label htmlFor={fieldId('reference_id')}>Stage Reference (Optional)</Label>
-            <Input
-              id={fieldId('reference_id')}
-              type="text"
-              placeholder="Enter a stage reference"
-              value={referenceId}
-              onChange={(e) => setReferenceId(e.target.value)}
-              disabled={isSaving || stage.slug === 'registration' && !!candidateDetail.elmis?.labor_id}
-            />
-            {stage.slug === 'registration' && candidateDetail.elmis?.labor_id && <p className="text-xs text-muted-foreground">Ministry Labor ID: {candidateDetail.elmis.labor_id}. Corrections must come through ELMIS.</p>}
-          </div>
-          <div className="space-y-2 pt-2">
-            <Label htmlFor={fieldId('notes')}>Internal Notes</Label>
-            <Textarea
-              id={fieldId('notes')}
-              placeholder="Add internal notes about this stage update..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={isSaving}
-              rows={4}
-            />
-          </div>
-        </div>
-        
-        {/* Section 2: Documents */}
-        <div className="space-y-4 pt-4 border-t">
-          <h3 className="text-lg font-semibold pb-2 text-gray-700 dark:text-gray-300">Stage Documents</h3>
-          <StageDocumentUploader
-            candidateId={candidateDetail.id}
-            stageId={stage.id}
-            existingDocuments={documentsForStage}
-            refetch={refetch}
-          />
-        </div>
-      </div>
-
-      <DialogFooter className="pt-4 border-t">
-        <Button 
-          onClick={handleSave} 
-          disabled={isSaving || !isModified}
-        >
-          {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Save Changes
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-};
-
-export default StageEditorDialog;
+export default function StageEditorDialog({ candidateDetail, candidateStage, stage, refetch, onClose }: Props) {
+  return <DialogContent className="sm:max-w-[850px]">
+    <DialogHeader><DialogTitle>{stage.title} · {candidateDetail.tracking_code}</DialogTitle>
+      <DialogDescription>Ministry-owned stage record. Supporting uploads remain available without changing progression.</DialogDescription>
+    </DialogHeader>
+    <section className="ministry-stage-summary" aria-label="Ministry stage record">
+      <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><ShieldCheck />Ministry status</span><Badge variant="outline">{candidateStage.status}</Badge></div>
+      <dl className="grid gap-4 sm:grid-cols-3">
+        <div><dt>Reference number</dt><dd>{candidateStage.reference_id || 'Awaiting ministry reference'}</dd></div>
+        <div><dt className="flex items-center gap-2"><Clock3 className="h-4 w-4" />Recorded date</dt><dd>{candidateStage.date ? new Date(candidateStage.date).toLocaleDateString() : 'Awaiting ministry update'}</dd></div>
+        <div><dt className="flex items-center gap-2"><MapPin className="h-4 w-4" />Stage location</dt><dd>{candidateStage.location ? `${candidateStage.location.name} · ${candidateStage.location.city}` : 'Awaiting ministry location'}</dd></div>
+      </dl>
+      {candidateStage.notes && <p className="text-muted-foreground">{candidateStage.notes}</p>}
+    </section>
+    {stage.slug === 'medical' && <MedicalResultsEditor candidateDetail={candidateDetail} refetch={refetch} />}
+    <section className="space-y-3"><h3>Supporting documents</h3><StageDocumentUploader candidateId={candidateDetail.id} stageId={stage.id} existingDocuments={candidateDetail.documents.filter(doc => doc.stage_id === stage.id)} refetch={refetch} /></section>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Close record</Button></DialogFooter>
+  </DialogContent>;
+}

@@ -15,7 +15,8 @@ export function usePopupScrollLock(visible: boolean) {
         overscrollBehavior: element.style.overscrollBehavior,
       }));
       elements.forEach(element => {
-        element.style.overflow = 'hidden';
+        // A hidden body becomes a scroll container and moves sticky menu anchors.
+        element.style.overflow = element === doc.body ? 'clip' : 'hidden';
         element.style.overscrollBehavior = 'none';
       });
       lock = {

@@ -21,13 +21,13 @@ export const detectDocumentStageFromText = (text: string): number | undefined =>
 
 export const detectDocumentStage = (fileName: string): number | undefined => detectDocumentStageFromText(fileName);
 
-const renderPdfPages = async (file: File): Promise<string[]> => {
+const renderPdfPages = async (file: File, maxPages = 2): Promise<string[]> => {
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const images: string[] = [];
   try {
-    for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 2); pageNumber += 1) {
+    for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, maxPages); pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const initialViewport = page.getViewport({ scale: 1 });
       const scale = Math.min(1.5, 1400 / Math.max(initialViewport.width, initialViewport.height));
@@ -45,6 +45,36 @@ const renderPdfPages = async (file: File): Promise<string[]> => {
     await pdf.destroy();
   }
   return images;
+};
+
+export const readDocumentTextFromFile = async (file: File): Promise<{ text: string; scannedPages: number; totalPages: number }> => {
+  const isPdf = file.type === 'application/pdf';
+  let totalPages = 1;
+  if (isPdf) {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    try {
+      totalPages = pdf.numPages;
+      const texts: string[] = [];
+      for (let number = 1; number <= Math.min(totalPages, 4); number += 1) {
+        const page = await pdf.getPage(number);
+        const content = await page.getTextContent();
+        texts.push(content.items.map(item => 'str' in item ? `${item.str}${item.hasEOL ? '\n' : ' '}` : '').join(''));
+        page.cleanup();
+      }
+      // Mixed/scanned PDFs need OCR as well; do not silently omit image-only pages.
+      if (texts.every(text => text.trim().length >= 40)) return { text: texts.join('\n'), scannedPages: texts.length, totalPages };
+    } finally { await pdf.destroy(); }
+  }
+  const pages = isPdf ? await renderPdfPages(file, 4) : [await fileToDataUrl(file, 1400, 0.8)];
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker('eng', 1);
+  try {
+    const texts: string[] = [];
+    for (const page of pages) texts.push((await worker.recognize(page)).data.text);
+    return { text: texts.join('\n'), scannedPages: pages.length, totalPages };
+  } finally { await worker.terminate(); }
 };
 
 export interface DocumentStageDetection {

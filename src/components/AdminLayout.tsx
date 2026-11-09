@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Bell, BookOpen, CalendarDays, ClipboardCheck, Eye, Key, LayoutDashboard, MapPin, Receipt, ShieldAlert, Settings, UserCheck, UserCog } from 'lucide-react';
+import { BadgeCheck, BookOpen, CalendarDays, ClipboardCheck, Eye, LayoutDashboard, MapPin, Receipt, ShieldAlert, Settings, UserCheck, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -29,26 +29,34 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const navGroups: ShellNavGroup[] = [
     {
-      label: 'Operations',
+      label: 'Daily work',
       items: [
         { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard /> },
-        { to: '/admin/training-map', label: 'CoC Centers', icon: <MapPin /> },
-        { to: '/admin/tasks', label: 'My Tasks', icon: <ClipboardCheck /> },
-        { to: '/admin/clearance', label: 'Clearance & Visa', icon: <BadgeCheck /> },
-        { to: '/admin/payments', label: 'Payments', icon: <Receipt /> },
-        { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays /> },
-        { to: '/notifications', label: 'Notifications', icon: <Bell /> },
-        { to: '/guide', label: 'Getting started', icon: <BookOpen /> },
-        { to: '#', label: 'Public Tracking', icon: <Eye />, onClick: () => setTrackingOpen(true) },
+        { to: '/admin/tasks', label: isSuperAdmin ? 'Oversight & my tasks' : userRole === 'staff' ? 'My tasks' : 'My tasks & team', icon: <ClipboardCheck /> },
       ],
     },
     {
-      label: 'Administration',
+      label: 'Candidate records',
       items: [
-        { to: '/admin/users', label: 'User Management', icon: <UserCog />, hidden: !isSuperAdmin },
+        { to: '/admin/payments', label: 'Payments', icon: <Receipt /> },
+        { to: '/admin/clearance', label: 'Visa & clearance', icon: <BadgeCheck /> },
+        { to: '/admin/training-map', label: 'Training & journey map', icon: <MapPin /> },
         { to: '/admin/integrity', label: 'Record checks', icon: <ShieldAlert /> },
-        { to: '/admin/profile-approvals', label: 'Profile Approvals', icon: <UserCheck />, hidden: !isSuperAdmin },
-        { to: '/admin/auth-codes', label: 'Auth Codes', icon: <Key />, hidden: !isSuperAdmin },
+      ],
+    },
+    {
+      label: 'Communication & help',
+      items: [
+        { to: '#', label: 'Public tracking', icon: <Eye />, onClick: () => setTrackingOpen(true) },
+        { to: '/guide', label: 'Getting started', icon: <BookOpen /> },
+      ],
+    },
+    {
+      label: 'Team & access',
+      items: [
+        { to: '/admin/attendance', label: 'Attendance', icon: <CalendarDays /> },
+        { to: '/admin/users', label: 'User management', icon: <UserCog />, hidden: !isSuperAdmin },
+        { to: '/admin/profile-approvals', label: 'Profile approvals', icon: <UserCheck />, hidden: !isSuperAdmin },
         { to: '/admin/settings', label: 'Settings', icon: <Settings />, hidden: !isSuperAdmin },
       ],
     },
@@ -56,7 +64,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <AppShell
-      portalName={isSuperAdmin ? 'Administration' : 'Staff Workspace'}
+      portalName={isSuperAdmin ? 'Ministry administration' : userRole === 'admin' ? 'Administrator' : 'Staff workspace'}
       homePath="/admin"
       navGroups={navGroups}
       overlays={(

@@ -4,7 +4,8 @@ import { DEMO_KEY_PREFIX, isDemoMode } from './demo-mode';
 import { flushSupabaseSync, isSupabaseDataMode } from './supabase-sync';
 import { v5 as uuidv5 } from 'uuid';
 import { prefillCandidateRegion } from './ethiopia-regions';
-import { enforceStageContinuity, normalizeCandidateStages, revertUnpaidCompletedStages } from './candidate-stage-normalization';
+import { normalizeCandidateStages } from './candidate-stage-normalization';
+import { activeDirectoryConfig, activeDirectoryEntries } from './retired-directories';
 
 const dataStorage = {
   getItem: (key: string) => window['localStorage'].getItem(isDemoMode() ? `${DEMO_KEY_PREFIX}${key}` : key),
@@ -62,30 +63,12 @@ export const addNotification = (notification: Notification) => {
 };
 import { SEED_CANDIDATES, SEED_CANDIDATE_STAGES, SEED_MEDICAL_RESULTS, SEED_DOCUMENTS, SEED_CONFIG, SEED_STAFF_USERS, SEED_CHAT_MESSAGES, SEED_APPROVAL_LOGS, SEED_ATTENDANCE, SEED_AUTH_CODES, SEED_COC_FACILITIES, SEED_LOCAL_AGENCIES, SEED_FOREIGN_AGENCIES, SEED_PAYMENTS, SEED_AGENCY_THREADS, SEED_AGENCY_MESSAGES } from './data-seed';
 import { LS_RECEIPT_TOKENS } from './data-keys';
-import { normalizePartnerships } from './agency-partnerships';
 
 // --- Getter Functions ---
 
 export const getCandidates = (): Candidate[] => (JSON.parse(dataStorage.getItem(LS_CANDIDATES) || '[]') as Candidate[]).map(prefillCandidateRegion);
 const readCandidateStages = (): CandidateStage[] => JSON.parse(dataStorage.getItem(LS_CANDIDATE_STAGES) || '[]');
-const normalizeAndPersistCandidateStages = (stages: CandidateStage[]): CandidateStage[] => {
-  const withCanonicalStages = normalizeCandidateStages(stages, getCandidates());
-  const paidStages = revertUnpaidCompletedStages(withCanonicalStages, getPaymentStatuses(), getConfig().stageFees ?? {}, undefined, { candidates: getCandidates(), payments: getPayments() });
-  const normalized = enforceStageContinuity(paidStages);
-  const statuses = new Map(normalized.map(stage => [stage.id, stage.status]));
-  const changed = withCanonicalStages.filter(stage => statuses.get(stage.id) !== stage.status);
-  if (changed.length) {
-    const log: ApprovalLog = { id: crypto.randomUUID(), timestamp: new Date().toISOString(), actor_id: 'workflow-continuity', actor_email: 'System workflow continuity',
-      target_type: 'Config', target_id: 'stage-continuity', action: 'Updated',
-      description: `Corrected unpaid completions and out-of-order stages; preserved payments, documents, references and notes. ${JSON.stringify(changed.map(stage => ({ candidateId: stage.candidate_id, stageId: stage.stage_id, previousStatus: stage.status, status: statuses.get(stage.id), previousDate: stage.date })))}` };
-    writeSyncedCollection(LS_APPROVAL_LOGS, 'approval_logs', [...getApprovalLogs(), log]);
-  }
-  if (JSON.stringify(stages) !== JSON.stringify(normalized)) {
-    writeSyncedCollection(LS_CANDIDATE_STAGES, 'candidate_stages', normalized);
-  }
-  return normalized;
-};
-export const getCandidateStages = (): CandidateStage[] => normalizeAndPersistCandidateStages(readCandidateStages());
+export const getCandidateStages = (): CandidateStage[] => readCandidateStages();
 const filterMalePregnancyResults = (results: MedicalResult[]): MedicalResult[] => {
   const maleCandidateIds = new Set(getCandidates().filter(candidate => candidate.gender === 'male').map(candidate => candidate.id));
   return results.filter(result => !(maleCandidateIds.has(result.candidate_id) && result.exam_type === 'Pregnancy'));
@@ -93,13 +76,10 @@ const filterMalePregnancyResults = (results: MedicalResult[]): MedicalResult[] =
 export const getMedicalResults = (): MedicalResult[] => {
   const results = JSON.parse(dataStorage.getItem(LS_MEDICAL_RESULTS) || '[]') as MedicalResult[];
   const filtered = filterMalePregnancyResults(results);
-  if (JSON.stringify(results) !== JSON.stringify(filtered)) {
-    writeSyncedCollection(LS_MEDICAL_RESULTS, 'medical_results', filtered);
-  }
   return filtered;
 };
 export const getDocuments = (): Document[] => JSON.parse(dataStorage.getItem(LS_DOCUMENTS) || '[]');
-export const getConfig = (): AppConfig => JSON.parse(dataStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG));
+export const getConfig = (): AppConfig => activeDirectoryConfig(JSON.parse(dataStorage.getItem(LS_CONFIG) || JSON.stringify(SEED_CONFIG)));
 export const getStaffUsers = (): StaffUser[] => JSON.parse(dataStorage.getItem(LS_STAFF_USERS) || '[]');
 export const getPaymentStatuses = (): PaymentStatus[] => JSON.parse(dataStorage.getItem(LS_PAYMENT_STATUS) || '[]');
 export const getChatMessages = (): ChatMessage[] => JSON.parse(dataStorage.getItem(LS_CHAT_MESSAGES) || '[]');
@@ -108,9 +88,9 @@ export const getAgencyMessages = (): AgencyChatMessage[] => JSON.parse(dataStora
 export const getApprovalLogs = (): ApprovalLog[] => JSON.parse(dataStorage.getItem(LS_APPROVAL_LOGS) || '[]');
 export const getAttendanceRecords = (): AttendanceRecord[] => JSON.parse(dataStorage.getItem(LS_ATTENDANCE) || '[]');
 export const getAuthorizationCodes = (): AuthorizationCode[] => JSON.parse(dataStorage.getItem(LS_AUTH_CODES) || '[]');
-export const getCocFacilities = (): CocFacility[] => JSON.parse(dataStorage.getItem(LS_COC_FACILITIES) || '[]'); // NEW
-export const getLocalAgencies = (): LocalAgency[] => JSON.parse(dataStorage.getItem(LS_LOCAL_AGENCIES) || '[]'); // NEW
-export const getForeignAgencies = (): ForeignAgency[] => JSON.parse(dataStorage.getItem(LS_FOREIGN_AGENCIES) || '[]'); // NEW
+export const getCocFacilities = (): CocFacility[] => activeDirectoryEntries(JSON.parse(dataStorage.getItem(LS_COC_FACILITIES) || '[]'));
+export const getLocalAgencies = (): LocalAgency[] => activeDirectoryEntries(JSON.parse(dataStorage.getItem(LS_LOCAL_AGENCIES) || '[]'));
+export const getForeignAgencies = (): ForeignAgency[] => activeDirectoryEntries(JSON.parse(dataStorage.getItem(LS_FOREIGN_AGENCIES) || '[]'));
 export const getPayments = (): Payment[] => JSON.parse(dataStorage.getItem(LS_PAYMENTS) || '[]'); // NEW
 export const getIntegrityOverrides = (): IntegrityOverride[] => JSON.parse(dataStorage.getItem(LS_INTEGRITY_OVERRIDES) || '[]');
 export const saveIntegrityOverrides = (data: IntegrityOverride[]) => writeSyncedCollection(LS_INTEGRITY_OVERRIDES, 'integrity_overrides', data);
@@ -221,14 +201,21 @@ export const setSeedDisabled = (disabled: boolean) => {
 // --- Setter Functions ---
 
 export const saveCandidates = (data: Candidate[]) => writeSyncedCollection(LS_CANDIDATES, 'candidates', data.map(prefillCandidateRegion));
-export const saveCandidateStages = (data: CandidateStage[]) => writeSyncedCollection(
-  LS_CANDIDATE_STAGES,
-  'candidate_stages',
-  normalizeCandidateStages(data, getCandidates()),
-);
+export const saveCandidateStages = (data: CandidateStage[], options: { recordHistory?: boolean } = {}) => {
+  if (options.recordHistory === false && !isDemoMode()) throw new Error('Only an explicit practice scenario replacement may reset stage history.');
+  const previous = new Map(readCandidateStages().map(stage => [stage.id, stage]));
+  const snapshot = (stage: CandidateStage) => ({ status: stage.status, date: stage.date, updated_at: stage.updated_at, location: stage.location });
+  const records = (isDemoMode() ? normalizeCandidateStages(data, getCandidates()) : data).map(stage => {
+    const before = previous.get(stage.id);
+    if (options.recordHistory === false || !before || before.status === stage.status && before.date === stage.date && JSON.stringify(before.location) === JSON.stringify(stage.location)) return stage;
+    return { ...stage, history: [...(before.history?.length ? before.history : [snapshot(before)]), snapshot(stage)] };
+  });
+  writeSyncedCollection(LS_CANDIDATE_STAGES, 'candidate_stages', records);
+  window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+};
 export const saveMedicalResults = (data: MedicalResult[]) => writeSyncedCollection(LS_MEDICAL_RESULTS, 'medical_results', filterMalePregnancyResults(data));
 export const saveDocuments = (data: Document[]) => writeSyncedCollection(LS_DOCUMENTS, 'documents', data);
-export const saveConfig = (data: AppConfig) => writeSyncedValue(LS_CONFIG, 'app_config', 'global', data);
+export const saveConfig = (data: AppConfig) => writeSyncedValue(LS_CONFIG, 'app_config', 'global', activeDirectoryConfig(data));
 export const saveStaffUsers = (data: StaffUser[]) => writeSyncedCollection(LS_STAFF_USERS, 'staff_users', data);
 export const savePaymentStatuses = (data: PaymentStatus[]) => writeSyncedCollection(LS_PAYMENT_STATUS, 'payment_statuses', data, status => uuidv5(`${status.candidateId}:${status.stageId}`, uuidv5.URL));
 export const savePaymentStatusesLocal = (data: PaymentStatus[]) => dataStorage.setItem(LS_PAYMENT_STATUS, JSON.stringify(data));
@@ -238,9 +225,9 @@ export const saveAgencyMessages = (data: AgencyChatMessage[]) => writeSyncedColl
 export const saveApprovalLogs = (data: ApprovalLog[]) => writeSyncedCollection(LS_APPROVAL_LOGS, 'approval_logs', data);
 export const saveAttendanceRecords = (data: AttendanceRecord[]) => writeSyncedCollection(LS_ATTENDANCE, 'attendance_records', data);
 export const saveAuthorizationCodes = (data: AuthorizationCode[]) => writeSyncedCollection(LS_AUTH_CODES, 'authorization_codes', data);
-export const saveCocFacilities = (data: CocFacility[]) => writeSyncedCollection(LS_COC_FACILITIES, 'coc_facilities', data);
-export const saveLocalAgencies = (data: LocalAgency[]) => writeSyncedCollection(LS_LOCAL_AGENCIES, 'local_agencies', data);
-export const saveForeignAgencies = (data: ForeignAgency[]) => writeSyncedCollection(LS_FOREIGN_AGENCIES, 'foreign_agencies', data);
+export const saveCocFacilities = (data: CocFacility[]) => writeSyncedCollection(LS_COC_FACILITIES, 'coc_facilities', activeDirectoryEntries(data));
+export const saveLocalAgencies = (data: LocalAgency[]) => writeSyncedCollection(LS_LOCAL_AGENCIES, 'local_agencies', activeDirectoryEntries(data));
+export const saveForeignAgencies = (data: ForeignAgency[]) => writeSyncedCollection(LS_FOREIGN_AGENCIES, 'foreign_agencies', activeDirectoryEntries(data));
 export const savePayments = (data: Payment[]) => writeSyncedCollection(LS_PAYMENTS, 'payments', data);
 export const savePaymentsLocal = (data: Payment[]) => dataStorage.setItem(LS_PAYMENTS, JSON.stringify(data));
 export const saveReceiptTokens = (data: ReceiptToken[]) => writeSyncedCollection(LS_RECEIPT_TOKENS, 'receipt_tokens', data, token => token.token);
@@ -248,6 +235,22 @@ export const saveReceiptTokens = (data: ReceiptToken[]) => writeSyncedCollection
 // --- Initialization ---
 
 export function initializeDataStore() {
+  // Retire only named placeholders; historical candidate, staff and payment references stay intact.
+  for (const key of [LS_COC_FACILITIES, LS_LOCAL_AGENCIES, LS_FOREIGN_AGENCIES, LS_CONFIG]) {
+    const raw = dataStorage.getItem(key);
+    if (!raw) continue;
+    const records = JSON.parse(raw);
+    const active = key === LS_CONFIG ? activeDirectoryConfig(records) : activeDirectoryEntries(records);
+    if (JSON.stringify(records) !== JSON.stringify(active)) {
+      const log: ApprovalLog = {
+        id: crypto.randomUUID(), timestamp: new Date().toISOString(), actor_id: 'directory-retirement',
+        actor_email: 'System directory cleanup', target_type: 'Config', target_id: key, action: 'Updated',
+        description: `Removed retired placeholder directory entries. Candidate IDs, assignments and payment evidence were preserved. Previous directory snapshot: ${raw}`,
+      };
+      dataStorage.setItem(LS_APPROVAL_LOGS, JSON.stringify([...getApprovalLogs(), log]));
+      dataStorage.setItem(key, JSON.stringify(active));
+    }
+  }
   // If the developer has set VITE_DISABLE_SEED=true, skip re-seeding localStorage.
   // This preserves any local changes made via the UI between reloads.
   // Default behavior (no flag) remains the same and will seed on first load.
@@ -284,12 +287,7 @@ export function initializeDataStore() {
   // Initialize config with new fields
   const currentConfig = getConfig(); // This will now return SEED_CONFIG if cleared
   if (currentConfig.agencyPartnerships === undefined) {
-    const localIds = new Set((currentConfig.localAgencies ?? getLocalAgencies()).map(agency => agency.id));
-    const foreignIds = new Set((currentConfig.foreignAgencies ?? getForeignAgencies()).map(agency => agency.id));
-    const defaults = (SEED_CONFIG.agencyPartnerships ?? []).filter(item => localIds.has(item.local_agency_id) && foreignIds.has(item.foreign_agency_id));
-    const legacy = normalizePartnerships(undefined, getCandidates());
-    const linkedPairs = new Set(defaults.map(item => `${item.local_agency_id}|${item.foreign_agency_id}`));
-    currentConfig.agencyPartnerships = [...defaults, ...legacy.filter(item => !linkedPairs.has(`${item.local_agency_id}|${item.foreign_agency_id}`))];
+    currentConfig.agencyPartnerships = [];
   }
   const stageFees = currentConfig.stageFeesInitialized
     ? currentConfig.stageFees ?? {}

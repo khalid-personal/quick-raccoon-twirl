@@ -102,13 +102,16 @@ export async function buildCandidateProfilePdf(candidate: CandidateDetail, docum
     }
   }
   const page = pdf.addPage([layout.format.width, layout.format.height]);
-  const ink = rgb(0.08, 0.14, 0.25), blue = rgb(0.1, 0.2, 0.76);
+  const ink = rgb(18 / 255, 40 / 255, 42 / 255);
+  const teal = rgb(50 / 255, 128 / 255, 120 / 255);
+  const ivory = rgb(244 / 255, 244 / 255, 237 / 255);
+  const lime = rgb(200 / 255, 245 / 255, 117 / 255);
   const text = (value: string, x: number, y: number, size = 9, heading = false) => page.drawText(value, { x, y, size, font: heading ? bold : font, color: ink });
   // Trusted DAWM mark: vector geometry from the existing DawmBrand component, not a ministry seal.
-  page.drawRectangle({ x: 32, y: page.getHeight() - 65, width: 38, height: 38, color: blue });
-  page.drawSvgPath('M46 42 H78 C104 42 122 59 122 80 C122 101 104 118 78 118 H46 Z', { x: 32, y: page.getHeight() - 27, scale: 38 / 160, borderColor: rgb(1, 1, 1), borderWidth: 14 });
-  page.drawSvgPath('M64 98 L79 84 L94 70', { x: 32, y: page.getHeight() - 27, scale: 38 / 160, borderColor: rgb(0.78, 0.84, 1), borderWidth: 4 });
-  for (const [x, y, radius] of [[64, 98, 5], [79, 84, 5], [94, 70, 6]]) page.drawCircle({ x: 32 + x * 38 / 160, y: page.getHeight() - 27 - y * 38 / 160, size: radius * 38 / 160, color: x === 94 ? rgb(0.99, 0.87, 0.04) : rgb(1, 1, 1) });
+  page.drawRectangle({ x: 32, y: page.getHeight() - 65, width: 38, height: 38, color: teal });
+  page.drawSvgPath('M46 42 H78 C104 42 122 59 122 80 C122 101 104 118 78 118 H46 Z', { x: 32, y: page.getHeight() - 27, scale: 38 / 160, borderColor: ivory, borderWidth: 14 });
+  page.drawSvgPath('M64 98 L79 84 L94 70', { x: 32, y: page.getHeight() - 27, scale: 38 / 160, borderColor: lime, borderWidth: 4 });
+  for (const [x, y, radius] of [[64, 98, 5], [79, 84, 5], [94, 70, 6]]) page.drawCircle({ x: 32 + x * 38 / 160, y: page.getHeight() - 27 - y * 38 / 160, size: radius * 38 / 160, color: x === 94 ? lime : ivory });
   text('DAWM Portal', 80, page.getHeight() - 40, 13, true);
   text('Candidate profile overview', 80, page.getHeight() - 56);
   const ministryX = page.getWidth() / 2;

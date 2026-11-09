@@ -153,6 +153,8 @@ export interface CandidateStage {
   foreign_assigned_staff_id?: string;
   follow_up_due_at?: string;
   follow_up_note?: string;
+  location?: JourneyLocation;
+  history?: Array<{ status: StageStatus; date?: string; updated_at: string; location?: JourneyLocation }>;
 }
 
 export interface UploadScanReport {
@@ -174,10 +176,11 @@ export interface Document {
   public_url?: string; 
   doc_kind?: DocumentKind;
   extracted?: ExtractedDocumentFields;
+  extraction_review?: { reviewed_at: string; reviewed_by: string; scanned_pages: number };
   scan_report?: UploadScanReport;
 }
 
-// Set by the (example) external document system; superadmin can control it manually in Settings.
+// Document receipts and contract-derived destinations; these do not grant ministry travel clearance.
 export interface ExternalDocumentStatus {
   work_contract?: boolean;
   visa?: boolean;
@@ -190,6 +193,10 @@ export type DocumentKind = 'work_contract' | 'visa' | 'other';
 
 export interface ExtractedDocumentFields {
   employer?: string;
+  employer_contact_name?: string;
+  employer_phone?: string;
+  employer_email?: string;
+  employer_address?: string;
   destination_country?: string;
   destination_city?: string;
   job_title?: string;
@@ -200,6 +207,13 @@ export interface ExtractedDocumentFields {
   expiry_date?: string;
 }
 
+export interface JourneyLocation {
+  name: string;
+  city: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface MedicalResult {
   id: string;
   candidate_id: string;
@@ -208,6 +222,9 @@ export interface MedicalResult {
   exam_date?: string; // ISO date string
   notes?: string;
   document_id?: string;
+  location?: JourneyLocation;
+  recorded_at?: string;
+  history?: Array<{ status: MedicalStatus; exam_date?: string; location?: JourneyLocation; recorded_at?: string }>;
 }
 
 export type CandidatePaymentStatus = 'unpaid' | 'pending_payment' | 'paid' | 'payment_failed';
@@ -239,11 +256,14 @@ export interface EmergencyContact {
 
 export interface EmployerContact {
   company: string;
-  contact_name: string;
+  contact_name?: string;
   role?: string;
-  phone: string;
+  phone?: string;
   email?: string;
   address?: string;
+  source_document_id?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
 }
 
 export interface WorkContractRecord {
@@ -254,6 +274,7 @@ export interface WorkContractRecord {
   received_at?: string;
   received_by?: string;
   note?: string;
+  document_id?: string;
 }
 
 export interface EmploymentJourney {
@@ -319,13 +340,15 @@ export interface Candidate {
   passport_image_url?: string; // Image (URL or data URL) of the passport bio page
   profile_image_scan_report?: UploadScanReport;
   passport_image_scan_report?: UploadScanReport;
-  passport_identity?: Pick<Candidate, 'first_name' | 'last_name' | 'dob' | 'passport_number' | 'gender'>;
+  passport_identity?: Pick<Candidate, 'first_name' | 'last_name' | 'dob' | 'passport_number' | 'gender' | 'passport_nationality' | 'passport_issuing_country' | 'passport_expiry_date' | 'passport_document_type'>;
   created_at: string;
   updated_at: string;
   last_synced_at?: string;
   payment_status: CandidatePaymentStatus; // NEW FIELD: Overall payment status for the candidate
   last_payment_id?: string; // NEW FIELD: Link to the last payment transaction
   expected_return_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
   actual_return_date?: string;
   return_status?: CandidateReturnStatus;
   return_support_notes?: string;

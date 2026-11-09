@@ -22,21 +22,21 @@ export interface TrainingMapFilters {
 }
 
 const REGION_ROUTE_COLORS: Record<string, string> = {
-  'Addis Ababa': '#7c3aed',
-  Afar: '#c2410c',
-  Amhara: '#2563eb',
+  'Addis Ababa': '#285f59',
+  Afar: '#7d8c3c',
+  Amhara: '#508773',
   'Benishangul-Gumuz': '#0f766e',
-  'Central Ethiopia': '#be123c',
-  'Dire Dawa': '#a16207',
+  'Central Ethiopia': '#47683f',
+  'Dire Dawa': '#6e8647',
   Gambela: '#047857',
-  Harari: '#9333ea',
-  Oromia: '#15803d',
-  Sidama: '#0369a1',
-  Somali: '#b45309',
-  'South Ethiopia': '#c026d3',
+  Harari: '#35645f',
+  Oromia: '#3d775e',
+  Sidama: '#438379',
+  Somali: '#7d8c3c',
+  'South Ethiopia': '#5c7b40',
   'South West Ethiopia': '#0e7490',
-  Tigray: '#4f46e5',
-  [REGION_NOT_SET]: '#475569',
+  Tigray: '#53786c',
+  [REGION_NOT_SET]: '#61766e',
 };
 
 export const filterTrainingMapCandidates = <T extends TrainingMapCandidate>(

@@ -1,15 +1,16 @@
 import React from 'react';
 import { CheckCircle2, MapPin, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import api from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
 import type { Candidate, PublicTrackingData } from '@/lib/types';
 import EthiopiaMap, { MapLink } from './EthiopiaMap';
 import RouteMap from './RouteMap';
 import { Badge } from '@/components/ui/badge';
-import { departureBlockers, departureRequirements } from '@/lib/departure-readiness';
+import { departureRequirements } from '@/lib/departure-readiness';
+import { getCandidateStages, getMedicalResults, getDocuments, getCocFacilities } from '@/lib/data-store';
+import { currentJourneyEvents, buildJourneyControlEvents } from '@/lib/journey-control';
+import JourneyControlMap from './JourneyControlMap';
 
 interface Props {
   journey?: PublicTrackingData['journey'];
@@ -20,30 +21,18 @@ interface Props {
   onChanged?: () => void;
 }
 
-const CandidateJourneyMap: React.FC<Props> = ({ journey, candidateId, candidate, canConfirmArrival, returnedHome = false, onChanged }) => {
-  const [busy, setBusy] = React.useState(false);
+const CandidateJourneyMap: React.FC<Props> = ({ journey, candidate, returnedHome = false }) => {
+  const [selectedEvent, setSelectedEvent] = React.useState('');
   const home = journey?.home;
   const facility = journey?.facility;
   const destination = journey?.destination;
   const center = journey?.center;
   const employer = candidate?.external_status?.work_contract ? candidate.employer : undefined;
-  if (!home && !facility && !destination && !center && !journey?.home_city) return null;
+  if (!candidate && !home && !facility && !destination && !center && !journey?.home_city) return null;
 
   const arrived = !!journey?.arrived_at;
-  const blockers = candidate ? departureBlockers(candidate) : [];
-  const confirm = async () => {
-    if (!candidateId || !window.confirm('Confirm that you have arrived at your destination?')) return;
-    setBusy(true);
-    try {
-      await api.confirmArrival(candidateId);
-      toast.success('Arrival confirmed. Deployment is complete.');
-      onChanged?.();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not confirm arrival.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const positions = candidate ? currentJourneyEvents([candidate], getCandidateStages(), getMedicalResults(), getDocuments(), getCocFacilities()) : [];
+  const history = candidate ? buildJourneyControlEvents([candidate], getCandidateStages(), getMedicalResults(), getDocuments(), getCocFacilities()) : [];
 
   const links: MapLink[] = [];
   if (home && facility) links.push({ id: 'to-facility', from: home, to: facility });
@@ -52,6 +41,7 @@ const CandidateJourneyMap: React.FC<Props> = ({ journey, candidateId, candidate,
     <Card data-tour="candidate-journey">
       <CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> My Journey Map</CardTitle></CardHeader>
       <CardContent className="space-y-4">
+        {candidate && <section aria-label="Current ministry journey" className="space-y-3"><h3>{positions[0]?.title} · {positions[0]?.status}</h3><p className="text-muted-foreground">{positions[0]?.point?.label || 'Awaiting ministry location'}</p><JourneyControlMap events={[...history, ...positions]} selectedEvent={selectedEvent || positions[0]?.id} running={false} onSelect={event => setSelectedEvent(event.id)} />{selectedEvent && <p>{[...history, ...positions].find(event => event.id === selectedEvent)?.title}</p>}</section>}
         <p className="text-sm text-muted-foreground">
           {home ? `Home city: ${home.label}.` : journey?.home_city ? `Home city: ${journey.home_city} (map coordinates unavailable).` : 'Your home city has not been set yet.'}
           {journey?.home_region ? ` Region: ${journey.home_region}.` : ''}
@@ -63,10 +53,8 @@ const CandidateJourneyMap: React.FC<Props> = ({ journey, candidateId, candidate,
         {candidate && !arrived && !returnedHome && <section className="space-y-2 border-l-4 border-amber-500 bg-amber-500/10 p-3" aria-label="Departure readiness">
           <h3 className="text-sm font-semibold">Departure requirements</h3>
           <ul className="flex flex-wrap gap-2">{departureRequirements(candidate).map(requirement => <li key={requirement.key}><Badge variant={requirement.ready ? 'outline' : 'secondary'}>{requirement.label}: {requirement.ready ? 'Recorded' : 'Pending'}</Badge></li>)}</ul>
-          {candidate.clearance?.labour_ministry?.simulated && <p className="text-xs text-muted-foreground">The stored QR is a demo simulation, not official ministry clearance.</p>}
-          {!!blockers.length && <p className="text-sm">Departure/arrival completion remains blocked until these items are recorded. Stage preparation and fee payment remain available.</p>}
+          <p className="text-sm text-muted-foreground">Deployment and arrival update from the ministry.</p>
         </section>}
-        {canConfirmArrival && destination && !arrived && !returnedHome && <Button onClick={confirm} disabled={busy || !!blockers.length}>I have arrived</Button>}
         <section className="space-y-3 border-t pt-4" aria-label="Home to CoC journey">
           <h3 className="text-base font-semibold">Home to CoC center</h3>
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">

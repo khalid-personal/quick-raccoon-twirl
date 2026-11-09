@@ -1,4 +1,5 @@
 import type { Candidate, CandidateStage } from './types';
+import { DASHBOARD_PALETTE } from './dashboard-palette';
 
 const DAY = 86_400_000;
 
@@ -6,8 +7,8 @@ export const LIFECYCLE = ['Registration', 'Medical', 'Training', 'Visa & travel'
 export type Lifecycle = (typeof LIFECYCLE)[number];
 
 export const LIFECYCLE_COLOR: Record<Lifecycle, string> = {
-  Registration: '#94a3b8', Medical: '#38bdf8', Training: '#6366f1', 'Visa & travel': '#f59e0b',
-  'Working abroad': '#10b981', 'Returned home': '#b45309', Reapplying: '#a855f7',
+  Registration: DASHBOARD_PALETTE.slate, Medical: DASHBOARD_PALETTE.teal, Training: DASHBOARD_PALETTE.forest, 'Visa & travel': DASHBOARD_PALETTE.amber,
+  'Working abroad': DASHBOARD_PALETTE.sage, 'Returned home': '#9a7952', Reapplying: DASHBOARD_PALETTE.rose,
 };
 
 export const classifyLifecycle = (candidate: Candidate, stages: CandidateStage[]): Lifecycle => {

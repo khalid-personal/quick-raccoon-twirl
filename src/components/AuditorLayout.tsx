@@ -4,9 +4,9 @@ import AppShell, { ShellNavGroup } from './AppShell';
 
 const navGroups: ShellNavGroup[] = [
   {
-    label: 'Audit',
+    label: 'Read-only review',
     items: [
-      { to: '/auditor', label: 'Integrity & Audit', icon: <ShieldAlert /> },
+      { to: '/auditor', label: 'Record checks', icon: <ShieldAlert /> },
       { to: '/auditor/tasks', label: 'My tasks', icon: <ListTodo /> },
       { to: '/guide', label: 'Getting started', icon: <BookOpen /> },
     ],

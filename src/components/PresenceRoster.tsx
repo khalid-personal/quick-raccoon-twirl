@@ -74,10 +74,10 @@ const PresenceRoster: React.FC<PresenceRosterProps> = ({
   const rosterTitle = scope === 'admin' ? 'Staff online' : 'Your team';
 
   return (
-    <Card className="overflow-hidden border-sky-500/25 bg-gradient-to-br from-sky-500/5 via-card to-violet-500/5">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-sky-500/20 bg-sky-500/5">
+    <Card className="overflow-hidden">
+      <CardHeader className="portal-card-heading mb-4 flex flex-row items-start justify-between gap-3">
         <div>
-          <CardTitle className="flex items-center gap-2 text-xl"><Users className="h-6 w-6 text-sky-600 dark:text-sky-300" />{rosterTitle}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl"><Users className="h-6 w-6 text-primary" />{rosterTitle}</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             {snapshot.shared ? 'Live presence across signed-in accounts' : 'Live in this browser only'}
           </p>
@@ -126,7 +126,7 @@ const PresenceRoster: React.FC<PresenceRosterProps> = ({
             </div>
           ))}
         </div>}
-        {openEntity ? <Button variant="outline" className="w-full border-sky-500/30 bg-sky-500/5" onClick={() => openEntity('staff-directory', 'all')}>Show all staff<ArrowUpRight className="ml-2 h-4 w-4" /></Button> : <p className="text-xs text-muted-foreground">{ownStatus.length} staff in this view</p>}
+        {openEntity ? <Button variant="outline" className="w-full border-primary/30 bg-primary/5" onClick={() => openEntity('staff-directory', 'all')}>Show all staff<ArrowUpRight className="ml-2 h-4 w-4" /></Button> : <p className="text-xs text-muted-foreground">{ownStatus.length} staff in this view</p>}
       </CardContent>
     </Card>
   );

@@ -16,7 +16,7 @@ const AgencyPartnerContracts: React.FC = () => {
   const partnerships = foreignView ? partnersForForeignAgency(allPartnerships, userForeignAgencyId ?? '') : partnersForLocalAgency(allPartnerships, userLocalAgencyId ?? '');
 
   return <Card>
-    <CardHeader><CardTitle className="text-base">{foreignView ? 'Local' : 'Foreign'} partner contracts</CardTitle></CardHeader>
+    <CardHeader><CardTitle className="text-base">{foreignView ? 'Local' : 'Foreign'} partner contracts</CardTitle><p className="text-xs text-muted-foreground">Ministry-assigned · read-only. DAWM does not create or edit these agreements.</p></CardHeader>
     <CardContent>
       {isLoading ? <p className="text-sm text-muted-foreground">Loading agreements...</p> : partnerships.length ? <ul className="divide-y">
         {partnerships.map(partnership => {

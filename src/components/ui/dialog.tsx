@@ -5,6 +5,7 @@ import { usePopupDock } from "@/components/popup-dock-context";
 
 import { cn } from "@/lib/utils";
 import { usePopupScrollLock } from "@/hooks/use-popup-scroll-lock";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { PopupResizeControl, popupCloseClassName, popupMinimizeClassName, popupWindowStyle } from "./popup-window";
 
 const WindowContext = React.createContext<{
@@ -14,12 +15,13 @@ const WindowContext = React.createContext<{
 function Dialog({ open: controlledOpen, defaultOpen = false, onOpenChange, modal = true, workspaceManaged = true, activationKey, ...props }:
   React.ComponentProps<typeof DialogPrimitive.Root> & { workspaceManaged?: boolean; activationKey?: number }) {
   const dock = usePopupDock();
+  const mobile = useIsMobile();
   const id = React.useId();
   const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
   const [minimized, setMinimized] = React.useState(false);
   const [title, setTitle] = React.useState('Window');
   const requestedOpen = controlledOpen ?? internalOpen;
-  const managed = !!dock && workspaceManaged;
+  const managed = !!dock && workspaceManaged && !mobile;
   usePopupScrollLock(requestedOpen && !minimized);
   const handler = React.useRef(onOpenChange);
   handler.current = onOpenChange;
@@ -58,7 +60,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "portal-popup-overlay fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -80,18 +82,20 @@ const DialogContent = React.forwardRef<
       className={cn(
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
         className,
+        "portal-popup",
         retain && 'data-[state=closed]:hidden',
         window?.managed && 'z-[55] !animate-none max-h-[calc(100dvh-7rem)] overflow-y-auto',
       )}
       {...props}
       data-popup-window=""
+      data-popup-layout="dialog"
       style={{ ...style, ...popupWindowStyle }}
       onInteractOutside={event => { if (window?.managed) event.preventDefault(); onInteractOutside?.(event); }}
     >
       {children}
       {window?.managed && <button type="button" aria-label="Minimize window" title="Minimize without discarding unsaved edits" onClick={window.minimize} className={cn("absolute right-12 top-4 rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", popupMinimizeClassName)}><Minus className="h-4 w-4" /></button>}
       <PopupResizeControl />
-      <DialogPrimitive.Close className={cn("absolute right-4 top-4 rounded-sm ring-offset-background transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none", popupCloseClassName)}>
+      <DialogPrimitive.Close aria-label="Close" className={cn("absolute right-4 top-4 rounded-sm ring-offset-background transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none", popupCloseClassName)}>
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -106,7 +110,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      "portal-popup-header flex flex-col space-y-1.5 text-left",
       className,
     )}
     {...props}
@@ -120,7 +124,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "portal-popup-footer flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
       className,
     )}
     {...props}
@@ -142,7 +146,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "pr-12 text-lg font-semibold leading-none tracking-tight",
+      "portal-popup-title pr-28 text-xl font-semibold leading-tight tracking-tight",
       className,
     )}
     {...props}

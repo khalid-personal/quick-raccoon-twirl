@@ -4,6 +4,7 @@ import { BriefcaseBusiness, PlaneTakeoff, Users2 } from 'lucide-react';
 import { LIFECYCLE, LIFECYCLE_COLOR, TENURE_BUCKETS, ageOf, classifyLifecycle, tally, tenureBucket } from '@/lib/portfolio';
 import { usePortalData } from '@/hooks/use-portal-data';
 import WidgetShell from './WidgetShell';
+import { DASHBOARD_PALETTE } from '@/lib/dashboard-palette';
 
 const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 };
 
@@ -71,9 +72,9 @@ export const PortfolioWorkforce: React.FC<{ localAgencyId?: string }> = ({ local
   const countries = tally(working, item => item.candidate.external_status?.destination_country);
   return (
     <WidgetShell title="Working abroad" description="Candidates already employed, by time on the job and country" icon={PlaneTakeoff} accent="emerald" className="h-full" bodyClassName="space-y-4">
-      <div className="grid grid-cols-3 gap-3 text-center">
+      <div className="portal-metric-grid text-center">
         {[['Working now', String(working.length)], ['Average time abroad', `${avgMonths.toFixed(1)} months`], ['Countries', String(countries.length)]].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-emerald-500/5 p-3"><p className="text-xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{value}</p><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p></div>
+          <div key={label} className="rounded-xl bg-primary/5 p-3"><p className="text-xl font-semibold tabular-nums text-primary">{value}</p><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p></div>
         ))}
       </div>
       <div className="h-[150px]">
@@ -82,11 +83,11 @@ export const PortfolioWorkforce: React.FC<{ localAgencyId?: string }> = ({ local
             <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={10} interval={0} tickFormatter={value => value.replace(' months', ' mo').replace('Under ', '<').replace('Over ', '>')} />
             <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / .5)' }} />
-            <Bar dataKey="value" name="Candidates" radius={[6, 6, 0, 0]} fill="#10b981" />
+            <Bar dataKey="value" name="Candidates" radius={[6, 6, 0, 0]} fill={DASHBOARD_PALETTE.sage} />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <Bars data={countries} color="#10b981" limit={4} />
+      <Bars data={countries} color={DASHBOARD_PALETTE.sage} limit={4} />
     </WidgetShell>
   );
 };
@@ -99,16 +100,16 @@ export const PortfolioMix: React.FC<{ localAgencyId?: string }> = ({ localAgency
     <WidgetShell title="Candidate backgrounds" description="Jobs, gender and age of the selected candidates" icon={BriefcaseBusiness} accent="sky" className="h-full" bodyClassName="space-y-5">
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Occupations</p>
-        <Bars data={tally(items, item => item.candidate.occupation)} color="#0ea5e9" limit={6} />
+        <Bars data={tally(items, item => item.candidate.occupation)} color={DASHBOARD_PALETTE.teal} limit={6} />
       </div>
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Gender</p>
-        <div className="flex h-3 overflow-hidden rounded-full bg-muted"><div className="bg-pink-400" style={{ width: `${items.length ? (females / items.length) * 100 : 0}%` }} /><div className="flex-1 bg-sky-500" /></div>
+        <div className="flex h-3 overflow-hidden rounded-full bg-muted"><div style={{ width: `${items.length ? (females / items.length) * 100 : 0}%`, background: DASHBOARD_PALETTE.sage }} /><div className="flex-1" style={{ background: DASHBOARD_PALETTE.teal }} /></div>
         <div className="mt-1.5 flex justify-between text-xs text-muted-foreground"><span>Women {females}</span><span>Men {items.length - females}</span></div>
       </div>
       <div>
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Age</p>
-        <Bars data={ages.sort((a, b) => a.name.localeCompare(b.name))} color="#6366f1" />
+        <Bars data={ages.sort((a, b) => a.name.localeCompare(b.name))} color={DASHBOARD_PALETTE.forest} />
       </div>
     </WidgetShell>
   );

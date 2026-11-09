@@ -4,6 +4,7 @@ import { greatCirclePath, projectWorldPoint } from '@/lib/world-map';
 import InteractiveMap, { cityLod, MapMarker } from './InteractiveMap';
 import type { MapPoint } from './EthiopiaMap';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
+import MapRouteSignal from './MapRouteSignal';
 
 const RouteMap: React.FC<{ origin: MapPoint; destination: MapPoint; waypoints?: MapPoint[]; compact?: boolean; showReturn?: boolean; heightClassName?: string }> = ({ origin, destination, waypoints = [], compact = false, showReturn = false, heightClassName }) => {
   const markerId = `route-arrow-${useId().replace(/:/g, '')}`;
@@ -37,11 +38,7 @@ const RouteMap: React.FC<{ origin: MapPoint; destination: MapPoint; waypoints?: 
             })}
             {routes.map((route, index) => (
               <g key={`${markerId}-route-${index}`}>
-                <path d={route} fill="none" stroke="#064e3b" strokeWidth={3.5} strokeLinecap="round" opacity={0.24} vectorEffect="non-scaling-stroke" />
-                <path d={route} fill="none" stroke="#059669" strokeWidth={2.4} strokeLinecap="round" markerEnd={`url(#${markerId})`} vectorEffect="non-scaling-stroke" />
-                <path d={route} fill="none" stroke="#a7f3d0" strokeWidth={1} strokeDasharray="4 8" strokeLinecap="round" vectorEffect="non-scaling-stroke">
-                  {!reduced && <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.7s" repeatCount="indefinite" />}
-                </path>
+                <MapRouteSignal path={route} u={u} selected />
               </g>
             ))}
             {showReturn && <path d={greatCirclePath(destination, origin)} fill="none" stroke="#d97706" strokeWidth={2.5} strokeDasharray="5 5" markerEnd={`url(#${markerId}-return)`} vectorEffect="non-scaling-stroke">
@@ -51,7 +48,7 @@ const RouteMap: React.FC<{ origin: MapPoint; destination: MapPoint; waypoints?: 
               const { x, y } = projectWorldPoint(point.lat, point.lon);
               const isStart = index === 0;
               const isEnd = index === points.length - 1;
-              const fill = isStart ? '#2563eb' : isEnd ? '#059669' : '#7c3aed';
+              const fill = isStart ? '#285f59' : isEnd ? '#6b893a' : '#438379';
               return (
                 <MapMarker key={`${markerId}-point-${index}`} x={x} y={y} u={u}>
                   <title>{`${isStart ? 'Home' : isEnd ? 'Destination' : 'CoC center'}: ${point.label}`}</title>

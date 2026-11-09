@@ -25,6 +25,7 @@ import { evidenceNotificationScope } from '@/lib/evidence-notifications';
 import AvatarActivity from './AvatarActivity';
 import AgencyResolutionCenter from './AgencyResolutionCenter';
 import { navigationItemClass } from './ui/navigation-rail';
+import PortalBackdrop from './PortalBackdrop';
 
 export interface ShellNavItem {
   to: string;
@@ -83,7 +84,7 @@ export const SidebarContent: React.FC<{
   pathname: string;
   onNavigate?: () => void;
 }> = ({ portalName, homePath, navGroups, collapsed, pathname, onNavigate }) => (
-  <div className="flex h-full flex-col bg-[#101827] text-slate-200">
+  <div className="portal-sidebar flex h-full flex-col text-sidebar-foreground">
     <Link to={homePath} onClick={onNavigate} aria-label="DAWM Portal home" className={cn('flex h-16 items-center border-b border-sidebar-border px-4', collapsed ? 'justify-center px-0' : '')}>
       {collapsed
         ? <DawmBrand appearance="dark" compact iconOnly />
@@ -96,7 +97,7 @@ export const SidebarContent: React.FC<{
         return (
           <div key={group.label ?? groupIndex} className="space-y-0.5">
             {group.label && !collapsed && (
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{group.label}</p>
+              <p className="portal-sidebar-group px-3 pb-2 font-semibold">{group.label}</p>
             )}
             {items.map(item => {
               const active = isItemActive(pathname, item, homePath);
@@ -110,7 +111,7 @@ export const SidebarContent: React.FC<{
                     </span>
                   )}
                   {collapsed && !!item.badge && item.badge > 0 && (
-                    <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-sky-300" />
+                    <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-sidebar-primary" />
                   )}
                 </>
               );
@@ -231,19 +232,20 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
     ?? 'Account';
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="portal-shell flex min-h-screen bg-background">
       <aside className={cn('sticky top-0 hidden h-screen shrink-0 border-r border-sidebar-border transition-[width] duration-200 md:block', collapsed ? 'w-16' : 'w-64')}>
         <SidebarContent portalName={portalName} homePath={homePath} navGroups={navGroups} collapsed={collapsed} pathname={location.pathname} />
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 [&>button]:text-white">
+        <SheetContent side="left" className="w-72 max-w-[calc(100vw-2rem)] border-sidebar-border bg-sidebar p-0 [&>button]:text-white">
           <SidebarContent portalName={portalName} homePath={homePath} navGroups={navGroups} collapsed={false} pathname={location.pathname} onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="navigation-rail-topbar sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 md:px-6">
+      <div className="portal-workspace relative isolate flex min-w-0 flex-1 flex-col">
+        <PortalBackdrop />
+        <header className="portal-topbar navigation-rail-topbar sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-4 md:px-6">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
@@ -252,7 +254,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
           </Button>
 
           <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-            <Link to={homePath} className="truncate rounded px-1 text-slate-300 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-200">{portalName}</Link>
+            <Link to={homePath} className="truncate rounded px-1 text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{portalName}</Link>
             {currentItem && currentItem.to !== homePath && (
               <>
                 <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -262,7 +264,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <div className="mr-2 hidden items-center gap-1.5 px-2.5 py-1 text-xs text-slate-400 lg:flex">
+            <div className="mr-2 hidden items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground xl:flex">
               <Clock className="h-3.5 w-3.5" />
               <span className="tabular-nums">{clock}</span>
             </div>
@@ -288,7 +290,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
                 <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
                   <Bell key={unread.length} className={cn('h-5 w-5 origin-top', unread.length > 0 && 'motion-safe:animate-bell')} />
                   {unread.length > 0 && (
-                    <span key={`badge-${unread.length}`} className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white motion-safe:animate-pop">
+                    <span key={`badge-${unread.length}`} className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold leading-none text-white motion-safe:animate-pop">
                       {unread.length > 9 ? '9+' : unread.length}
                     </span>
                   )}
@@ -319,14 +321,14 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 text-left transition-colors hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-200" aria-label="User menu">
+                <button className="flex items-center gap-2 rounded-md py-1 pl-1 pr-2 text-left transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring" aria-label="User menu">
                   <Avatar className="h-8 w-8 !overflow-visible">
                     <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initialsOf(displayName)}</AvatarFallback>
                     <AvatarActivity id={notificationUserId} kind="staff" lastSeen={currentUser?.last_online_at} />
                   </Avatar>
                   <span className="hidden min-w-0 leading-tight sm:block">
-                    <span className="block max-w-[140px] truncate text-[13px] font-medium">{displayName}</span>
-                    <span className="block text-[11px] text-slate-400">{userRole ? ROLE_LABELS[userRole] ?? userRole : ''}</span>
+                    <span className="block max-w-[140px] truncate text-sm font-medium">{displayName}</span>
+                    <span className="block text-xs text-muted-foreground">{userRole ? ROLE_LABELS[userRole] ?? userRole : ''}</span>
                   </span>
                 </button>
               </DropdownMenuTrigger>
@@ -340,7 +342,7 @@ const AppShell: React.FC<AppShellProps> = ({ portalName, homePath, navGroups, ch
           </div>
         </header>
 
-        <main className="page-enter mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6 lg:p-8"><AgencyResolutionCenter agencyNotice />{children}</main>
+        <main className="portal-dashboard-content page-enter w-full flex-1"><AgencyResolutionCenter agencyNotice />{children}</main>
 
         <footer className="border-t px-6 py-3 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} Domestic Agency Workforce Management

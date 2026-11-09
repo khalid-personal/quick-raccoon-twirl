@@ -5,9 +5,9 @@ export type TravelPhase = 'contract' | 'visa' | 'transit' | 'arrived' | 'returne
 
 export const PHASE_META: Record<TravelPhase, { label: string; color: string }> = {
   contract: { label: 'Contract received', color: '#f59e0b' },
-  visa: { label: 'Visa issued', color: '#3b82f6' },
-  transit: { label: 'In transit', color: '#8b5cf6' },
-  arrived: { label: 'Arrived', color: '#10b981' },
+  visa: { label: 'Visa issued', color: '#438379' },
+  transit: { label: 'In transit', color: '#285f59' },
+  arrived: { label: 'Arrived', color: '#6b893a' },
   returned: { label: 'Returned home', color: '#b45309' },
   failed: { label: 'Deployment failed', color: '#ef4444' },
 };

@@ -1,91 +1,13 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { api } from '@/lib/api';
-import { toast } from 'sonner';
-import { Loader2, Save, Lock, Mail, Shuffle, GraduationCap, PlaneTakeoff, Landmark } from 'lucide-react'; // Added Landmark
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { DialogFooter } from '@/components/ui/dialog';
-import { CandidateDetail, Candidate, CocFacility, ForeignAgency, LocalAgency } from '@/lib/types'; // NEW IMPORT
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/lib/auth'; // NEW IMPORT
-
-const NEW_BATCH_OPTION = '___NEW_BATCH___';
-const NO_BATCH_OPTION = '___NO_BATCH___';
-const MARITAL_STATUS_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
-const NONE_SELECT_VALUE = "none"; // Consistent value for 'None' in selects
-
-// Helper function to check if DOB is 18+
-const isAdult = (dob: string): boolean => {
-    const birthDate = new Date(dob);
-    const ageDiffMs = Date.now() - birthDate.getTime();
-    const ageDate = new Date(ageDiffMs);
-    return Math.abs(ageDate.getUTCFullYear() - 1970) >= 18;
-};
-
-// Schema for form validation (similar to NewCandidateForm, but adapted for updates)
-const EditCandidateSchema = z.object({
-  first_name: z.string().min(1, "First name is required."),
-  last_name: z.string().min(1, "Last name is required."),
-  dob: z.string().min(1, "Date of Birth is required."),
-  passport_number: z.string().min(1, "Passport number is required."),
-  tracking_code: z.string().min(1, "Tracking code is required.").regex(/^TRK-[A-Z]{2,3}-\d{4,}$/, "Invalid tracking code format (e.g., TRK-ET-0001)."),
-  country_of_origin: z.string().min(1, "Country of origin is required."),
-  marital_status: z.enum(MARITAL_STATUS_OPTIONS as [string, ...string[]], {
-    required_error: "Marital status is required.",
-  }),
-  gender: z.enum(['male', 'female'], { required_error: "Gender is required." }),
-  professional_summary: z.string().trim().min(1, "Candidate introduction is required."),
-  occupation: z.string().trim().optional(),
-  skills_text: z.string().trim().min(1, "At least one skill is required."),
-  languages_text: z.string().trim().min(1, "At least one language is required."),
-  intro_video_url: z.string().trim().min(1, "Candidate introduction video is required."),
-  phone_number: z.string().optional(),
-  email: z.string().email("Must be a valid email address.").min(1, "Email is required for candidate login."),
-  coc_facility_id: z.string().min(1, "COC Facility is required."), // Changed to ID
-  foreign_agency_id: z.string().optional(), // Changed to ID
-  local_agency_id: z.string().min(1, "Local Agency is required."), // NEW FIELD
-  new_pin: z.string().optional().refine(
-    (val) => !val || val.length >= 6,
-    "PIN must be at least 6 characters long."
-  ),
-  custom_country: z.string().optional(),
-  batch_name: z.string().optional(),
-  new_batch_name: z.string().optional(),
-}).superRefine((data, ctx) => {
-  // Age validation
-  if (data.dob && !isAdult(data.dob)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Candidate must be 18 years or older.",
-      path: ['dob'],
-    });
-  }
-  
-  if (data.country_of_origin === 'Other' && (!data.custom_country || data.custom_country.trim() === '')) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Please specify the country.",
-      path: ['custom_country'],
-    });
-  }
-  
-  if (data.batch_name === NEW_BATCH_OPTION && (!data.new_batch_name || data.new_batch_name.trim() === '')) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Please enter a name for the new batch.",
-      path: ['new_batch_name'],
-    });
-  }
-});
-
-type EditCandidateFormValues = z.infer<typeof EditCandidateSchema>;
+import { LockKeyhole, Database, GraduationCap, UserRound } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { DialogFooter } from './ui/dialog';
+import { useId } from 'react';
+import type { CandidateDetail } from '@/lib/types';
+import { candidateLaborId, MINISTRY_PROFILE_MESSAGE } from '@/lib/ministry-candidates';
+import { practiceRecordLabel } from '@/lib/practice-record-label';
 
 interface CandidateDetailEditorProps {
   candidate: CandidateDetail;
@@ -93,447 +15,55 @@ interface CandidateDetailEditorProps {
   onClose: () => void;
 }
 
-// Define AppConfig type locally for useQuery generics
-interface AppConfig {
-    countryOptions: string[];
-    cocFacilities: CocFacility[]; // Changed
-    foreignAgencies: ForeignAgency[]; // Changed
-    localAgencies: LocalAgency[]; // NEW
+export default function CandidateDetailEditor({ candidate, onClose }: CandidateDetailEditorProps) {
+  const prefix = useId();
+  const practice = candidate.id.startsWith('demo-') || candidate.elmis?.mode === 'sandbox';
+  const sections = [
+    { title: 'Identity & ministry references', icon: UserRound, fields: [
+      ['First name', candidate.first_name], ['Last name', candidate.last_name],
+      ['Gender', candidate.gender], ['Date of birth', candidate.dob],
+      ['Passport number', candidate.passport_number], ['Tracking code · DAWM reference', candidate.tracking_code],
+      ['Passport nationality', candidate.passport_nationality], ['Passport issuing country', candidate.passport_issuing_country],
+      ['Passport expiry', candidate.passport_expiry_date], ['Passport document type', candidate.passport_document_type],
+      ['Labor ID', candidateLaborId(candidate, candidate.stages)],
+      ['ELMIS registration', practiceRecordLabel(candidate.elmis?.registration_id, practice)],
+      ['Country of origin', candidate.country_of_origin], ['Marital status', candidate.marital_status],
+      ['Home city', candidate.home_city], ['Home region', candidate.home_region],
+    ] },
+    { title: 'Contact & candidate introduction', icon: Database, fields: [
+      ['Email / login identifier', candidate.email], ['Phone number', candidate.phone_number],
+      ['Emergency contact', candidate.emergency_contact?.name], ['Emergency phone', candidate.emergency_contact?.phone],
+      ['Occupation', candidate.occupation], ['Professional summary', candidate.professional_summary],
+      ['Skills', candidate.skills?.join(', ')], ['Languages', candidate.languages?.join(', ')],
+      ['Introduction video', candidate.intro_video_url],
+    ] },
+    { title: 'CoC & linked organizations', icon: GraduationCap, fields: [
+      ['CoC training center', candidate.coc_facility_name],
+      ['Managing local agency', candidate.local_agency_name],
+      ['Foreign employment agency', candidate.foreign_agency_name],
+      ['Batch group · DAWM organization', candidate.batch_name],
+    ] },
+  ];
+  return <div className="ministry-record-console space-y-5">
+    <div className="ministry-record-banner rounded-2xl p-5">
+      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest"><LockKeyhole className="h-4 w-4" />Ministry-managed record</p>
+      <h3 className="mt-2 text-xl font-semibold">Review here. Correct at the source.</h3>
+      <p className="mt-2 text-sm">{MINISTRY_PROFILE_MESSAGE}</p>
+      <p className="mt-2 text-xs">{practice ? 'Fictional practice record · not a live ministry response.' : 'Recorded source details · no external ministry sync is claimed.'} DAWM tracking and operational groups remain separate from official ministry identifiers.</p>
+    </div>
+    {sections.map(({ title, icon: Icon, fields }, sectionIndex) => <section key={title} className="rounded-2xl border bg-card p-4 sm:p-5">
+      <h3 className="mb-4 flex items-center gap-2 font-semibold"><Icon className="h-5 w-5 text-primary" />{title}<LockKeyhole aria-hidden="true" className="ml-auto h-4 w-4 text-muted-foreground" /></h3>
+      <div className="grid gap-4 sm:grid-cols-2">{fields.map(([label, value], index) => {
+        const id = `${prefix}-${sectionIndex}-${index}`;
+        return <div key={label} className="min-w-0 space-y-2">
+          <Label htmlFor={id}>{label}</Label>
+          {label === 'Professional summary' || label === 'Skills'
+            ? <Textarea id={id} value={value || 'Not recorded · awaiting source details'} readOnly aria-disabled="true" rows={3} className="ministry-owned-field" />
+            : <Input id={id} value={value || 'Not recorded · awaiting source details'} readOnly aria-disabled="true" className="ministry-owned-field" />}
+        </div>;
+      })}</div>
+    </section>)}
+    <p className="text-sm text-muted-foreground">CoC assessments and certificates are candidate-linked in the ministry portal. DAWM cannot reassign a center here. Payment receipts, evidence uploads and authorized follow-ups remain separate portal actions.</p>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Back to candidate</Button></DialogFooter>
+  </div>;
 }
-
-const CandidateDetailEditor: React.FC<CandidateDetailEditorProps> = ({ candidate, onSuccess, onClose }) => {
-  const prefix = React.useId();
-  const fieldId = (name: keyof EditCandidateFormValues) => `${prefix}-${name}`;
-  const { user } = useAuth(); // Get current user for logging
-  const actorId = user?.id || 'unknown-admin';
-  const actorEmail = user?.email || 'unknown-admin@agency.com';
-
-  const { data: activeBatches = [], refetch: refetchBatches } = useQuery<string[]>({
-    queryKey: ['activeBatches'],
-    queryFn: api.getBatches,
-  });
-  
-  // Fetch country and COC agency options from API
-  const { data: config, isLoading: isLoadingConfig } = useQuery<AppConfig>({
-    queryKey: ['appConfig'],
-    queryFn: api.getAppConfig,
-    initialData: { countryOptions: [], cocFacilities: [], foreignAgencies: [], localAgencies: [] }, // Updated initialData
-  });
-  
-  const countryOptions = config.countryOptions;
-  const cocFacilities = config.cocFacilities; // Changed
-  const foreignAgencies = config.foreignAgencies; // Changed
-  const localAgencies = config.localAgencies; // NEW
-  
-  // Determine if the candidate's country is a custom entry (not in the standard list)
-  const isCustomCountryInitial = !countryOptions.includes(candidate.country_of_origin);
-  
-  const form = useForm<EditCandidateFormValues>({
-    resolver: zodResolver(EditCandidateSchema),
-    defaultValues: {
-      first_name: candidate.first_name,
-      last_name: candidate.last_name,
-      dob: candidate.dob,
-      passport_number: candidate.passport_number,
-      tracking_code: candidate.tracking_code,
-      
-      // Set country fields based on whether it's a standard or custom country
-      country_of_origin: isCustomCountryInitial ? 'Other' : candidate.country_of_origin,
-      custom_country: isCustomCountryInitial ? candidate.country_of_origin : '',
-      
-      batch_name: candidate.batch_name || NO_BATCH_OPTION,
-      marital_status: candidate.marital_status, // Initialize marital status
-      gender: candidate.gender,
-      professional_summary: candidate.professional_summary || '',
-      occupation: candidate.occupation || '',
-      skills_text: candidate.skills?.join(', ') || '',
-      languages_text: candidate.languages?.join(', ') || '',
-      intro_video_url: candidate.intro_video_url || '',
-      phone_number: candidate.phone_number || '', // Initialize phone number
-      email: candidate.email, // Initialize email
-      coc_facility_id: candidate.coc_facility_id || NONE_SELECT_VALUE, // Initialize COC facility ID
-      foreign_agency_id: candidate.foreign_agency_id || NONE_SELECT_VALUE, // Initialize foreign agency ID
-      local_agency_id: candidate.local_agency_id || NONE_SELECT_VALUE, // NEW: Initialize local agency ID
-      new_pin: '', // Initialize new PIN field
-      new_batch_name: '',
-    },
-  });
-
-  const { register, handleSubmit, formState: { errors, isSubmitting }, watch, setValue } = form;
-  const selectedCountry = watch('country_of_origin');
-  const selectedBatch = watch('batch_name');
-  const isCustomCountry = selectedCountry === 'Other';
-  const isCreatingNewBatch = selectedBatch === NEW_BATCH_OPTION;
-  const newPin = watch('new_pin');
-  
-  const handleSelectLeastUsedCocFacility = async () => { // Renamed function
-      try {
-          const facility = await api.selectLeastUsedCocFacility(); // Renamed API call
-          setValue('coc_facility_id', facility.id, { shouldValidate: true }); // Set ID
-          toast.info(`Automatically selected: ${facility.name}`);
-      } catch (error) {
-          toast.error((error as Error).message);
-      }
-  };
-
-  const onSubmit = async (data: EditCandidateFormValues) => {
-    try {
-      const finalCountry = data.country_of_origin === 'Other' ? data.custom_country : data.country_of_origin;
-      
-      if (!finalCountry) {
-          toast.error("Country of Origin is required.");
-          return;
-      }
-      
-      let finalBatchName: string | undefined = undefined;
-      if (data.batch_name === NEW_BATCH_OPTION) {
-          finalBatchName = data.new_batch_name;
-      } else if (data.batch_name && data.batch_name !== NO_BATCH_OPTION) {
-          finalBatchName = data.batch_name;
-      }
-      
-      // 1. Update Profile Details
-      await api.updateCandidateDetails(candidate.id, {
-        first_name: data.first_name,
-        last_name: data.last_name,
-        dob: data.dob,
-        passport_number: data.passport_number,
-        tracking_code: data.tracking_code,
-        country_of_origin: finalCountry,
-        batch_name: finalBatchName,
-        marital_status: data.marital_status as Candidate['marital_status'],
-        gender: data.gender,
-        professional_summary: data.professional_summary.trim(),
-        occupation: data.occupation || undefined,
-        skills: data.skills_text.split(',').map(skill => skill.trim()).filter(Boolean),
-        languages: data.languages_text.split(',').map(language => language.trim()).filter(Boolean),
-        intro_video_url: data.intro_video_url.trim(),
-        phone_number: data.phone_number || undefined,
-        email: data.email,
-        coc_facility_id: data.coc_facility_id === NONE_SELECT_VALUE ? undefined : data.coc_facility_id, // Use ID
-        foreign_agency_id: data.foreign_agency_id === NONE_SELECT_VALUE ? undefined : data.foreign_agency_id, // Use ID
-        local_agency_id: data.local_agency_id === NONE_SELECT_VALUE ? undefined : data.local_agency_id, // Use ID
-      }, actorId, actorEmail); // Pass actor info
-      
-      // 2. Update Credentials (Email/PIN) if changed
-      if (data.email !== candidate.email || newPin) {
-          await api.updateCandidateCredentials(candidate.id, data.email, newPin, actorId, actorEmail); // Pass actor info
-          toast.success(`Candidate credentials updated.`);
-      }
-      
-      toast.success(`Candidate ${data.tracking_code} details updated successfully.`);
-      refetchBatches(); // Refresh batch list after potential batch change
-      onSuccess();
-      onClose();
-    } catch (error) {
-      toast.error((error as Error).message);
-    }
-  };
-  
-  if (isLoadingConfig) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
-
-  // Ensure the current candidate's country is available in the select options if it's not 'Other'
-  const effectiveCountryOptions = countryOptions.includes(candidate.country_of_origin) || isCustomCountryInitial
-    ? countryOptions
-    : [...countryOptions.filter(c => c !== 'Other'), candidate.country_of_origin, 'Other'];
-
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <h3 className="text-lg font-semibold border-b pb-2 mb-4">Personal & Tracking Details</h3>
-      {candidate.elmis?.mode === 'live' && candidate.elmis.candidate_id && <p className="text-sm text-muted-foreground">Ministry identity fields are read-only. Request corrections through ELMIS; contact and support details remain editable.</p>}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('first_name')}>First Name *</Label>
-          <Input id={fieldId('first_name')} {...register('first_name')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
-          {errors.first_name && <p className="text-red-500 text-xs">{errors.first_name.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('last_name')}>Last Name *</Label>
-          <Input id={fieldId('last_name')} {...register('last_name')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
-          {errors.last_name && <p className="text-red-500 text-xs">{errors.last_name.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('gender')}>Gender *</Label>
-          <Select value={watch('gender')} onValueChange={(value: 'male' | 'female') => setValue('gender', value, { shouldValidate: true })} disabled={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id}>
-            <SelectTrigger id={fieldId('gender')}><SelectValue placeholder="Select gender" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="male">Male</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.gender && <p className="text-red-500 text-xs">{errors.gender.message}</p>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('tracking_code')}>Tracking Code *</Label>
-          <Input id={fieldId('tracking_code')} {...register('tracking_code')} placeholder="TRK-XX-0000" readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
-          {errors.tracking_code && <p className="text-red-500 text-xs">{errors.tracking_code.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('country_of_origin')}>Country of Origin *</Label>
-          <Select
-            value={selectedCountry}
-            onValueChange={(value) => {
-              setValue('country_of_origin', value, { shouldValidate: true });
-              if (value !== 'Other') {
-                setValue('custom_country', '');
-              }
-            }}
-          >
-            <SelectTrigger id={fieldId('country_of_origin')}>
-              <SelectValue placeholder="Select Country" />
-            </SelectTrigger>
-            <SelectContent>
-              {effectiveCountryOptions.map(country => (
-                <SelectItem key={country} value={country}>
-                  {country}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.country_of_origin && <p className="text-red-500 text-xs">{errors.country_of_origin.message}</p>}
-        </div>
-      </div>
-      
-      {isCustomCountry && (
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('custom_country')}>Specify Country *</Label>
-          <Input id={fieldId('custom_country')} {...register('custom_country')} />
-          {errors.custom_country && <p className="text-red-500 text-xs">{errors.custom_country.message}</p>}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('passport_number')}>Passport Number *</Label>
-          <Input id={fieldId('passport_number')} {...register('passport_number')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
-          {errors.passport_number && <p className="text-red-500 text-xs">{errors.passport_number.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('dob')}>Date of Birth * (YYYY-MM-DD)</Label>
-          <Input id={fieldId('dob')} type="date" {...register('dob')} readOnly={candidate.elmis?.mode === 'live' && !!candidate.elmis.candidate_id} />
-          {errors.dob && <p className="text-red-500 text-xs">{errors.dob.message}</p>}
-        </div>
-      </div>
-      
-      {/* Local Agency Selection */}
-      <div className="space-y-2 border-t pt-4">
-        <Label htmlFor={fieldId('local_agency_id')} className="flex items-center">
-            <Landmark className="h-4 w-4 mr-2" /> Managing Local Agency *
-        </Label>
-        <Select
-            value={watch('local_agency_id')}
-            onValueChange={(value) => setValue('local_agency_id', value, { shouldValidate: true })}
-            disabled
-        >
-            <SelectTrigger id={fieldId('local_agency_id')}>
-                <SelectValue placeholder="Select Local Agency" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
-                {localAgencies.map(agency => (
-                    <SelectItem key={agency.id} value={agency.id}>
-                        {agency.name}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-        {errors.local_agency_id && <p className="text-red-500 text-xs">{errors.local_agency_id.message}</p>}
-        <p className="text-xs text-muted-foreground">Assigned by the ministry. Request an ELMIS correction to change this agency.</p>
-      </div>
-
-      {/* COC Facility Selection */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('coc_facility_id')} className="flex items-center">
-            <GraduationCap className="h-4 w-4 mr-2" /> COC Training Facility *
-        </Label>
-        <div className="flex gap-2">
-            <Select
-                value={watch('coc_facility_id')}
-                onValueChange={(value) => setValue('coc_facility_id', value, { shouldValidate: true })}
-                disabled={isSubmitting || cocFacilities.length === 0}
-            >
-                <SelectTrigger id={fieldId('coc_facility_id')}>
-                    <SelectValue placeholder="Select COC Facility" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={NONE_SELECT_VALUE}>None</SelectItem>
-                    {cocFacilities.map(facility => (
-                        <SelectItem key={facility.id} value={facility.id}>
-                            {facility.name}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Button 
-                type="button" 
-                variant="outline" 
-                size="icon" 
-                onClick={handleSelectLeastUsedCocFacility} // Renamed
-                disabled={isSubmitting || cocFacilities.length === 0}
-                title="Select Least Used COC Facility (Mock Load Balancer)"
-            >
-                <Shuffle className="h-4 w-4" />
-            </Button>
-        </div>
-        {errors.coc_facility_id && <p className="text-red-500 text-xs">{errors.coc_facility_id.message}</p>}
-      </div>
-      
-      {/* Foreign Agency Selection */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('foreign_agency_id')} className="flex items-center">
-            <PlaneTakeoff className="h-4 w-4 mr-2" /> Foreign Employment Agency (Optional)
-        </Label>
-        <Select
-            value={watch('foreign_agency_id')}
-            onValueChange={(value) => setValue('foreign_agency_id', value, { shouldValidate: true })}
-            disabled={isSubmitting || foreignAgencies.length === 0}
-        >
-            <SelectTrigger id={fieldId('foreign_agency_id')}>
-                <SelectValue placeholder="Select Foreign Agency" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value={NONE_SELECT_VALUE}>N/A (Not Matched Yet)</SelectItem>
-                {foreignAgencies.map(agency => (
-                    <SelectItem key={agency.id} value={agency.id}>
-                        {agency.name}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-        {errors.foreign_agency_id && <p className="text-red-500 text-xs">{errors.foreign_agency_id.message}</p>}
-      </div>
-      
-      {/* Marital Status Selection */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('marital_status')}>Marital Status *</Label>
-        <Select
-          value={watch('marital_status')}
-          onValueChange={(value) => setValue('marital_status', value, { shouldValidate: true })}
-        >
-          <SelectTrigger id={fieldId('marital_status')}>
-            <SelectValue placeholder="Select Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {MARITAL_STATUS_OPTIONS.map(status => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.marital_status && <p className="text-red-500 text-xs">{errors.marital_status.message}</p>}
-      </div>
-      
-      {/* Batch Selection */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('batch_name')}>Batch Group (Optional)</Label>
-        <Select
-          value={selectedBatch}
-          onValueChange={(value) => setValue('batch_name', value, { shouldValidate: true })}
-        >
-          <SelectTrigger id={fieldId('batch_name')}>
-            <SelectValue placeholder="Select or Create Batch" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_BATCH_OPTION}>No Batch</SelectItem>
-            {activeBatches.map(batch => (
-              <SelectItem key={batch} value={batch}>
-                {batch}
-              </SelectItem>
-            ))}
-            <SelectItem value={NEW_BATCH_OPTION}>
-              + Create New Batch
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.batch_name && <p className="text-red-500 text-xs">{errors.batch_name.message}</p>}
-      </div>
-      
-      {isCreatingNewBatch && (
-        <div className="space-y-2 pl-4 border-l-2 border-primary">
-          <Label htmlFor={fieldId('new_batch_name')}>New Batch Name *</Label>
-          <Input id={fieldId('new_batch_name')} {...register('new_batch_name')} placeholder="e.g., Batch 3" />
-          {errors.new_batch_name && <p className="text-red-500 text-xs">{errors.new_batch_name.message}</p>}
-        </div>
-      )}
-      
-      <Separator className="my-6" />
-
-      <section className="space-y-3 border-t pt-4">
-        <h3 className="font-semibold">Candidate Introduction (Required)</h3>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('occupation')}>Work / job type</Label>
-          <Input id={fieldId('occupation')} {...register('occupation')} placeholder="Housemaid, Cook, Nanny, Driver" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('professional_summary')}>Professional summary *</Label>
-          <Textarea id={fieldId('professional_summary')} {...register('professional_summary')} rows={3} />
-          {errors.professional_summary && <p className="text-red-500 text-xs">{errors.professional_summary.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('skills_text')}>Skills (comma separated) *</Label>
-          <Textarea id={fieldId('skills_text')} {...register('skills_text')} rows={2} />
-          {errors.skills_text && <p className="text-red-500 text-xs">{errors.skills_text.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('languages_text')}>Languages (comma separated) *</Label>
-          <Input id={fieldId('languages_text')} {...register('languages_text')} />
-          {errors.languages_text && <p className="text-red-500 text-xs">{errors.languages_text.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={fieldId('intro_video_url')}>Introduction video link *</Label>
-          <Input id={fieldId('intro_video_url')} type="url" {...register('intro_video_url')} />
-          {errors.intro_video_url && <p className="text-red-500 text-xs">{errors.intro_video_url.message}</p>}
-        </div>
-      </section>
-      
-      <h3 className="text-lg font-semibold border-b pb-2 mb-4">Candidate Login Credentials</h3>
-      
-      {/* Email Input for Candidate Login */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('email')} className="flex items-center">
-            <Mail className="h-4 w-4 mr-2" /> Candidate Email (Login) *
-        </Label>
-        <Input id={fieldId('email')} {...register('email')} placeholder="candidate@example.com" />
-        {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
-      </div>
-      
-      {/* PIN Reset Input */}
-      <div className="space-y-2">
-        <Label htmlFor={fieldId('new_pin')} className="flex items-center">
-            <Lock className="h-4 w-4 mr-2" /> Reset PIN (Leave blank to keep current)
-        </Label>
-        <Input 
-            id={fieldId('new_pin')}
-            type="password" 
-            placeholder="••••••"
-            {...register('new_pin')} 
-        />
-        {errors.new_pin && <p className="text-red-500 text-xs">{errors.new_pin.message}</p>}
-        <p className="text-xs text-muted-foreground">
-            If changed, the candidate must use this new PIN/Password for tracking login.
-        </p>
-      </div>
-
-      <DialogFooter className="pt-4">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Save All Changes
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-};
-
-export default CandidateDetailEditor;

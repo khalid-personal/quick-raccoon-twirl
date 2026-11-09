@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { Link, MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CandidateQuickViewProvider, EntityProfileButton } from '../CandidateQuickViewProvider';
@@ -19,10 +19,10 @@ function ContactForm({ save }: { save: (value: string) => void }) {
 }
 function Page() {
   const [open, setOpen] = useState(false);
-  return <><button onClick={() => setOpen(true)}>Edit contact</button><EntityProfileButton kind="local-agency" entityId="local">Open local agency</EntityProfileButton><EntityProfileButton kind="staff-directory" entityId="all">Show all staff</EntityProfileButton><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle><span>Edit contact</span></DialogTitle><DialogDescription>A saved update remains saved; minimize keeps the draft.</DialogDescription><ContactForm save={value => { localStorage.setItem('saved-contact', value); setOpen(false); }} /></DialogContent></Dialog></>;
+  return <><Link to="/">Public home</Link><Link to="/developers">Public docs</Link><Link to="/admin">Workspace</Link><button onClick={() => setOpen(true)}>Edit contact</button><EntityProfileButton kind="local-agency" entityId="local">Open local agency</EntityProfileButton><EntityProfileButton kind="staff-directory" entityId="all">Show all staff</EntityProfileButton><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle><span>Edit contact</span></DialogTitle><DialogDescription>A saved update remains saved; minimize keeps the draft.</DialogDescription><ContactForm save={value => { localStorage.setItem('saved-contact', value); setOpen(false); }} /></DialogContent></Dialog></>;
 }
 const render = async () => {
-  await act(async () => root.render(<MemoryRouter><QueryClientProvider client={client}><CandidateQuickViewProvider><Page /></CandidateQuickViewProvider></QueryClientProvider></MemoryRouter>));
+  await act(async () => root.render(<MemoryRouter initialEntries={['/admin']}><QueryClientProvider client={client}><CandidateQuickViewProvider><Page /></CandidateQuickViewProvider></QueryClientProvider></MemoryRouter>));
 };
 const flush = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
 const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === text)!;
@@ -74,5 +74,17 @@ describe('organized portal windows', () => {
     expect(document.querySelector('[role="dialog"][data-state="open"]')?.textContent).toContain('worker@example.test');
     expect(document.querySelector('[role="dialog"][data-state="open"]')?.textContent).not.toContain('other@example.test');
     expect(button('Open local agency')).toBeUndefined();
+  });
+  it('hides profile windows and their dock on public pages without discarding open tabs', async () => {
+    await render(); await act(async () => button('Show all staff').click()); await flush();
+    expect(document.querySelector('[aria-label="Candidate workspace dock"]')).not.toBeNull();
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/"]')!.click());
+    expect(document.querySelector('[aria-label="Candidate workspace dock"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"][data-state="open"]')).toBeNull();
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/developers"]')!.click());
+    expect(document.querySelector('[aria-label="Candidate workspace dock"]')).toBeNull();
+    await act(async () => container.querySelector<HTMLAnchorElement>('a[href="/admin"]')!.click());
+    expect(document.querySelector('[aria-label="Candidate workspace dock"]')?.textContent).toContain('All staff');
+    expect(document.querySelector('[role="dialog"][data-state="open"]')?.textContent).toContain('worker@example.test');
   });
 });

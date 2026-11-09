@@ -2,16 +2,16 @@
   <title>DAWM</title>
   <defs>
     <linearGradient id="dawm-gradient" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5B8CFF"/>
-      <stop offset="1" stop-color="#1B34C2"/>
+      <stop offset="0" stop-color="#328078"/>
+      <stop offset="1" stop-color="#12282A"/>
     </linearGradient>
   </defs>
   <rect width="160" height="160" rx="40" fill="url(#dawm-gradient)"/>
-  <rect x="1" y="1" width="158" height="158" rx="39" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2"/>
-  <path d="M46 42H78C104 42 122 59 122 80C122 101 104 118 78 118H46Z" fill="none" stroke="#fff" stroke-width="14" stroke-linejoin="round"/>
-  <polyline points="64,98 79,84 94,70" fill="none" stroke="#C7D6FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="64" cy="98" r="5" fill="#fff"/>
-  <circle cx="79" cy="84" r="5" fill="#fff"/>
-  <circle cx="94" cy="70" r="9" fill="#FCDD09" fill-opacity=".3"/>
-  <circle cx="94" cy="70" r="6" fill="#FCDD09"/>
+  <rect x="1" y="1" width="158" height="158" rx="39" fill="none" stroke="#C8F575" stroke-opacity=".28" stroke-width="2"/>
+  <path d="M46 42H78C104 42 122 59 122 80C122 101 104 118 78 118H46Z" fill="none" stroke="#F4F4ED" stroke-width="14" stroke-linejoin="round"/>
+  <polyline points="64,98 79,84 94,70" fill="none" stroke="#C8F575" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="98" r="5" fill="#F4F4ED"/>
+  <circle cx="79" cy="84" r="5" fill="#F4F4ED"/>
+  <circle cx="94" cy="70" r="9" fill="#C8F575" fill-opacity=".3"/>
+  <circle cx="94" cy="70" r="6" fill="#C8F575"/>
 </svg>

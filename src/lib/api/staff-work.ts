@@ -1,35 +1,34 @@
 import { getCandidateStages, getCandidates, getConfig, getStaffUsers, saveCandidateStages, saveConfig, getPayments, getPaymentStatuses } from '../data-store';
 import type { AppConfig, CandidateStage } from '../types';
-import { assignUnassignedStageTasks, getActiveStageTasks, rebalanceStageTasks } from '../staff-tasks';
+import { getActiveStageTasks } from '../staff-tasks';
 import { recordApprovalLog } from './log-management';
 import { getApiPrincipal } from './auth';
+import { balanceLocalAgencyTasks } from './local-staff-work';
 
-const saveStageAssignments = (next: CandidateStage[]) => {
-  const current = getCandidateStages();
-  const changed = next.some((stage, index) => {
-    const before = current[index];
-    return before && (before.assigned_staff_id !== stage.assigned_staff_id || before.follow_up_due_at !== stage.follow_up_due_at);
-  });
-  if (changed) {
-    saveCandidateStages(next);
-    window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+const requireLocalManager = async (actor: { id: string; email: string; role: string }) => {
+  const principal = await getApiPrincipal();
+  if (actor.role !== 'local-agency' || principal.role !== 'local-agency' || !principal.localAgencyId || principal.id !== actor.id) {
+    throw new Error('Only a signed-in local agency manager can assign or balance agency work.');
   }
+  return principal;
 };
+
 const paymentContext = () => ({ fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: getPayments() });
 
 export const prepareStaffTasks = async (autoAssign = false): Promise<void> => {
   if (!autoAssign) return;
-  const next = assignUnassignedStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), getConfig().staffTaskWeights, paymentContext());
-  saveStageAssignments(next);
+  await balanceLocalAgencyTasks();
 };
 
 export const updateStaffTaskWeights = async (
   weights: Record<string, number>,
   actor: { id: string; email: string; role: string },
 ): Promise<AppConfig> => {
-  if (actor.role !== 'superadmin') throw new Error('Only a superadmin can change staff workload settings.');
+  const principal = await requireLocalManager(actor);
+  const eligible = new Set(getStaffUsers().filter(person => person.role === 'staff' && person.is_approved && person.local_agency_id === principal.localAgencyId).map(person => person.id));
+  if (Object.keys(weights).some(id => !eligible.has(id))) throw new Error('Change workload settings only for approved staff in your own agency.');
   const cleaned = Object.fromEntries(Object.entries(weights).map(([id, value]) => [id, Math.max(0, Math.min(5, Number.isFinite(value) ? value : 1))]));
-  const updated = { ...getConfig(), staffTaskWeights: cleaned };
+  const updated = { ...getConfig(), staffTaskWeights: { ...getConfig().staffTaskWeights, ...cleaned } };
   saveConfig(updated);
   await recordApprovalLog(actor.id, actor.email, 'Config', 'staff-task-weights', 'Updated', 'Updated staff task distribution weights.');
   return updated;
@@ -39,31 +38,13 @@ export const rebalanceStaffTasks = async (
   weights: Record<string, number>,
   actor: { id: string; email: string; role: string },
 ): Promise<number> => {
-  if (actor.role !== 'superadmin') throw new Error('Only a superadmin can rebalance staff tasks.');
-  const next = rebalanceStageTasks(getCandidates(), getCandidateStages(), getStaffUsers(), weights, paymentContext());
-  saveStageAssignments(next);
-  await recordApprovalLog(actor.id, actor.email, 'Config', 'staff-task-distribution', 'Updated', 'Rebalanced active candidate stage tasks across approved staff.');
-  return getActiveStageTasks(getCandidates(), next, Date.now(), paymentContext()).filter(task => task.stage.assigned_staff_id).length;
+  await updateStaffTaskWeights(weights, actor);
+  return (await balanceLocalAgencyTasks()).assigned;
 };
 
 export const autoBalanceStaffTasks = async (actor: { id: string; email: string; role: string }): Promise<{ assigned: number; unassigned: number; changed: number }> => {
-  if (actor.role !== 'superadmin' || !actor.id || !actor.email) throw new Error('Only a signed-in superadmin can auto-balance staff work.');
-  const candidates = getCandidates();
-  const before = getCandidateStages();
-  const staff = getStaffUsers().filter(user => user.role === 'staff' && user.is_approved);
-  if (!staff.length) throw new Error('There are no approved staff accounts to assign work to.');
-  const saved = getConfig().staffTaskWeights ?? {};
-  const weights = Object.fromEntries(staff.map(user => [user.id, saved[user.id] === 0 ? 0 : 1]));
-  const next = rebalanceStageTasks(candidates, before, staff, weights, paymentContext());
-  const tasks = getActiveStageTasks(candidates, next, Date.now(), paymentContext());
-  const prior = new Map(before.map(stage => [stage.id, stage.assigned_staff_id]));
-  const assigned = tasks.filter(task => task.stage.assigned_staff_id).length;
-  const changed = tasks.filter(task => prior.get(task.stage.id) !== task.stage.assigned_staff_id).length;
-  await updateStaffTaskWeights({ ...saved, ...weights }, actor);
-  saveStageAssignments(next);
-  await recordApprovalLog(actor.id, actor.email, 'Config', 'staff-task-distribution', 'Updated',
-    `Auto-balanced active tasks: ${assigned} assigned, ${tasks.length - assigned} without an eligible owner, ${changed} assignments changed. Equal weights; paused staff and agency boundaries preserved.`);
-  return { assigned, unassigned: tasks.length - assigned, changed };
+  await requireLocalManager(actor);
+  return balanceLocalAgencyTasks();
 };
 
 export const assignCandidateStageTask = async (
@@ -72,8 +53,7 @@ export const assignCandidateStageTask = async (
   staffId: string,
   actor: { id: string; email: string; role: string },
 ): Promise<CandidateStage> => {
-  if (!['superadmin', 'local-agency'].includes(actor.role) || !actor.id || !actor.email) throw new Error('Only a signed-in superadmin or local agency manager can reassign tasks.');
-  const principal = actor.role === 'local-agency' ? await getApiPrincipal() : undefined;
+  const principal = await requireLocalManager(actor);
   const users = getStaffUsers();
   if (!users.some(user => user.id === staffId && user.role === 'staff' && user.is_approved)) {
     throw new Error('Choose an approved staff account.');

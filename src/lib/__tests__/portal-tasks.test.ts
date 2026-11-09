@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { buildPortalTasks, portalTaskPath } from '../portal-tasks';
 import { generateDemoDataset } from '../demo-dataset';
@@ -5,6 +6,7 @@ import type { ApiPrincipal } from '../api/auth';
 import type { IntegrityInput } from '../integrity';
 import { analyzeIntegrity } from '../integrity';
 import type { AmountDiscrepancy } from '../agency-resolution';
+import type { ReconciliationCaseEvent } from '../bank-statement-store';
 
 const demo = generateDemoDataset(Date.parse('2026-11-08'));
 const a = { ...demo.candidates[0], local_agency_id: 'a', foreign_agency_id: 'f', assigned_staff_id: 'staff-a', work_contract_record: { status: 'sent' as const } };
@@ -14,6 +16,21 @@ const stages = [a, b].map(candidate => ({ id: `stage:${candidate.id}`, candidate
 const input: IntegrityInput = { candidates: [a, b], stages, documents: [], payments: [], paymentStatuses: [], medicals: [], logs: [], stageFees: {} };
 const principal = (role: ApiPrincipal['role']): ApiPrincipal => ({ id: role === 'staff' ? 'staff-a' : 'user', role, localAgencyId: role === 'staff' || role === 'local-agency' ? 'a' : null,
   foreignAgencyId: ['foreign-agency', 'foreign-agency-staff', 'agency'].includes(role) ? 'f' : null, candidateId: a.id });
+it('adds assigned staff statement deadlines, excludes other owners/agencies and removes verified requests', () => {
+  const event = (id: string, owner: string, dueDate: string): ReconciliationCaseEvent => ({
+    id, caseId: id, action: 'request-evidence', note: 'Upload the original bank file', actor: 'ministry', owner, dueDate,
+    submissionStart: '2026-11-06', source: 'foreign', createdAt: '2026-11-06', evidence: { statementName: 'Bank credits', explanation: 'Original file required' },
+  });
+  const requests = [{ agencyId: 'a', events: [event('due', 'STAFF@A.TEST', '2026-11-09'), event('late', 'staff-a', '2026-11-07'), event('other-owner', 'staff-b', '2026-11-09'), event('verified', 'staff-a', '2026-11-09')] },
+    { agencyId: 'b', events: [event('other-agency', 'staff-a', '2026-11-09')] }];
+  const staff = [{ id: 'staff-a', email: 'staff@a.test', role: 'staff' as const, local_agency_id: 'a', is_approved: true, created_at: '2026-11-06' }];
+  const tasks = buildPortalTasks(principal('staff'), { ...input, now: Date.parse('2026-11-08T12:00:00Z') }, staff, [], [], [], requests, new Set(['verified'])).filter(task => task.category === 'Statement upload');
+  expect(tasks).toHaveLength(2);
+  expect(tasks.find(task => task.id.endsWith(':due'))).toMatchObject({ severity: 'medium', dueAt: '2026-11-09T23:59:59+03:00' });
+  expect(tasks.find(task => task.id.endsWith(':late'))?.detail).toContain('Overdue');
+  expect(tasks.every(task => task.path.includes('agency=a') && task.path.includes('source=foreign'))).toBe(true);
+  expect(buildPortalTasks(principal('superadmin'), input, staff, [], [], [], requests).some(task => task.category === 'Statement upload')).toBe(false);
+});
 it('gives administrators, agency managers, staff, auditors and viewers correctly scoped follow-ups', () => {
   for (const role of ['superadmin', 'admin', 'staff', 'local-agency', 'auditor'] as const) {
     const tasks = buildPortalTasks(principal(role), input, [], [], []);

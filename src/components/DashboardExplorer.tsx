@@ -16,10 +16,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import CandidateAvatar from '@/components/CandidateAvatar';
+import { isCleared } from '@/lib/ksa-visa';
+import { ALL_STAGES } from '@/lib/types';
+import { isStageComplete } from '@/lib/candidate-stage-normalization';
+import { REGION_NOT_SET } from '@/lib/ethiopia-regions';
 
-function Ranking({ rows, label, onSelect, tone = 'bg-emerald-500' }: { rows: Array<{ name: string; count: number; id?: string }>; label: string; onSelect: (row: { name: string; count: number; id?: string }) => void; tone?: string }) {
+function Ranking({ rows, label, onSelect, tone = 'bg-primary' }: { rows: Array<{ name: string; count: number; id?: string }>; label: string; onSelect: (row: { name: string; count: number; id?: string }) => void; tone?: string }) {
   const max = Math.max(1, ...rows.map(row => row.count));
-  return <div className="space-y-1">
+  return <div className="max-h-80 space-y-1 overflow-y-auto">
     {rows.map((row, index) => <button key={row.id || row.name} type="button" aria-label={`Inspect ${label} ${row.name}`} onClick={() => onSelect(row)} className="group w-full rounded-xl border border-transparent px-2 py-3 text-left transition-colors hover:border-primary/20 hover:bg-background/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       <div className="mb-2 flex items-center gap-2 text-sm"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-background/70 text-xs font-semibold text-muted-foreground">{index + 1}</span><span className="min-w-0 flex-1 truncate font-semibold">{row.name}</span><span className="text-lg font-bold tabular-nums">{row.count}</span><ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" /></div>
       <div className="ml-8 h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${tone}`} style={{ width: `${row.count / max * 100}%` }} /></div>
@@ -40,6 +44,8 @@ export default function DashboardExplorer({ localAgencyId, candidateBasePath, se
   const scoped = candidates.filter(candidate => !localAgencyId || candidate.local_agency_id === localAgencyId);
   const selectedCandidates = selection ? selectDashboardCandidates(candidates, stages, selection, localAgencyId) : [];
   const regions = groupCandidates(scoped, candidateRegion);
+  const official = scoped.filter(isCleared).length;
+  const awaitingMinistry = scoped.filter(candidate => candidate.clearance?.local_ready_at && !isCleared(candidate)).length;
   const cities = groupCandidates(selectedCandidates, candidateCity);
   const rankAgencies = (kind: 'local-agency' | 'foreign-agency' | 'coc') => {
     const records = kind === 'local-agency' ? locals : kind === 'foreign-agency' ? foreigns : facilities;
@@ -72,16 +78,38 @@ export default function DashboardExplorer({ localAgencyId, candidateBasePath, se
   </>;
 
   return <>
-    <section aria-label="Workforce network explorer" className="space-y-4"><div><h2 className="text-2xl font-bold">Explore the workforce network</h2><p className="text-sm text-muted-foreground">From home regions to partner agencies. Click a ranking to inspect its records.</p></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <Card className="border-emerald-500/25 bg-gradient-to-b from-emerald-500/10 to-card"><CardHeader className="pb-2"><span className="mb-2 w-fit rounded-xl bg-emerald-500/15 p-3 text-emerald-700 dark:text-emerald-300"><MapPin className="h-6 w-6" /></span><CardTitle className="text-xl">Top Regions</CardTitle><p className="text-sm text-muted-foreground">Candidate origins · {scoped.length} records</p></CardHeader><CardContent>
+    <section aria-label="Workforce network explorer" className="space-y-5">
+      <header className="network-command">
+        <div className="relative space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-[#c8f575]">Origins · partners · readiness</p><h2 className="mt-2 text-3xl font-semibold">Explore the workforce network</h2><p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">Follow actual candidate connections from home communities to training and destination partners. Open a node or ranking to inspect the linked people, receipts and records.</p></div><Badge className="border border-white/20 bg-white/10 text-white" variant="outline">{localAgencyId ? 'Selected agency' : 'All agencies'} · {scoped.length} candidates</Badge></div>
+          <div className="network-path" aria-label="Candidate network connections">
+            {[
+              { title: 'Home regions', count: regions.filter(region => region.name !== REGION_NOT_SET).length, detail: 'Recorded candidate origins', Icon: MapPin },
+              { title: 'Local agencies', count: rankAgencies('local-agency').length, detail: 'Intake and candidate ownership', Icon: Building2 },
+              { title: 'Training centers', count: rankAgencies('coc').length, detail: 'CoC training assignments', Icon: GraduationCap },
+              { title: 'Foreign partners', count: rankAgencies('foreign-agency').length, detail: 'Destination agency connections', Icon: Globe2 },
+            ].map(({ title, count, detail, Icon }) => <button type="button" key={title} onClick={() => onSelect({ kind: 'all', name: 'Network candidate roster' })}><Icon className="mb-3 h-6 w-6" /><p className="text-3xl font-semibold tabular-nums">{count}</p><p className="mt-2 font-semibold">{title}</p><p className="mt-1 text-xs text-white/70">{detail}</p><p className="mt-3 flex items-center gap-1 text-xs text-[#c8f575]">Inspect candidate roster <ArrowUpRight className="h-3 w-3" /></p></button>)}
+          </div>
+          <div className="space-y-3"><p className="text-sm font-semibold">Recorded journey coverage <span className="font-normal text-white/65">· completion does not grant official travel approval</span></p><div className="portal-metric-grid">
+            {ALL_STAGES.map((stage, index) => {
+              const completed = scoped.filter(candidate => stages.some(record => record.candidate_id === candidate.id && record.stage_id === stage.id && isStageComplete(record.status))).length;
+              const reached = scoped.filter(candidate => stages.some(record => record.candidate_id === candidate.id && record.stage_id === stage.id && record.status !== 'Pending')).length;
+              return <button type="button" key={stage.id} onClick={() => onSelect({ kind: 'stage', stageId: stage.id, name: `${stage.title} · reached candidates` })} className="min-w-0 rounded-xl border border-white/15 bg-black/10 p-4 text-left hover:bg-white/10"><p className="text-xs font-semibold text-[#c8f575]">0{index + 1} · {stage.title}</p><p className="mt-2 text-lg font-semibold">{completed} <span className="text-xs font-normal text-white/65">of {scoped.length} complete</span></p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#c8f575]" style={{ width: `${scoped.length ? completed / scoped.length * 100 : 0}%` }} /></div><p className="mt-2 text-xs text-white/65">Inspect {reached} reached candidates →</p></button>;
+            })}
+          </div></div>
+          <div className="flex flex-wrap gap-3 text-sm"><span className="rounded-full border border-white/15 px-3 py-2">{official} official clearances recorded</span><span className="rounded-full border border-white/15 px-3 py-2">{awaitingMinistry} locally ready, awaiting ministry</span><span className="rounded-full border border-white/15 px-3 py-2">{scoped.filter(candidate => !candidate.foreign_agency_id).length} without a destination partner</span></div>
+          <p className="text-xs text-white/65">Connections are profile assignments, not travel authorization. Ministry approval and payment checks are separate; practice QR codes never count as official clearance. Live ministry-provider integration is not configured. Backend-recorded journey statuses refresh while the signed-in portal is open; no official checks are invented.</p>
+        </div>
+      </header>
+      <p className="text-xs text-muted-foreground">Connection rankings · bars compare candidate counts with the largest group in each list. Select a named region or organization for its specific records.</p>
+      <div className="portal-record-grid items-start">
+      <Card className="min-w-0"><CardHeader className="pb-2"><span className="portal-widget-icon mb-2 w-fit rounded-xl p-3"><MapPin className="h-6 w-6" /></span><CardTitle className="text-xl">Top Regions</CardTitle><p className="text-sm text-muted-foreground">Candidate origins · {scoped.length} records</p></CardHeader><CardContent>
         <Ranking rows={regions.slice(0, 8)} label="region" onSelect={row => onSelect({ kind: 'region', name: row.name })} />
         {regions.length > 8 && <Button variant="ghost" size="sm" onClick={() => onSelect({ kind: 'all', name: 'All candidate origins' })}>All origins<ChevronRight className="ml-1 h-4 w-4" /></Button>}
       </CardContent></Card>
       {(['foreign-agency', 'coc', 'local-agency'] as const).map(kind => {
         const Icon = kind === 'foreign-agency' ? Globe2 : kind === 'coc' ? GraduationCap : Building2;
-        const surface = kind === 'foreign-agency' ? 'border-sky-500/25 from-sky-500/10' : kind === 'coc' ? 'border-violet-500/25 from-violet-500/10' : 'border-amber-500/25 from-amber-500/10';
-        const tone = kind === 'foreign-agency' ? 'bg-sky-500' : kind === 'coc' ? 'bg-violet-500' : 'bg-amber-500';
-        return <Card key={kind} className={`bg-gradient-to-b to-card ${surface}`}><CardHeader className="pb-2"><span className="mb-2 w-fit rounded-xl bg-background/70 p-3 text-primary"><Icon className="h-6 w-6" /></span><CardTitle className="text-xl">{kind === 'foreign-agency' ? 'Foreign Agencies' : kind === 'local-agency' ? 'Local Agencies' : 'CoC Training Centers'}</CardTitle><p className="text-sm text-muted-foreground">Assigned candidates</p></CardHeader><CardContent><Ranking rows={rankAgencies(kind)} tone={tone} label={kind} onSelect={row => onSelect({ kind, id: row.id, name: row.name })} /></CardContent></Card>;
+        return <Card key={kind} className="min-w-0"><CardHeader className="pb-2"><span className="portal-widget-icon mb-2 w-fit rounded-xl p-3"><Icon className="h-6 w-6" /></span><CardTitle className="text-xl">{kind === 'foreign-agency' ? 'Foreign Agencies' : kind === 'local-agency' ? 'Local Agencies' : 'CoC Training Centers'}</CardTitle><p className="text-sm text-muted-foreground">Assigned candidates · {rankAgencies(kind).length} connected organizations</p></CardHeader><CardContent><Ranking rows={rankAgencies(kind)} label={kind} onSelect={row => onSelect({ kind, id: row.id, name: row.name })} /></CardContent></Card>;
       })}
     </div></section>
     <Dialog open={!!selection} onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">

@@ -6,7 +6,7 @@ import { recordApprovalLog } from './log-management';
 import { hasCompleteCandidateIntroduction } from '../candidate-introduction';
 import { requireAgencyOperations } from '../agency-resolution';
 import { getApiPrincipal } from './auth';
-import { matchPassportCandidate, MINISTRY_INTAKE_MESSAGE, normalizeIdentity } from '../ministry-candidates';
+import { matchPassportCandidate, MINISTRY_INTAKE_MESSAGE, MINISTRY_PROFILE_FIELDS, MINISTRY_PROFILE_MESSAGE, MINISTRY_JOURNEY_FIELDS, MINISTRY_STAGE_MESSAGE, normalizeIdentity } from '../ministry-candidates';
 
 type CandidateCreationData = Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>;
 type CandidateUpdateData = Partial<Omit<Candidate, 'id' | 'created_at' | 'updated_at' | 'payment_status' | 'last_payment_id'>>;
@@ -67,9 +67,11 @@ export const updateCandidateDetails = async (
     }
 
     const existingCandidate = candidates[index];
-    if (existingCandidate.elmis?.mode === 'live' && existingCandidate.elmis.candidate_id
-      && (['first_name', 'last_name', 'dob', 'gender', 'passport_number', 'tracking_code'] as const).some(field => field in data && data[field] !== existingCandidate[field])) {
-      throw new Error('Identity details on a ministry-synced candidate must be corrected through ELMIS. You can still update contact and support information.');
+    if (MINISTRY_JOURNEY_FIELDS.some(field => field in data && JSON.stringify(data[field]) !== JSON.stringify(existingCandidate[field]))) {
+      throw new Error(MINISTRY_STAGE_MESSAGE);
+    }
+    if (([...MINISTRY_PROFILE_FIELDS, 'tracking_code'] as const).some(field => field in data && JSON.stringify(data[field]) !== JSON.stringify(existingCandidate[field]))) {
+      throw new Error(MINISTRY_PROFILE_MESSAGE);
     }
     if (data.gender !== undefined && data.gender !== 'male' && data.gender !== 'female') {
         throw new Error('Candidate gender must be male or female.');
@@ -123,7 +125,7 @@ export const updateCandidateDetails = async (
     if (updatedCandidate.local_agency_id !== existingCandidate.local_agency_id) {
       throw new Error('The managing local agency comes from the ministry record. Request an ELMIS correction instead.');
     }
-    if (data.elmis && JSON.stringify(data.elmis) !== JSON.stringify(existingCandidate.elmis)) {
+    if ('elmis' in data && JSON.stringify(data.elmis) !== JSON.stringify(existingCandidate.elmis)) {
       throw new Error('Ministry identity and Labor ID details can only be updated through ELMIS.');
     }
 
@@ -174,12 +176,10 @@ export const attachCandidatePassport = async (
       throw new Error('This candidate is not assigned to your account or agency.');
     }
     const updated: Candidate = { ...candidate,
-      passport_identity: { first_name: scan.data.first_name, last_name: scan.data.last_name, dob: scan.data.dob, passport_number: scan.data.passport_number, gender: scan.data.gender },
+      passport_identity: { first_name: scan.data.first_name, last_name: scan.data.last_name, dob: scan.data.dob, passport_number: scan.data.passport_number, gender: scan.data.gender,
+        passport_nationality: scan.data.passport_nationality, passport_issuing_country: scan.data.passport_issuing_country,
+        passport_expiry_date: scan.data.passport_expiry_date, passport_document_type: scan.data.passport_document_type },
       passport_image_url: scan.imageUrl, passport_image_scan_report: scan.screeningReport,
-      passport_nationality: scan.data.passport_nationality ?? candidate.passport_nationality,
-      passport_issuing_country: scan.data.passport_issuing_country ?? candidate.passport_issuing_country,
-      passport_expiry_date: scan.data.passport_expiry_date ?? candidate.passport_expiry_date,
-      passport_document_type: scan.data.passport_document_type ?? candidate.passport_document_type,
       updated_at: new Date().toISOString() };
     saveCandidates(candidates.map(item => item.id === candidate.id ? updated : item));
     await recordApprovalLog(principal.id, getStaffUsers().find(person => person.id === principal.id)?.email ?? principal.id, 'Candidate', candidate.id, 'Updated',
@@ -237,6 +237,7 @@ export const updateCandidateCredentials = async (
     
     const existingCandidate = candidates[index];
 
+    if (newEmail !== existingCandidate.email) throw new Error(MINISTRY_PROFILE_MESSAGE);
     // Check for duplicate email if changing
     if (newEmail.toLowerCase() !== existingCandidate.email.toLowerCase() && candidates.some(c => c.email.toLowerCase() === newEmail.toLowerCase())) {
         throw new Error(`Email '${newEmail}' is already registered by another candidate.`);

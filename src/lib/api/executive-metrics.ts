@@ -1,6 +1,7 @@
 import { isForeignPayment } from '../currency';
 import { stageFeeCovered } from '../stage-readiness';
 import { actorDisplayName } from '../demo-identities';
+import { executiveJourney } from '../executive-kpi';
 import { ALL_STAGES, ExecutiveMetrics, CandidateStage, CandidateStatusBucket } from '../types';
 import {
     getCandidates, getCandidateStages, getPayments, getMedicalResults, getDocuments,
@@ -55,7 +56,8 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         const stages = (stagesByCandidate.get(c.id) ?? []).sort((a, b) => ordinalOf(a.stage_id) - ordinalOf(b.stage_id));
         const failed = stages.find(s => s.status === 'Failed');
         const doneCount = stages.filter(s => DONE.has(s.status)).length;
-        const completedAll = doneCount === ALL_STAGES.length;
+        const journey = executiveJourney(c, stages, now);
+        const completedAll = journey.deployed;
         const bucket: CandidateStatusBucket = failed ? 'Blocked' : completedAll ? 'Completed' : doneCount > 0 ? 'In Progress' : 'Pending';
         buckets[bucket]++;
 
@@ -81,11 +83,11 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         if (completedAll) {
             const last = stages[stages.length - 1];
             const at = new Date(last.date || last.updated_at).getTime();
-            deployedDurations.push(Math.max(0, (at - new Date(c.created_at).getTime()) / DAY));
+            deployedDurations.push(journey.departureDays!);
             const key = monthKey(new Date(at));
             deployedByMonth.set(key, (deployedByMonth.get(key) ?? 0) + 1);
         } else {
-            activeAgeSum += (now - new Date(c.created_at).getTime()) / DAY;
+            activeAgeSum += journey.registrationAge;
             activeCount++;
             // Last real movement: a stage that was never started carries its creation stamp, which is not activity.
             const since = stages
@@ -127,7 +129,10 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         revenue: payments.filter(p => monthKey(new Date(p.created_at)) === m.key).reduce((s, p) => s + p.amount, 0),
     }));
 
-    const last30 = candidates.filter(c => now - new Date(c.created_at).getTime() <= 30 * DAY).length;
+    const last30 = candidates.filter(c => {
+        const age = now - new Date(c.created_at).getTime();
+        return age >= 0 && age <= 30 * DAY;
+    }).length;
     const prev30 = candidates.filter(c => {
         const age = now - new Date(c.created_at).getTime();
         return age > 30 * DAY && age <= 60 * DAY;
@@ -176,7 +181,7 @@ export const getExecutiveMetrics = async (localAgencyName?: string, foreignAgenc
         ? ids.has(log.target_id) || scopedPaymentIds.has(log.target_id)
         : ids.has(log.target_id) || log.target_type !== 'Candidate')
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 6)
+        .slice(0, 40)
         .map(l => ({ id: l.id, timestamp: l.timestamp, actor: actorDisplayName(l.actor_id, l.actor_email, candidates), description: l.description, action: l.action, target_id: l.target_id }));
 
     return {

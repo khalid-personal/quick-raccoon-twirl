@@ -32,7 +32,7 @@ const FlightRouteMap: React.FC<FlightMapProps> = ({ home, center, departure, arr
         return (
           <>
             <defs>
-              <marker id={`${markerId}-ground`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" markerUnits="strokeWidth" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1" /></marker>
+              <marker id={`${markerId}-ground`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" markerUnits="strokeWidth" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#438379" /></marker>
             </defs>
             {WORLD_CITIES.slice(0, lod.dots).map((city, index) => {
               const p = projectWorldPoint(city.lat, city.lon);
@@ -44,11 +44,11 @@ const FlightRouteMap: React.FC<FlightMapProps> = ({ home, center, departure, arr
               );
             })}
             {ground.slice(1).map((point, index) => (
-              <path key={`ground-${index}`} d={greatCirclePath(ground[index], point)} fill="none" stroke="#6366f1" strokeWidth={2} strokeLinecap="round" markerEnd={`url(#${markerId}-ground)`} vectorEffect="non-scaling-stroke" />
+              <path key={`ground-${index}`} d={greatCirclePath(ground[index], point)} fill="none" stroke="#438379" strokeWidth={2} strokeLinecap="round" markerEnd={`url(#${markerId}-ground)`} vectorEffect="non-scaling-stroke" />
             ))}
             <path d={greatCirclePath(departure, arrival)} fill="none" stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             {flown && <path d={flown} fill="none" stroke="#059669" strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
-            {[[home, '#2563eb', 'Home', 14], [center, '#7c3aed', 'CoC center', 14], [departure, '#d97706', 'Departs', 14], [arrival, '#059669', 'Arrives', -9]].map(([point, color, role, dy]) => {
+            {[[home, '#285f59', 'Home', 14], [center, '#438379', 'CoC center', 14], [departure, '#d97706', 'Departs', 14], [arrival, '#6b893a', 'Arrives', -9]].map(([point, color, role, dy]) => {
               if (!point) return null;
               const p = point as MapPoint;
               const { x, y } = projectWorldPoint(p.lat, p.lon);

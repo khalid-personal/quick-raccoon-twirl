@@ -1,5 +1,5 @@
 import type {
-  AgencyPartnership, ApprovalLog, AppConfig, Candidate, CandidateStage, ClearanceRecord, CocFacility, Document, ForeignAgency, LocalAgency, MedicalResult, Payment, PaymentStatus, StageStatus, StaffUser,
+  AgencyPartnership, ApprovalLog, AppConfig, Candidate, CandidateStage, ClearanceRecord, CocFacility, Document, ForeignAgency, JourneyLocation, LocalAgency, MedicalResult, Payment, PaymentStatus, StageStatus, StaffUser,
 } from './types';
 import { ETHIOPIAN_CITIES } from './ethiopia';
 import { REGION_NOT_SET, resolveEthiopianRegion } from './ethiopia-regions';
@@ -13,6 +13,25 @@ import { demoActorIdentity, demoAgencyManager, paymentCandidateSummary, resolveA
 export const DEMO_PREFIX = 'demo-';
 export const DEMO_CANDIDATE_COUNT = 435;
 export type DemoScenario = 'priority' | 'needs-attention' | 'high-performing';
+
+export const demoMedicalLocationFor = (candidateId: string): JourneyLocation | undefined => {
+  const match = /^demo-cand-(\d+)$/.exec(candidateId);
+  if (!match) return undefined;
+  const index = Number(match[1]) % 4;
+  return { name: `${['Addis', 'Adama', 'Hawassa', 'Bahir Dar'][index]} Health Assessment Clinic`, city: ['Addis Ababa', 'Adama', 'Hawassa', 'Bahir Dar'][index] };
+};
+
+export const demoStageLocationFor = (candidate: Candidate, stage: CandidateStage, facilities: CocFacility[]): JourneyLocation | undefined => {
+  if (!/^demo-cand-\d+$/.test(candidate.id) || stage.status === 'Pending' && !stage.date) return undefined;
+  if (stage.stage_id === 1 && candidate.home_city) return { name: 'Ministry registration desk', city: candidate.home_city };
+  if (stage.stage_id === 2) return demoMedicalLocationFor(candidate.id);
+  if (stage.stage_id === 3) {
+    const facility = facilities.find(item => item.id === candidate.coc_facility_id);
+    return facility ? { name: facility.name, city: facility.city, latitude: facility.latitude, longitude: facility.longitude } : undefined;
+  }
+  if (stage.stage_id === 4) return { name: 'Addis Ababa departure desk', city: 'Addis Ababa', latitude: 8.9779, longitude: 38.7993 };
+  return undefined;
+};
 
 const DAY = 86_400_000;
 const FEES: Record<number, number> = { 1: 500, 2: 2200, 3: 2000, 4: 6000 };
@@ -271,6 +290,7 @@ export const generateDemoDataset = (now = Date.now(), scenario: DemoScenario = '
       status,
       exam_date: at ? stamp(at).slice(0, 10) : undefined,
       notes: status === 'Passed' ? 'No findings.' : status === 'Pending' ? 'Awaiting results.' : undefined,
+      location: at ? demoMedicalLocationFor(id) : undefined,
     });
     if (phaseIdx < 2) {
       medicals.push(exam('HIV', 'Pending'), exam('Final Agency Medical', 'Pending'));
@@ -451,7 +471,7 @@ export const generateDemoDataset = (now = Date.now(), scenario: DemoScenario = '
       });
     }
   });
-  const assignedStages = assignUnassignedStageTasks(candidates, stages, staffUsers);
+  const assignedStages = assignUnassignedStageTasks(candidates, stages, staffUsers).map(stage => ({ ...stage, location: demoStageLocationFor(candidates.find(candidate => candidate.id === stage.candidate_id)!, stage, cocFacilities) }));
   return { candidates, stages: assignedStages, medicals, payments, paymentStatuses, logs, cocFacilities, localAgencies, foreignAgencies, documents, staffUsers };
 };
 

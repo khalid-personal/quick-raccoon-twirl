@@ -2,6 +2,7 @@ import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
+import JourneyArrowField from "../JourneyArrowField";
 
 const Drawer = ({
   shouldScaleBackground = true,
@@ -26,7 +27,7 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
+    className={cn("portal-popup-overlay fixed inset-0 z-50", className)}
     {...props}
   />
 ));
@@ -43,11 +44,13 @@ const DrawerContent = React.forwardRef<
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className,
+        "portal-popup portal-popup-drawer",
       )}
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
+      <JourneyArrowField compact paused />
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ));
@@ -58,7 +61,7 @@ const DrawerHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
+    className={cn("portal-popup-header grid gap-1.5 p-4 text-center sm:text-left", className)}
     {...props}
   />
 );

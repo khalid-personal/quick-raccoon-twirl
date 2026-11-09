@@ -13,8 +13,8 @@ export default function ActivityRecord({ activity }: { activity: {
   });
   const actor = activity.actor ?? actorDisplayName(activity.actor_id ?? '', activity.actor_email, candidates);
   return <article className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
-    <div className="flex items-start gap-3 border-b bg-gradient-to-r from-sky-500/10 to-transparent p-4">
-      <span className="rounded-xl bg-sky-500/10 p-2 text-sky-600"><FileText className="h-5 w-5" aria-hidden="true" /></span>
+    <div className="flex items-start gap-3 border-b bg-gradient-to-r from-primary/10 to-transparent p-4">
+      <span className="rounded-xl bg-primary/10 p-2 text-primary"><FileText className="h-5 w-5" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1"><h3 className="font-semibold">{info.title}</h3><p className="mt-1 text-xs text-muted-foreground">{actor} · {new Date(activity.timestamp).toLocaleString()}</p></div>
       {info.practice && <Badge variant="outline">Practice record</Badge>}
     </div>

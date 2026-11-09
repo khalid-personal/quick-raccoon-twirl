@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Box, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
 import { WORLD_COUNTRY_PATHS } from '@/lib/geography-data';
@@ -18,12 +18,12 @@ const TERRAIN_FILL = {
 
 const MAP_THEME = {
   light: {
-    sea: ['#e9effb', '#d5e0f5'], plainLand: '#eceef4', border: '#9aa6c4', hoverBorder: '#3730a3', hoverFill: 'rgba(55,48,163,0.14)',
-    region: '#dbe5f7', lake: '#bcd2f2', lakeStroke: '#8fb0e4', label: '#4b5675', frame: 'from-indigo-100 via-slate-100 to-slate-100',
+    sea: ['#dcebe3', '#b5d4c8'], plainLand: '#f4f4ed', border: '#779d8e', hoverBorder: '#285f59', hoverFill: '#d8e9bd',
+    region: '#e4edda', lake: '#b5d4c8', lakeStroke: '#779d8e', label: '#285f59', frame: 'from-[#dcebe3] via-[#f4f4ed] to-[#b5d4c8]',
   },
   dark: {
-    sea: ['#0c1325', '#0a1020'], plainLand: '#1b2438', border: '#3a4a73', hoverBorder: '#8ea2ff', hoverFill: 'rgba(142,162,255,0.16)',
-    region: '#0e1730', lake: '#13233f', lakeStroke: '#2c4a7c', label: '#8c9bc4', frame: 'from-slate-950 via-slate-900 to-slate-900',
+    sea: ['#0e2225', '#173a39'], plainLand: '#24514b', border: '#518076', hoverBorder: '#c8f575', hoverFill: '#496e4b',
+    region: '#173a39', lake: '#173a39', lakeStroke: '#518076', label: '#c8f575', frame: 'from-[#0e2225] via-[#173a39] to-[#24514b]',
   },
 };
 
@@ -34,8 +34,8 @@ export const TERRAIN_STYLE: Record<string, { fill: string; label: string }> = Ob
 const CONTROL = 'h-8 w-8 rounded-md border bg-card/90 text-foreground shadow-sm backdrop-blur flex items-center justify-center hover:bg-accent';
 
 const DEFAULT_ASPECT = 1.25;
-const TILT_DEG = 42;
-const TILT_SCALE = 1.4;
+const TILT_DEG = 24;
+const TILT_SCALE = 1.08;
 const TILT_COS = Math.cos((TILT_DEG * Math.PI) / 180);
 const TILT_ORIGIN_Y = 0.58;
 const MIN_W = 8;
@@ -82,13 +82,15 @@ interface Props {
   className?: string;
   heightClassName?: string;
   children?: (ctx: MapContext) => React.ReactNode;
+  focusPoints?: Array<{ lat: number; lon: number }>;
 }
 
-const InteractiveMap: React.FC<Props> = ({ preset = 'region', ariaLabel, className = '', heightClassName = 'h-[clamp(460px,72vh,900px)]', children }) => {
+const InteractiveMap: React.FC<Props> = ({ preset = 'region', ariaLabel, className = '', heightClassName = 'h-[clamp(460px,72vh,900px)]', children, focusPoints }) => {
   const [aspect, setAspect] = useState(DEFAULT_ASPECT);
   const aspectRef = useRef(DEFAULT_ASPECT);
-  const [tilted, setTilted] = useState(true);
-  const tiltedRef = useRef(true);
+  const [tilted, setTilted] = useState(false);
+  const tiltedRef = useRef(false);
+  const seaId = `sea-${useId().replace(/:/g, '')}`;
   tiltedRef.current = tilted;
   const [expanded, setExpanded] = useState(false);
   const [view, setView] = useState<View>(() => presetView(preset, DEFAULT_ASPECT));
@@ -101,6 +103,14 @@ const InteractiveMap: React.FC<Props> = ({ preset = 'region', ariaLabel, classNa
   viewRef.current = view;
 
   useEffect(() => { setView(presetView(preset, aspectRef.current)); }, [preset]);
+  const focusKey = focusPoints?.map(point => `${point.lat},${point.lon}`).join('|');
+  useEffect(() => {
+    if (!focusKey) return;
+    const points = focusKey.split('|').map(pair => { const [lat, lon] = pair.split(',').map(Number); return projectWorldPoint(lat, lon); });
+    const xs = points.map(point => point.x), ys = points.map(point => point.y);
+    const width = Math.max(12, (Math.max(...xs) - Math.min(...xs)) * 1.6, (Math.max(...ys) - Math.min(...ys)) * aspectRef.current * 1.6);
+    setView(clampView({ x: (Math.min(...xs) + Math.max(...xs) - width) / 2, y: (Math.min(...ys) + Math.max(...ys) - width / aspectRef.current) / 2, w: width }, aspectRef.current));
+  }, [focusKey]);
 
   useEffect(() => {
     const element = frame.current;
@@ -209,7 +219,7 @@ const InteractiveMap: React.FC<Props> = ({ preset = 'region', ariaLabel, classNa
   }, [expanded]);
 
   return (
-    <div className={`${expanded ? 'fixed inset-0 z-50 rounded-none' : 'relative rounded-xl shadow-sm'} overflow-hidden border bg-gradient-to-b ${palette.frame} select-none ${expanded ? '' : className}`}>
+    <div className={`journey-control-map ${expanded ? 'fixed inset-0 z-50 rounded-none' : 'relative rounded-2xl shadow-sm'} overflow-hidden border bg-gradient-to-b ${palette.frame} select-none ${expanded ? '' : className}`}>
       <div
         ref={frame}
         className={`touch-none cursor-grab active:cursor-grabbing ${expanded ? 'h-full' : heightClassName}`}
@@ -235,12 +245,12 @@ const InteractiveMap: React.FC<Props> = ({ preset = 'region', ariaLabel, classNa
           aria-label={ariaLabel}
         >
           <defs>
-            <linearGradient id="sea-gradient" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={seaId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor={palette.sea[0]} />
               <stop offset="1" stopColor={palette.sea[1]} />
             </linearGradient>
           </defs>
-          <rect x={-200} y={-400} width={WORLD_MAP_WIDTH + 400} height={WORLD_MAP_HEIGHT + 800} fill="url(#sea-gradient)" />
+          <rect x={-200} y={-400} width={WORLD_MAP_WIDTH + 400} height={WORLD_MAP_HEIGHT + 800} fill={`url(#${seaId})`} />
           {worldPaths.map(country => (
             <path key={country.name} d={country.d} fill={hovered === country.name ? palette.hoverFill : palette.plainLand} stroke={hovered === country.name ? palette.hoverBorder : palette.border} strokeWidth={0.8} vectorEffect="non-scaling-stroke" fillRule="evenodd" onMouseEnter={() => setHovered(country.name)} onMouseLeave={() => setHovered(current => current === country.name ? null : current)} />
           ))}

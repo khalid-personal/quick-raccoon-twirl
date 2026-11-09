@@ -3,7 +3,7 @@ import { reconcile } from './bank-reconciliation';
 import { getCandidates, getLocalAgencies, getPayments, getStaffUsers } from './data-store';
 import { DEMO_KEY_PREFIX, isDemoMode } from './demo-mode';
 import { isForeignPayment } from './currency';
-import { evidenceToday } from './evidence-requests';
+import { evidenceToday, getEvidenceRequests } from './evidence-requests';
 import type { Candidate, LocalAgency, Payment, StaffUser } from './types';
 import { demoBankName } from './demo-payment-evidence';
 import { paymentCandidateSummary } from './demo-identities';
@@ -14,6 +14,7 @@ export const buildDemoBankEvidence = (
 ): { source: PaymentStatementSource; statement: BankStatement; events: ReconciliationCaseEvent[] }[] => {
   const agencyCandidates = candidates.filter(candidate => candidate.local_agency_id === agency.id);
   const owner = staff.find(user => user.local_agency_id === agency.id && user.role === 'local-agency')?.email ?? agency.name;
+  const statementOwner = staff.find(user => user.local_agency_id === agency.id && user.role === 'staff' && user.is_approved)?.email ?? owner;
   const date = (offset: number) => evidenceToday(new Date(now.getTime() + offset * day));
   return (['candidate', 'foreign'] as const).map(source => {
     const scoped = payments.filter(payment => payment.payee_local_agency_id === agency.id && isForeignPayment(payment) === (source === 'foreign'));
@@ -48,7 +49,7 @@ export const buildDemoBankEvidence = (
       caseId,
       action: 'request-evidence',
       note: `DEMO / synthetic evidence request. ${explanation}`,
-      actor: 'Demo finance seed (not a real operator)', owner,
+      actor: 'Demo finance seed (not a real operator)', owner: source === 'foreign' ? statementOwner : owner,
       submissionStart: date(-7),
       dueDate: date(index % 3 === 0 ? -2 : index % 3 === 1 ? 1 : 5),
       createdAt: new Date(now.getTime() - 7 * day).toISOString(),
@@ -68,8 +69,19 @@ export const ensureDemoBankEvidence = (): void => {
   const staff = getStaffUsers();
   getLocalAgencies().filter(agency => agency.id.startsWith('demo-')).forEach(agency => {
     const marker = `${DEMO_KEY_PREFIX}bank_evidence_initialized:${agency.id}`;
-    if (localStorage.getItem(marker)) return;
     let events = loadReconciliationEvents(agency.id);
+    const owner = staff.find(person => person.role === 'staff' && person.is_approved && person.local_agency_id === agency.id)?.email;
+    const generated = (event: ReconciliationCaseEvent) => event.synthetic && event.action === 'request-evidence'
+      && (event.id.startsWith('demo-evidence-') && event.actor === 'Demo finance seed (not a real operator)'
+        || event.id.startsWith('demo-integrity-evidence-') && event.note.startsWith('DEMO'));
+    const operatorCases = new Set(events.filter(event => !generated(event)).map(event => event.caseId));
+    const seededRequests = new Set(getEvidenceRequests(events).filter(({ event }) => generated(event)
+      && event.source === 'foreign' && !operatorCases.has(event.caseId)).map(({ event }) => event.id));
+    if (owner && events.some(event => seededRequests.has(event.id) && event.owner !== owner)) {
+      events = events.map(event => seededRequests.has(event.id) ? { ...event, owner } : event);
+      localStorage.setItem(`${DEMO_KEY_PREFIX}dawm_bank_statement:${agency.id}:cases`, JSON.stringify(events));
+    }
+    if (localStorage.getItem(marker)) return;
     buildDemoBankEvidence(agency, candidates, payments, staff).forEach(({ source, statement, events: generated }) => {
       if (loadBankStatement(agency.id, source)) return;
       saveBankStatement(agency.id, statement, source);

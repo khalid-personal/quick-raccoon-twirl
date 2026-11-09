@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { bootDemo, loadDemoData, removeDemoData, repairDemoStagePlaceholders } from '../demo-loader';
+import { bootDemo, loadDemoData, removeDemoData, repairDemoStagePlaceholders, ensureDemoMedicalLocations } from '../demo-loader';
 import { demoConfigPatch, generateDemoDataset } from '../demo-dataset';
-import { getCandidateStages, getCandidates, getConfig, getPayments, getPaymentStatuses, saveCandidateStages, saveCandidates, saveConfig, savePaymentStatuses } from '../data-store';
+import { getCandidateStages, getCandidates, getConfig, getPayments, getPaymentStatuses, saveCandidateStages, saveCandidates, saveConfig, savePaymentStatuses, getMedicalResults, saveMedicalResults } from '../data-store';
 import { calculateOverallStatus } from '../utils-data';
 import { candidateListStatus, summarizeCandidateListStatuses } from '../candidate-list-status';
 import type { CandidateSummary } from '../types';
@@ -18,6 +18,21 @@ const summaries = (): CandidateSummary[] => {
   }));
 };
 describe('stored demo workflow integration', () => {
+  it('backfills only untouched fictional medical locations, preserving operator edits, result dates and live storage', () => {
+    loadDemoData();
+    const examples = getMedicalResults().filter(result => result.location && result.exam_date).slice(0, 3);
+    expect(examples).toHaveLength(3);
+    saveMedicalResults(examples.map((result, index) => ({ ...result, location: index === 1 ? { name: 'Operator clinic', city: 'Adama' } : undefined, recorded_at: index === 2 ? '2026-01-01' : undefined })));
+    expect(ensureDemoMedicalLocations()).toBe(1);
+    const after = getMedicalResults();
+    expect(after[0].location).toEqual(examples[0].location);
+    expect(after[0].exam_date).toBe(examples[0].exam_date);
+    expect(after[1].location?.name).toBe('Operator clinic');
+    expect(after[2].location).toBeUndefined();
+    expect(ensureDemoMedicalLocations()).toBe(0);
+    sessionStorage.removeItem('dawm_demo_session');
+    expect(ensureDemoMedicalLocations()).toBe(0);
+  });
   it('removes synthetic candidates without regenerating orphan stages', () => {
     loadDemoData();
     removeDemoData();
@@ -37,11 +52,11 @@ describe('stored demo workflow integration', () => {
     expect(getCandidateStages().every(stage => stage.id.startsWith('demo-stg-'))).toBe(true);
     expect(new Set(getPayments().map(payment => payment.status))).toEqual(new Set(['succeeded', 'pending', 'failed', 'refunded']));
     const completed = new Set(summaries().filter(candidate => candidateListStatus(candidate) === 'completed').map(candidate => candidate.id));
-    const fees = getConfig().stageFees ?? {};
-    const paid = new Set(getPaymentStatuses().filter(payment => payment.isPaid).map(payment => `${payment.candidateId}:${payment.stageId}`));
+    const beforeRead = { ...localStorage };
     getCandidateStages().filter(stage => completed.has(stage.candidate_id)).forEach(stage => {
-      if ((fees[stage.stage_id] ?? 0) > 0) expect(paid.has(`${stage.candidate_id}:${stage.stage_id}`)).toBe(true);
+      expect(['Completed', 'Passed', 'Issued']).toContain(stage.status);
     });
+    expect({ ...localStorage }).toEqual(beforeRead);
     const before = getCandidateStages();
     bootDemo();
     expect(getCandidateStages()).toEqual(before);
@@ -51,6 +66,7 @@ describe('stored demo workflow integration', () => {
     saveConfig(demoConfigPatch(getConfig(), demo));
     saveCandidates(demo.candidates.slice(0, 2));
     savePaymentStatuses(demo.paymentStatuses);
+    saveCandidateStages([]);
     const blank = getCandidateStages();
     blank.find(stage => stage.candidate_id === demo.candidates[1].id)!.notes = 'Staff manually reviewed this file';
     saveCandidateStages(blank);

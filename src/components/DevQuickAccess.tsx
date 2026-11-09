@@ -104,13 +104,13 @@ const DevQuickAccess: React.FC = () => {
   const localAccount = staffUsers.find(user => user.role === 'local-agency' && user.local_agency_id === localAgencyId);
 
   return (
-    <section className="mx-6 mb-6 border-t pt-4" aria-label="Development quick access">
+    <section className="auth-dev-tools mt-6 rounded-2xl border bg-muted/30 p-4" aria-label="Development quick access">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Development Quick Access</h2>
         <span className="rounded border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">DEV</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 [&>button]:h-auto [&>button]:min-h-10 [&>button]:whitespace-normal [&>button]:text-left">
         <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => {
           if (localDemo) { sessionStorage.removeItem(VIEW_AS_KEY); enterDemo('/admin'); }
           else void loginAs(staffUsers.find(user => user.role === 'superadmin'), '/admin');
@@ -128,7 +128,7 @@ const DevQuickAccess: React.FC = () => {
         </Button>
       </div>
 
-      <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+      <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 [&_[role=combobox]]:min-w-0 [&_[role=combobox]]:w-full [&_[role=combobox]>span]:truncate">
         <Select value={foreignAgencyId} onValueChange={setForeignAgencyId} disabled={busy || foreignAgencies.length === 0}>
           <SelectTrigger aria-label="Foreign agency">
             <SelectValue placeholder="Choose foreign agency" />

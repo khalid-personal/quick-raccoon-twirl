@@ -12,10 +12,15 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { format, isValid } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import PageHeader from '@/components/page/PageHeader';
+import StatCards from '@/components/page/StatCards';
+import FilterBar from '@/components/page/FilterBar';
 
 const AdminAttendance: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'active' | 'ended'>('all');
   
   const staffId = user?.id;
   const staffEmail = user?.email;
@@ -75,11 +80,12 @@ const AdminAttendance: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3 border-b pb-2">
-        <CalendarDays className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Attendance Management</h1>
-      </div>
-      <p className="text-muted-foreground">Manage your daily check-in and check-out. Admins can view all staff attendance records.</p>
+      <PageHeader title="Attendance command" description="Track active shifts and recorded check-ins across your team." />
+      <StatCards items={[
+        { label: 'Recorded shifts', value: allAttendance.length, icon: <CalendarDays />, onClick: () => setAttendanceFilter('all'), active: attendanceFilter === 'all' },
+        { label: 'Active shifts', value: allAttendance.filter(record => !record.check_out_time).length, icon: <LogIn />, onClick: () => setAttendanceFilter('active'), active: attendanceFilter === 'active' },
+        { label: 'Completed shifts', value: allAttendance.filter(record => !!record.check_out_time).length, icon: <LogOut />, onClick: () => setAttendanceFilter('ended'), active: attendanceFilter === 'ended' },
+      ]} />
 
       <Card>
         <CardHeader>
@@ -157,7 +163,7 @@ const AdminAttendance: React.FC = () => {
         </CardContent>
       </Card>
 
-      {userRole === 'admin' && (
+      {['admin', 'superadmin'].includes(userRole ?? '') && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -165,6 +171,7 @@ const AdminAttendance: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search staff attendance" />
             {isLoadingAllAttendance ? (
               <div className="flex justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -183,7 +190,7 @@ const AdminAttendance: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allAttendance.map((record) => {
+                    {allAttendance.filter(record => record.staff_email.toLowerCase().includes(search.toLowerCase()) && (attendanceFilter === 'all' || (attendanceFilter === 'active' ? !record.check_out_time : !!record.check_out_time))).map((record) => {
                       const checkInDate = new Date(record.check_in_time);
                       const checkOutDate = record.check_out_time ? new Date(record.check_out_time) : null;
                       let duration = 'N/A';

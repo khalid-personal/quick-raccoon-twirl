@@ -1,6 +1,19 @@
 import { ALL_STAGES, type Candidate, type CandidateStage, type LocalAgency } from './types';
 
 export const MINISTRY_INTAKE_MESSAGE = 'Candidates must come from the ministry through ELMIS. Manual candidate creation is unavailable. The official API connection is pending.';
+export const MINISTRY_PROFILE_MESSAGE = 'Candidate profile information and CoC assignments are read-only in DAWM. Request corrections through the ministry / ELMIS. The official API connection is pending; existing records are retained.';
+export const MINISTRY_STAGE_MESSAGE = 'Stage progress, medical results and deployment are read-only. Updates come from the ministry.';
+export const MINISTRY_JOURNEY_FIELDS = [
+  'visa', 'clearance', 'flight', 'arrival', 'employment_history', 'contract_start_date',
+  'contract_end_date', 'expected_return_date', 'actual_return_date', 'return_status',
+] as const satisfies readonly (keyof Candidate)[];
+export const MINISTRY_PROFILE_FIELDS = [
+  'first_name', 'last_name', 'dob', 'gender', 'passport_number', 'country_of_origin', 'marital_status',
+  'phone_number', 'email', 'home_city', 'home_region', 'emergency_contact', 'coc_facility_id',
+  'passport_nationality', 'passport_issuing_country', 'passport_expiry_date', 'passport_document_type',
+  'local_agency_id', 'professional_summary', 'occupation', 'skills', 'languages', 'intro_video_url',
+  'profile_image_url', 'profile_image_scan_report',
+] as const satisfies readonly (keyof Candidate)[];
 export const normalizeIdentity = (value?: string) => (value ?? '').replace(/[\s-]/g, '').toUpperCase();
 
 export function matchPassportCandidate(candidates: Candidate[], passportNumber: string): Candidate {
@@ -45,6 +58,11 @@ export function mergeMinistryCandidateFeed(existing: Candidate[], incoming: Cand
       home_city: candidate.home_city ?? prior.home_city, home_region: candidate.home_region ?? prior.home_region,
       elmis: candidate.elmis, last_synced_at: candidate.last_synced_at, updated_at: candidate.updated_at,
     } : { ...candidate };
+    if (prior) {
+      for (const field of [...MINISTRY_PROFILE_FIELDS, ...MINISTRY_JOURNEY_FIELDS]) {
+        if (candidate[field] !== undefined) Object.assign(merged, { [field]: candidate[field] });
+      }
+    }
     if (prior) next[next.indexOf(prior)] = merged;
     else next.push(merged);
   }

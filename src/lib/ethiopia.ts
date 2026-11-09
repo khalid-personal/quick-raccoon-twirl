@@ -76,7 +76,7 @@ export const findCity = (name?: string): EthiopianCity | undefined =>
   name ? ethiopianPlaceMap.get(normalizePlaceName(name)) : undefined;
 
 export const facilityCoordinates = (facility: Pick<CocFacility, 'latitude' | 'longitude' | 'city'>): { lat: number; lon: number } | null => {
-  if (typeof facility.latitude === 'number' && typeof facility.longitude === 'number') {
+  if (typeof facility.latitude === 'number' && typeof facility.longitude === 'number' && Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude) && Math.abs(facility.latitude) <= 90 && Math.abs(facility.longitude) <= 180) {
     return { lat: facility.latitude, lon: facility.longitude };
   }
   const city = findCity(facility.city);

@@ -1,75 +1,41 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
-import { getCandidates, getCandidateStages, getMedicalResults, getPaymentStatuses, getConfig, getPayments, savePayments, initializeDataStore, saveCandidateStages, saveMedicalResults, savePaymentStatuses } from '../../data-store';
+import { beforeEach, expect, it } from 'vitest';
+import { getCandidateStages, getMedicalResults, saveCandidateStages, saveCandidates, saveMedicalResults } from '../../data-store';
 import { updateMedicalResult } from '../medical-management';
-import { updateStageStatus } from '../stage-management';
-import { ALL_STAGES, type Candidate } from '../../types';
+import { updateStageStatus, confirmArrival } from '../stage-management';
+import { MINISTRY_STAGE_MESSAGE } from '../../ministry-candidates';
+import type { Candidate } from '../../types';
 
-const recordFee = (candidate: Candidate, stageId: number) => savePayments([...getPayments(), {
-  id: `fee-${candidate.id}-${stageId}`, stage_id: stageId, amount: getConfig().stageFees![stageId], currency: 'ETB', status: 'succeeded',
-  payer_type: 'candidate', payer_foreign_agency_id: '', payee_local_agency_id: candidate.local_agency_id!,
-  candidate_ids: [candidate.id], created_at: '2026-11-08', updated_at: '2026-11-08',
-}]);
-
-describe('medical stage and gender rules', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    initializeDataStore();
-  });
-
-  it('does not expose or retain pregnancy results for male candidates', async () => {
-    const male = getCandidates().find(candidate => candidate.gender === 'male')!;
-    const existing = getMedicalResults();
-    saveMedicalResults([...existing, {
-      id: 'legacy-male-pregnancy',
-      candidate_id: male.id,
-      exam_type: 'Pregnancy',
-      status: 'Failed',
-    }]);
-
-    expect(getMedicalResults().some(result => result.id === 'legacy-male-pregnancy')).toBe(false);
-    await expect(updateMedicalResult(male.id, 'Pregnancy', 'Pending')).rejects.toThrow('Pregnancy results cannot be recorded for a male candidate.');
-  });
-
-  it('requires training completion before starting the medical stage', async () => {
-    const candidate = getCandidates().find(record => record.tracking_code === 'TRK-ET-0001')!;
-    const medicalStage = ALL_STAGES.find(stage => stage.slug === 'medical')!;
-    recordFee(candidate, 1);
-    savePaymentStatuses([...getPaymentStatuses(), { candidateId: candidate.id, stageId: 1, isPaid: true }]);
-    saveCandidateStages(getCandidateStages().map(stage => stage.candidate_id === candidate.id && stage.stage_id === 1 ? { ...stage, status: 'Completed' } : stage));
-
-    await expect(updateStageStatus(candidate.id, medicalStage.id, 'In Progress')).rejects.toThrow('Training must be completed first.');
-    await expect(updateMedicalResult(candidate.id, 'HIV', 'Pending')).rejects.toThrow('Training must be completed before recording medical results.');
-    await expect(updateStageStatus(candidate.id, medicalStage.id, 'Failed')).rejects.toThrow('Training must be completed first.');
-  });
-
-  it('blocks stage completion until its fee is paid, but permits work to start', async () => {
-    const candidate = getCandidates().find(record => record.tracking_code === 'TRK-ET-0001')!;
-    const registrationStage = ALL_STAGES.find(stage => stage.slug === 'registration')!;
-    savePaymentStatuses(getPaymentStatuses().filter(payment =>
-      payment.candidateId !== candidate.id || payment.stageId !== registrationStage.id,
-    ));
-
-    await expect(updateStageStatus(candidate.id, registrationStage.id, 'In Progress')).resolves.toMatchObject({ status: 'In Progress' });
-    await expect(updateStageStatus(candidate.id, registrationStage.id, 'Completed'))
-      .rejects.toThrow('Registration cannot be completed until its 500 ETB stage fee is paid.');
-
-    savePaymentStatuses([...getPaymentStatuses(), { candidateId: candidate.id, stageId: registrationStage.id, isPaid: true }]);
-    await expect(updateStageStatus(candidate.id, registrationStage.id, 'Completed')).rejects.toThrow('stage fee is paid');
-    recordFee(candidate, registrationStage.id);
-    await expect(updateStageStatus(candidate.id, registrationStage.id, 'Completed')).resolves.toMatchObject({ status: 'Completed' });
-  });
-  it('can start male deployment without a pregnancy check or an undefined candidate error', async () => {
-    const male = getCandidates().find(candidate => candidate.gender === 'male')!;
-    const deployment = ALL_STAGES.find(stage => stage.slug === 'deployment')!;
-    ALL_STAGES.forEach(stage => recordFee(male, stage.id));
-    savePaymentStatuses([
-      ...getPaymentStatuses().filter(payment => payment.candidateId !== male.id),
-      ...ALL_STAGES.map(stage => ({ candidateId: male.id, stageId: stage.id, isPaid: true })),
-    ]);
-    saveCandidateStages(getCandidateStages().map(stage => stage.candidate_id === male.id && stage.stage_id !== deployment.id
-      ? { ...stage, status: 'Completed' } : stage));
-    await expect(updateStageStatus(male.id, deployment.id, 'In Progress')).resolves.toMatchObject({ status: 'In Progress' });
-  });
+const candidate: Candidate = { id: 'person', first_name: 'Hana', last_name: 'Tadesse', dob: '1998-01-01', passport_number: 'SYN-1', tracking_code: 'TRK-1', country_of_origin: 'Ethiopia', marital_status: 'Single', email: 'hana@example.test', home_city: 'Adama', created_at: '2026-01-01', updated_at: '2026-01-01', payment_status: 'unpaid' };
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); saveCandidates([candidate]); });
+it.each([1, 3, 2, 4])('rejects all manual status and date changes for stage %s without persisting anything', async stageId => {
+  saveCandidateStages([{ id: `stage-${stageId}`, candidate_id: candidate.id, stage_id: stageId, status: 'Pending', updated_at: '2026-01-01' }]);
+  const before = { ...localStorage };
+  for (const status of ['Pending', 'In Progress', 'Passed', 'Failed', 'Issued', 'Completed'] as const) {
+    await expect(updateStageStatus(candidate.id, stageId, status, 'edited', '2026-11-01', 'new-ref')).rejects.toThrow(MINISTRY_STAGE_MESSAGE);
+  }
+  expect({ ...localStorage }).toEqual(before);
+});
+it('rejects medical edits and candidate arrival even in practice mode', async () => {
+  sessionStorage.setItem('dawm_demo_session', '1');
+  const before = { ...localStorage };
+  await expect(updateMedicalResult(candidate.id, 'HIV', 'Passed', '2026-11-01', { name: 'Clinic', city: 'Adama' })).rejects.toThrow(MINISTRY_STAGE_MESSAGE);
+  await expect(confirmArrival(candidate.id)).rejects.toThrow(MINISTRY_STAGE_MESSAGE);
+  expect({ ...localStorage }).toEqual(before);
+});
+it('does not backtrack ministry progression or write on reads when local payment evidence is missing', () => {
+  saveCandidateStages([{ id: 'stage-4', candidate_id: candidate.id, stage_id: 4, status: 'Completed', date: '2026-11-01', updated_at: '2026-11-01', location: { name: 'Departure desk', city: 'Addis Ababa' } }]);
+  saveMedicalResults([{ id: 'exam', candidate_id: candidate.id, exam_type: 'HIV', status: 'Passed', exam_date: '2026-11-01' }]);
+  const before = { ...localStorage };
+  expect(getCandidateStages()[0].status).toBe('Completed');
+  expect(getMedicalResults()).toHaveLength(1);
+  expect({ ...localStorage }).toEqual(before);
+});
+it('preserves previous ministry stage locations in history and keeps no-op saves idempotent', () => {
+  const stage = { id: 'stage', candidate_id: candidate.id, stage_id: 3, status: 'In Progress' as const, updated_at: '2026-01-01', location: { name: 'First center', city: 'Adama' } };
+  saveCandidateStages([stage]);
+  saveCandidateStages([{ ...stage, status: 'Passed', location: { name: 'Second center', city: 'Hawassa' } }]);
+  expect(getCandidateStages()[0].history?.map(item => item.location?.name)).toEqual(['First center', 'Second center']);
+  saveCandidateStages(getCandidateStages());
+  expect(getCandidateStages()[0].history).toHaveLength(2);
 });

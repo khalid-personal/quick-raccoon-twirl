@@ -1,389 +1,178 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Building2, ExternalLink, GraduationCap, Mail, MapPin, Navigation, Pause, Phone, Play, SkipBack, SkipForward, UserX } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Activity, ArrowUpRight, Building2, Clock3, HeartPulse, MapPin, Pause, Play, RefreshCw, Search, ShieldCheck, SkipBack, SkipForward } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import PageHeader from '@/components/page/PageHeader';
-import StatCards from '@/components/page/StatCards';
-import EthiopiaMap, { MapLink, MapPoint } from '@/components/EthiopiaMap';
-import { getCandidates, getCandidateStages, getCocFacilities, getDocuments } from '@/lib/data-store';
-import DestinationTracker from '@/components/DestinationTracker';
-import RouteMap from '@/components/RouteMap';
-import EmploymentJourneyHistory from '@/components/EmploymentJourneyHistory';
-import CandidateQuickView from '@/components/CandidateQuickView';
-import EditableGrid from '@/components/EditableGrid';
+import { getCandidates, getCandidateStages, getCocFacilities, getDocuments, getMedicalResults } from '@/lib/data-store';
 import { useAuth } from '@/lib/auth-context';
-import { facilityCoordinates, facilityMapsUrl, findCity, resolveCandidateDestination } from '@/lib/ethiopia';
-import { ETHIOPIAN_REGIONS, REGION_NOT_SET } from '@/lib/ethiopia-regions';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ALL_STAGES } from '@/lib/types';
-import CandidateAvatar from '@/components/CandidateAvatar';
-import { useCandidateWorkspace } from '@/components/CandidateQuickViewProvider';
+import { resolveEthiopianRegion, ETHIOPIAN_REGIONS } from '@/lib/ethiopia-regions';
+import { buildJourneyControlEvents, currentJourneyEvents, type JourneyControlEvent, type JourneyEventKind } from '@/lib/journey-control';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
 import { usePageMemory } from '@/hooks/use-page-memory';
-import { navigationItemClass } from '@/components/ui/navigation-rail';
-import {
-  clampTrainingMapRouteIndex,
-  filterTrainingMapCandidates,
-  nextTrainingMapRouteIndex,
-  previousTrainingMapRouteIndex,
-  sortTrainingMapCandidates,
-  trainingMapOriginColor,
-  trainingMapRegionColor,
-  trainingMapRegions,
-  TRAINING_MAP_ROUTE_INTERVAL_MS,
-  type TrainingMapJourneyFilter,
-  visibleTrainingMapCandidates,
-} from '@/lib/training-map';
+import { useCandidateWorkspace } from '@/components/CandidateQuickViewProvider';
+import JourneyControlMap from '@/components/JourneyControlMap';
+import CandidateAvatar from '@/components/CandidateAvatar';
+import CandidateQuickView from '@/components/CandidateQuickView';
+import DestinationTracker from '@/components/DestinationTracker';
+import EmploymentJourneyHistory from '@/components/EmploymentJourneyHistory';
+import EditableGrid from '@/components/EditableGrid';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
-const CAPITAL = { lat: 9.03, lon: 38.74, label: 'Addis Ababa (capital)' };
+const EVENT_FILTERS: Array<{ value: JourneyEventKind | 'all'; label: string }> = [
+  { value: 'all', label: 'All evidence' }, { value: 'registration', label: 'Registration' },
+  { value: 'training', label: 'Training' }, { value: 'medical', label: 'Medical' },
+  { value: 'contract', label: 'Contracts' }, { value: 'deployment', label: 'Deployment' },
+  { value: 'flight', label: 'Flights' }, { value: 'arrival', label: 'Arrivals' },
+  { value: 'return', label: 'Returns' }, { value: 'document', label: 'Documents' },
+];
+const selectClass = 'h-11 min-w-0 rounded-xl border bg-card px-3 text-sm';
+const timeLabel = (at?: string) => at ? new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Date not recorded';
 
-const AdminTrainingMap: React.FC = () => {
+export default function AdminTrainingMap() {
   const { userRole, user, viewAs, userLocalAgencyId, userForeignAgencyId } = useAuth();
-  const openCandidateWorkspace = useCandidateWorkspace();
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const isLocalAgency = userRole === 'local-agency';
-  const isForeignAgency = userRole === 'foreign-agency' || userRole === 'foreign-agency-staff' || userRole === 'agency';
-  const isAssignedStaff = userRole === 'staff';
-  const staffId = viewAs?.userId ?? user?.id;
-  const [rememberedTarget, setTarget] = usePageMemory('training-map:target', 'capital');
-  const [rememberedSelectedId, setSelectedId] = usePageMemory('training-map:selected-candidate', '');
-  const [rememberedView, setView] = usePageMemory<'intake' | 'contracts'>('training-map:view', 'intake');
-  const [rememberedCenterId, setCenterId] = usePageMemory('training-map:center', '');
-  const [rememberedRegionFilter, setRegionFilter] = usePageMemory('training-map:region', 'all');
-  const [rememberedJourneyFilter, setJourneyFilter] = usePageMemory<TrainingMapJourneyFilter>('training-map:journey', 'all');
-  const [rememberedRouteIndex, setRouteIndex] = usePageMemory('training-map:route-index', 0);
-  const [quickId, setQuickId] = React.useState<string | null>(null);
-  const [isRoutePlaying, setIsRoutePlaying] = React.useState(true);
-  const { data } = useQuery({
-    queryKey: ['trainingMap'],
-    queryFn: async () => ({ facilities: getCocFacilities(), candidates: getCandidates(), documents: getDocuments(), stages: getCandidateStages() }),
+  const workspace = useCandidateWorkspace();
+  const queryClient = useQueryClient();
+  const reduced = usePrefersReducedMotion();
+  const [selectedId, setSelectedId] = usePageMemory('training-map:control-candidate', '');
+  const [region, setRegion] = usePageMemory('training-map:region', 'all');
+  const [centerId, setCenterId] = usePageMemory('training-map:center', '');
+  const [kind, setKind] = useState<JourneyEventKind | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [missingOnly, setMissingOnly] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [page, setPage] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [quickId, setQuickId] = useState<string | null>(null);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const scopeKey = `${userRole}:${viewAs?.userId ?? user?.id}:${userLocalAgencyId}:${userForeignAgencyId}`;
+  const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } = useQuery({
+    queryKey: ['trainingMap', scopeKey],
+    queryFn: async () => ({ candidates: getCandidates(), stages: getCandidateStages(), facilities: getCocFacilities(), documents: getDocuments(), medical: getMedicalResults() }),
     refetchInterval: 15000,
   });
+  useEffect(() => {
+    const refresh = () => { void queryClient.invalidateQueries({ queryKey: ['trainingMap'] }); };
+    window.addEventListener('supabase-data-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('supabase-data-changed', refresh); window.removeEventListener('storage', refresh); };
+  }, [queryClient]);
+  const candidates = useMemo(() => (data?.candidates ?? []).filter(candidate => {
+    if (['foreign-agency', 'foreign-agency-staff', 'agency'].includes(userRole ?? '')) return !!userForeignAgencyId && (candidate.foreign_agency_id === userForeignAgencyId || !!candidate.profile_shares?.some(share => share.foreign_agency_id === userForeignAgencyId));
+    if (userRole === 'local-agency') return !!userLocalAgencyId && candidate.local_agency_id === userLocalAgencyId;
+    if (userRole === 'staff') {
+      const id = viewAs?.userId ?? user?.id;
+      return !!id && (candidate.assigned_staff_id === id || !!data?.stages.some(stage => stage.candidate_id === candidate.id && stage.assigned_staff_id === id));
+    }
+    return ['superadmin', 'admin', 'viewer', 'auditor'].includes(userRole ?? '');
+  }), [data, userRole, userForeignAgencyId, userLocalAgencyId, viewAs?.userId, user?.id]);
   const facilities = data?.facilities ?? [];
-  const target = !data || rememberedTarget === 'capital' || rememberedTarget === 'none'
-    || facilities.some(facility => facility.id === rememberedTarget) ? rememberedTarget : 'capital';
-  const view = rememberedView === 'contracts' ? 'contracts' : 'intake';
-  const centerId = !data || !rememberedCenterId || facilities.some(facility => facility.id === rememberedCenterId)
-    ? rememberedCenterId : '';
-  const regionFilter = !data || rememberedRegionFilter === 'all' || rememberedRegionFilter === REGION_NOT_SET
-    || (ETHIOPIAN_REGIONS as readonly string[]).includes(rememberedRegionFilter) ? rememberedRegionFilter : 'all';
-  const journeyFilter: TrainingMapJourneyFilter = ['all', 'returnees', 'eligible', 'reapplying', 'redeployed'].includes(rememberedJourneyFilter)
-    ? rememberedJourneyFilter : 'all';
-  const candidates = React.useMemo(() => (data?.candidates ?? []).filter(candidate => isForeignAgency
-    ? candidate.foreign_agency_id === userForeignAgencyId || candidate.profile_shares?.some(share => share.foreign_agency_id === userForeignAgencyId)
-    : isLocalAgency
-      ? candidate.local_agency_id === userLocalAgencyId
-      : !isAssignedStaff || candidate.assigned_staff_id === staffId),
-  [data?.candidates, isForeignAgency, userForeignAgencyId, isLocalAgency, userLocalAgencyId, isAssignedStaff, staffId]);
-  const candidateIds = React.useMemo(() => new Set(candidates.map(candidate => candidate.id)), [candidates]);
-  const documents = React.useMemo(() => (data?.documents ?? []).filter(document => candidateIds.has(document.candidate_id)), [data?.documents, candidateIds]);
-  const stages = React.useMemo(() => (data?.stages ?? []).filter(stage => candidateIds.has(stage.candidate_id)), [data?.stages, candidateIds]);
-  const regionCandidates = filterTrainingMapCandidates(candidates, { region: regionFilter, journey: journeyFilter });
-  const contractIds = React.useMemo(() => new Set([
-    ...documents.filter(d => d.doc_kind === 'work_contract').map(d => d.candidate_id),
-    ...candidates.filter(c => c.external_status?.work_contract).map(c => c.id),
-  ]), [documents, candidates]);
-
-  const points: MapPoint[] = [];
-  for (const f of facilities) {
-    const c = facilityCoordinates(f);
-    if (c) points.push({ ...c, label: f.name });
-  }
-
-  const withContract = regionCandidates.filter(c => contractIds.has(c.id) || c.employment_history?.length);
-  const selectedId = withContract.some(candidate => candidate.id === rememberedSelectedId) ? rememberedSelectedId : '';
-  const targetFacility = facilities.find(f => f.id === target);
-  const targetPoint = target === 'capital' ? CAPITAL : target === 'none' ? null : (() => {
-    const c = targetFacility && facilityCoordinates(targetFacility);
-    return c && targetFacility ? { ...c, label: targetFacility.name } : null;
-  })();
-  const routeCandidates = sortTrainingMapCandidates(view === 'intake'
-    ? regionCandidates.filter(candidate => !centerId || candidate.coc_facility_id === centerId)
-    : withContract.filter(candidate => contractIds.has(candidate.id)));
-  const allLinks: MapLink[] = [];
-  let unmappableCount = 0;
-  for (const candidate of routeCandidates) {
-    const home = findCity(candidate.home_city);
-    const facility = facilities.find(item => item.id === candidate.coc_facility_id);
-    const facilityPoint = facility && facilityCoordinates(facility);
-    const name = `${candidate.first_name} ${candidate.last_name}`;
-    if (!home) {
-      unmappableCount += 1;
-      continue;
-    }
-    if (view === 'intake') {
-      if (!facility || !facilityPoint) {
-        unmappableCount += 1;
-        continue;
-      }
-      allLinks.push({
-        id: candidate.id,
-        color: trainingMapOriginColor(candidate),
-        from: { lat: home.lat, lon: home.lon, label: home.name },
-        to: { ...facilityPoint, label: facility.name },
-        label: `${name}: ${home.name} → ${facility.name}`,
-      });
-    } else if (target === 'none') {
-      if (!facility || !facilityPoint) {
-        unmappableCount += 1;
-        continue;
-      }
-      allLinks.push({
-        id: candidate.id,
-        color: trainingMapOriginColor(candidate),
-        from: { ...facilityPoint, label: facility.name },
-        to: { lat: home.lat, lon: home.lon, label: home.name },
-        label: `${name}: ${facility.name} → ${home.name}`,
-      });
-    } else if (targetPoint) {
-      allLinks.push({
-        id: candidate.id,
-        color: trainingMapOriginColor(candidate),
-        from: { lat: home.lat, lon: home.lon, label: home.name },
-        to: targetPoint,
-        label: `${name}: ${home.name} → ${targetPoint.label}`,
-      });
-    } else {
-      unmappableCount += 1;
-    }
-  }
-  const hasSpecificFilter = regionFilter !== 'all' || journeyFilter !== 'all' || !!centerId;
-  const routableIds = new Set(allLinks.map(link => link.id));
-  const routableCandidates = routeCandidates.filter(candidate => routableIds.has(candidate.id));
-  const routeIndex = clampTrainingMapRouteIndex(rememberedRouteIndex, routableCandidates.length);
-  const visibleCandidates = visibleTrainingMapCandidates(routableCandidates, routeIndex, hasSpecificFilter);
-  const visibleCandidateIds = new Set(visibleCandidates.map(candidate => candidate.id));
-  const links = allLinks.filter(link => visibleCandidateIds.has(link.id));
-  const visibleRouteStart = hasSpecificFilter && routableCandidates.length
-    ? Math.floor((routeIndex % routableCandidates.length) / 8) * 8 + 1
-    : routableCandidates.length ? (routeIndex % routableCandidates.length) + 1 : 0;
-  const visibleRouteEnd = hasSpecificFilter ? Math.min(visibleRouteStart + links.length - 1, routableCandidates.length) : visibleRouteStart;
-  const routeRegions = trainingMapRegions(routableCandidates);
-  const trainingStageId = ALL_STAGES.find(stage => stage.slug === 'training')?.id;
-  const trainingStatus = new Map(stages.filter(st => st.stage_id === trainingStageId).map(st => [st.candidate_id, st.status]));
-  const centerStats = facilities.map(f => {
-    const roster = candidates.filter(c => c.coc_facility_id === f.id);
-    const done = roster.filter(c => ['Passed', 'Completed', 'Issued'].includes(trainingStatus.get(c.id) ?? '')).length;
-    const active = roster.filter(c => trainingStatus.get(c.id) === 'In Progress').length;
-    return { facility: f, total: roster.length, done, active, waiting: roster.length - done - active };
-  });
-  const unassigned = candidates.filter(c => !facilities.some(f => f.id === c.coc_facility_id)).length;
-  const inTraining = centerStats.reduce((sum, c) => sum + c.active, 0);
-  const trained = centerStats.reduce((sum, c) => sum + c.done, 0);
-
-  React.useEffect(() => {
-    if (!data) return;
-    if (rememberedTarget !== target) setTarget(target);
-    if (rememberedView !== view) setView(view);
-    if (rememberedCenterId !== centerId) setCenterId(centerId);
-    if (rememberedRegionFilter !== regionFilter) setRegionFilter(regionFilter);
-    if (rememberedJourneyFilter !== journeyFilter) setJourneyFilter(journeyFilter);
-    if (rememberedSelectedId && !candidates.some(candidate => candidate.id === rememberedSelectedId && (contractIds.has(candidate.id) || candidate.employment_history?.length))) {
-      setSelectedId('');
-    }
-    if (rememberedRouteIndex !== routeIndex) setRouteIndex(routeIndex);
-  }, [data, target, rememberedTarget, setTarget, view, rememberedView, setView, centerId, rememberedCenterId, setCenterId, regionFilter, rememberedRegionFilter, setRegionFilter, journeyFilter, rememberedJourneyFilter, setJourneyFilter, rememberedSelectedId, setSelectedId, candidates, contractIds, rememberedRouteIndex, routeIndex, setRouteIndex]);
-
-  React.useEffect(() => {
-    if (prefersReducedMotion) {
-      setIsRoutePlaying(false);
-      return;
-    }
-    if (!isRoutePlaying || hasSpecificFilter || routableCandidates.length < 2) return;
-    const timer = window.setInterval(() => {
-      setRouteIndex(current => nextTrainingMapRouteIndex(current, routableCandidates.length, false));
-    }, TRAINING_MAP_ROUTE_INTERVAL_MS);
+  const visibleCandidates = candidates.filter(candidate => (region === 'all' || resolveEthiopianRegion(candidate.home_city, candidate.home_region) === region)
+    && (!centerId || candidate.coc_facility_id === centerId)
+    && `${candidate.first_name} ${candidate.last_name} ${candidate.tracking_code}`.toLowerCase().includes(search.toLowerCase()));
+  const effectiveId = visibleCandidates.some(candidate => candidate.id === selectedId) ? selectedId : '';
+  const filteredCandidates = effectiveId ? visibleCandidates.filter(candidate => candidate.id === effectiveId) : visibleCandidates;
+  const allEvents = useMemo(() => buildJourneyControlEvents(candidates, data?.stages ?? [], data?.medical ?? [], data?.documents ?? [], data?.facilities ?? []), [candidates, data]);
+  const positions = currentJourneyEvents(filteredCandidates, data?.stages ?? [], data?.medical ?? [], data?.documents ?? [], facilities);
+  const ids = new Set(filteredCandidates.map(candidate => candidate.id));
+  const events = allEvents.filter(event => ids.has(event.candidateId) && (kind === 'all' || event.kind === kind)
+    && (!missingOnly || event.precision === 'missing')
+    && (!from || !!event.at && event.at.slice(0, 10) >= from)
+    && (!to || !!event.at && event.at.slice(0, 10) <= to));
+  const selected = candidates.find(candidate => candidate.id === effectiveId);
+  const cursor = replayIndex === null ? events.length - 1 : Math.min(replayIndex, events.length - 1);
+  const playedEvents = replayIndex === null ? events : events.slice(0, cursor + 1);
+  const mapEvents = effectiveId ? playedEvents : positions.filter(event => (kind === 'all' || event.kind === kind) && (!missingOnly || !event.point));
+  const inspected = replayIndex !== null ? events[Math.max(0, cursor)] : events.find(event => event.id === selectedEventId) ?? events[Math.max(0, cursor)];
+  const orderedEvents = [...events].reverse();
+  const maxPage = Math.max(0, Math.ceil(events.length / 20) - 1);
+  const safePage = Math.min(page, maxPage);
+  const missing = events.filter(event => event.precision === 'missing').length;
+  useEffect(() => { setPlaying(false); setReplayIndex(null); setPage(0); }, [effectiveId, region, centerId, kind, search, missingOnly, from, to]);
+  useEffect(() => {
+    if (!playing || reduced || !effectiveId || !events.length) return;
+    const timer = window.setInterval(() => setReplayIndex(current => {
+      const next = (current ?? -1) + 1;
+      if (next >= events.length - 1) setPlaying(false);
+      return Math.min(next, events.length - 1);
+    }), 2200);
     return () => window.clearInterval(timer);
-  }, [hasSpecificFilter, isRoutePlaying, prefersReducedMotion, routableCandidates.length, setRouteIndex]);
-
-  const selected = withContract.find(c => c.id === selectedId) ?? withContract[0];
-  const selectedDoc = selected && documents.filter(d => d.candidate_id === selected.id && d.doc_kind === 'work_contract').sort((x, y) => y.uploaded_at.localeCompare(x.uploaded_at))[0];
-  const destination = selected && resolveCandidateDestination(selected.external_status, selectedDoc?.extracted);
-  const selectedFacility = selected && facilities.find(f => f.id === selected.coc_facility_id);
-  const originCoords = selectedFacility ? facilityCoordinates(selectedFacility) : null;
-  const origin: MapPoint = originCoords && selectedFacility ? { ...originCoords, label: selectedFacility.name } : CAPITAL;
-  const homeCoords = selected ? findCity(selected.home_city) : undefined;
-  const home: MapPoint | undefined = homeCoords && selected ? { lat: homeCoords.lat, lon: homeCoords.lon, label: selected.home_city ?? homeCoords.name } : undefined;
-  const currentPhase = (candidateId: string) => {
-    const records = stages.filter(stage => stage.candidate_id === candidateId).sort((a, b) => a.stage_id - b.stage_id);
-    const current = records.find(stage => !['Passed', 'Issued', 'Completed'].includes(stage.status));
-    return current ? `${ALL_STAGES.find(stage => stage.id === current.stage_id)?.title ?? 'Current stage'} · ${current.status}` : 'Journey complete';
+  }, [playing, reduced, effectiveId, events.length]);
+  useEffect(() => { if (reduced) setPlaying(false); }, [reduced]);
+  const openRecord = (event: JourneyControlEvent) => {
+    if (workspace) workspace(event.candidateId, { tab: event.tab, stageId: event.stageId });
+    else setQuickId(event.candidateId);
   };
-  const openRouteCandidate = (candidateId: string) => {
-    if (openCandidateWorkspace) openCandidateWorkspace(candidateId);
-    else setQuickId(candidateId);
-  };
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="CoC Training Centers" description="Where candidates train, who is at each center, and how they travel there and on to their destination." />
-      <EditableGrid pageId="coc-map" items={[
-      { id: 'stats', title: 'Center stats', node: <StatCards items={[
-        { label: 'CoC centers', value: facilities.length, icon: <Building2 className="h-4 w-4" /> },
-        { label: 'In training', value: inTraining, icon: <GraduationCap className="h-4 w-4" /> },
-        { label: 'Training complete', value: trained, icon: <GraduationCap className="h-4 w-4" /> },
-        { label: 'No center assigned', value: unassigned, icon: <UserX className="h-4 w-4" /> },
-      ]} /> },
-      { id: 'network', title: 'Network map', span: 8, node: (
-        <Card data-tour="network-map">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Network map</CardTitle>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Select value={regionFilter} onValueChange={value => { setRegionFilter(value); setRouteIndex(0); }}>
-                <SelectTrigger aria-label="Filter by Ethiopian region" className="w-48"><SelectValue placeholder="All regions" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All regions</SelectItem>
-                  {ETHIOPIAN_REGIONS.map(region => <SelectItem key={region} value={region}>{region}</SelectItem>)}
-                  <SelectItem value={REGION_NOT_SET}>{REGION_NOT_SET}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={journeyFilter} onValueChange={value => { setJourneyFilter(value as TrainingMapJourneyFilter); setRouteIndex(0); }}>
-                <SelectTrigger aria-label="Filter by return journey" className="w-44"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All journeys</SelectItem>
-                  <SelectItem value="returnees">All returnees</SelectItem>
-                  <SelectItem value="eligible">Eligible to reapply</SelectItem>
-                  <SelectItem value="reapplying">Reapplying</SelectItem>
-                  <SelectItem value="redeployed">Redeployed</SelectItem>
-                </SelectContent>
-              </Select>
-              <div role="group" aria-label="Journey map view" className="navigation-rail">
-                <button type="button" className={navigationItemClass(view === 'intake')} aria-pressed={view === 'intake'} onClick={() => { setView('intake'); setRouteIndex(0); }}><GraduationCap aria-hidden="true" />Intake to centers</button>
-                <button type="button" className={navigationItemClass(view === 'contracts')} aria-pressed={view === 'contracts'} onClick={() => { setView('contracts'); setRouteIndex(0); }}><Navigation aria-hidden="true" />Contract routes</button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {view === 'contracts' && (
-              <div className="flex items-center gap-2 mb-3 text-sm">
-                <label htmlFor="route-target">Route candidates' home cities to</label>
-                <select id="route-target" className="h-9 rounded-md border bg-background px-2" value={target} onChange={e => { setTarget(e.target.value); setRouteIndex(0); }}>
-                  <option value="capital">Addis Ababa (capital)</option>
-                  {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  <option value="none">Training facility → home city</option>
-                </select>
-              </div>
-            )}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-              <p className="text-sm font-medium">
-                {hasSpecificFilter
-                  ? `Showing routes ${visibleRouteStart}–${visibleRouteEnd} of ${routableCandidates.length} · alphabetical A–Z`
-                  : routableCandidates.length
-                    ? `Candidate route ${visibleRouteStart} of ${routableCandidates.length} · alphabetical A–Z`
-                    : 'No mappable candidate routes in this view'}
-              </p>
-              <div className="flex items-center gap-2">
-                {!hasSpecificFilter && prefersReducedMotion && <span className="text-xs text-muted-foreground">Animation off for reduced motion</span>}
-                {!hasSpecificFilter && (
-                  <Button size="sm" variant="outline" aria-label={isRoutePlaying ? 'Pause route animation' : 'Resume route animation'} disabled={prefersReducedMotion || routableCandidates.length < 2} onClick={() => setIsRoutePlaying(playing => !playing)}>
-                    {isRoutePlaying ? <Pause className="mr-1 h-4 w-4" /> : <Play className="mr-1 h-4 w-4" />}
-                    {isRoutePlaying ? 'Pause' : 'Play'}
-                  </Button>
-                )}
-                {hasSpecificFilter && (
-                  <Button size="sm" variant="outline" aria-label="Previous route group" disabled={routableCandidates.length <= 8} onClick={() => setRouteIndex(index => previousTrainingMapRouteIndex(index, routableCandidates.length, true))}>
-                    <SkipBack className="mr-1 h-4 w-4" />Previous
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" aria-label={hasSpecificFilter ? 'Next route group' : 'Next candidate route'} disabled={routableCandidates.length < 2} onClick={() => setRouteIndex(index => nextTrainingMapRouteIndex(index, routableCandidates.length, hasSpecificFilter))}>
-                  <SkipForward className="mr-1 h-4 w-4" />{hasSpecificFilter ? 'Next group' : 'Next'}
-                </Button>
-              </div>
-            </div>
-            <EthiopiaMap facilities={points} links={links} animateRoutes={!hasSpecificFilter && isRoutePlaying && !prefersReducedMotion} onLinkClick={openRouteCandidate} />
-            {routeRegions.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Route color legend">
-                <span className="text-xs font-medium text-muted-foreground">Candidate origin region</span>
-                {routeRegions.map(region => (
-                  <span key={region} className="inline-flex items-center gap-1.5 text-xs">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: trainingMapRegionColor(region) }} aria-hidden="true" />
-                    {region}
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="mt-2 text-xs text-muted-foreground">
-              {view === 'intake'
-                ? 'Each trail follows one candidate from their home city to their assigned CoC center.'
-                : 'Contract trails follow each candidate from their home city to the selected destination.'}
-              {unmappableCount > 0 && ` ${unmappableCount} candidate${unmappableCount === 1 ? ' is' : 's are'} not shown because required home-city or center/destination map data is missing.`}
-            </p>
-            {links[0] && !hasSpecificFilter && <p className="mt-1 text-sm font-medium">{links[0].label}</p>}
-          </CardContent>
-        </Card>
-      ) },
-      { id: 'centers', title: 'Centers', span: 4, node: (
-        <Card>
-          <CardHeader><CardTitle>Centers</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {facilities.length === 0 && <p className="text-sm text-muted-foreground">No CoC centers configured.</p>}
-            {centerStats.map(({ facility: f, total, done, active, waiting }) => {
-              const url = facilityMapsUrl(f);
-              const chosen = centerId === f.id;
-              return (
-                <div key={f.id} className={`rounded-lg border p-3 text-sm transition-colors ${chosen ? 'border-primary bg-primary/5' : 'bg-card'}`}>
-                  <button type="button" className="flex w-full items-start justify-between gap-2 text-left" onClick={() => { setCenterId(chosen ? '' : f.id); setView('intake'); setRouteIndex(0); }}>
-                    <span>
-                      <span className="block font-medium">{f.name}</span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{f.address || f.city || 'No location set'}</span>
-                    </span>
-                    <Badge variant="secondary">{total}</Badge>
-                  </button>
-                  <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                    <span>{active} training</span><span>{done} done</span><span>{waiting} waiting</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    {url
-                      ? <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary"><Navigation className="h-3 w-3" />GPS <ExternalLink className="h-3 w-3" /></a>
-                      : <Link to="/admin/settings" className="text-amber-600 dark:text-amber-400">Add location in Settings</Link>}
-                    {f.phone_number && <a href={`tel:${f.phone_number}`} className="inline-flex items-center gap-1 text-primary"><Phone className="h-3 w-3" />Call</a>}
-                    {f.contact_email && <a href={`mailto:${f.contact_email}`} className="inline-flex items-center gap-1 text-primary"><Mail className="h-3 w-3" />Email</a>}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      ) },
-      { id: 'journey', title: 'Journey abroad', span: 8, node: (
-        <Card>
-          <CardHeader><CardTitle>Journey abroad</CardTitle><p className="text-sm text-muted-foreground">Home → CoC center → destination</p></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2 text-sm">
-              <label htmlFor="route-candidate">Candidate journey</label>
-              <Select value={selected?.id ?? ''} onValueChange={setSelectedId}>
-                <SelectTrigger id="route-candidate"><SelectValue placeholder="Choose candidate" /></SelectTrigger>
-                <SelectContent>
-                  {withContract.length === 0 && <SelectItem value="none">None yet</SelectItem>}
-                  {withContract.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="flex items-center gap-2"><CandidateAvatar candidate={c} className="h-8 w-8" /><span className="flex flex-col"><span>{c.first_name} {c.last_name}</span><span className="text-xs text-muted-foreground">{currentPhase(c.id)}</span></span></span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selected && <div className="rounded-md bg-muted/50 px-3 py-2"><button type="button" className="font-medium hover:text-primary hover:underline" onClick={() => openRouteCandidate(selected.id)}>{selected.first_name} {selected.last_name}</button><p className="text-xs text-muted-foreground">Current phase · {currentPhase(selected.id)}</p></div>}
-              {selected && !destination && <p className="text-amber-600">Add a destination city or country in the contract details to draw the route.</p>}
-              {destination && home && <p className="text-xs font-medium text-muted-foreground">{home.label} → {selectedFacility?.name ?? 'CoC center not assigned'} → {destination.label}</p>}
-            </div>
-            <div>
-              {destination && home
-                ? <RouteMap origin={home} waypoints={selectedFacility && originCoords ? [origin] : []} destination={destination} heightClassName="h-[340px]" />
-                : <div className="grid h-36 place-items-center rounded-md border text-center text-sm text-muted-foreground">{selected ? 'Home city or destination details are missing.' : 'Select a candidate with a work contract.'}</div>}
-            </div>
-            {selected?.employment_history?.length ? <div className="border-t pt-4"><EmploymentJourneyHistory candidate={selected} /></div> : null}
-          </CardContent>
-        </Card>
-      ) },
-      { id: 'tracker', title: 'Where candidates are going', node: <DestinationTracker /> },
-      ]} />
-      <CandidateQuickView candidateId={quickId} onOpenChange={open => !open && setQuickId(null)} />
-    </div>
-  );
-};
-
-export default AdminTrainingMap;
+  const selectEvent = (event: JourneyControlEvent) => { setSelectedId(event.candidateId); setSelectedEventId(event.id); setPlaying(false); };
+  const step = (direction: number) => { setPlaying(false); setReplayIndex(Math.max(0, Math.min(events.length - 1, cursor + direction))); };
+  const resetFilters = () => { setSelectedId(''); setRegion('all'); setCenterId(''); setKind('all'); setSearch(''); setMissingOnly(false); setFrom(''); setTo(''); setSelectedEventId(''); };
+  return <div className="journey-control-room space-y-5">
+    <header className="journey-control-command">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest"><Activity className="h-4 w-4" />Workforce movement intelligence</p><h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Journey Control</h1><p className="mt-2 text-sm">Registration → Training → Medical → Deployment. Evidence, places and next actions.</p></div>
+        <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />Refresh records</Button>
+      </div>
+      <div className="journey-control-status"><span><ShieldCheck className="h-4 w-4" />Ministry stage updates</span><span><Clock3 className="h-4 w-4" />{dataUpdatedAt ? `Checked ${new Date(dataUpdatedAt).toLocaleTimeString()}` : 'Loading records'}</span><span><HeartPulse className="h-4 w-4" />Every candidate accounted for</span></div>
+    </header>
+    <details className="portal-flow-guide"><summary>How to operate this room <span>One start-to-finish guide</span></summary><div className="grid gap-4 p-5 text-sm text-muted-foreground md:grid-cols-3"><p><strong className="block text-foreground">01 · Locate</strong>Explore current stages and ministry-supplied locations. Candidates awaiting a location remain in the roster.</p><p><strong className="block text-foreground">02 · Replay</strong>Step through dated ministry records and movement history.</p><p><strong className="block text-foreground">03 · Follow up</strong>Open the source record, review supporting evidence or investigate a flagged update. Stage progress is read-only.</p></div></details>
+    {isError && <div role="alert" className="rounded-xl border border-destructive p-4 text-destructive">Journey records could not be loaded. Use Refresh records to retry.</div>}
+    <section aria-label="Journey control filters" className="journey-control-filters">
+      <label className="relative"><span className="sr-only">Search candidates</span><Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" /><Input className="h-11 pl-9" placeholder="Name or tracking code" value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <select className={selectClass} aria-label="Select candidate journey" value={effectiveId} onChange={event => { setSelectedId(event.target.value); setSelectedEventId(''); }}><option value="">Entire scoped network · {visibleCandidates.length}</option>{visibleCandidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.first_name} {candidate.last_name} · {candidate.tracking_code}</option>)}</select>
+      <select className={selectClass} aria-label="Filter by Ethiopian region" value={region} onChange={event => setRegion(event.target.value)}><option value="all">All regions</option>{ETHIOPIAN_REGIONS.map(value => <option key={value}>{value}</option>)}</select>
+      <select className={selectClass} aria-label="Filter by training center" value={centerId} onChange={event => setCenterId(event.target.value)}><option value="">All CoC centers</option>{facilities.map(facility => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</select>
+      <select className={selectClass} aria-label="Filter journey evidence" value={kind} onChange={event => setKind(event.target.value as JourneyEventKind | 'all')}>{EVENT_FILTERS.map(filter => <option key={filter.value} value={filter.value}>{filter.label}</option>)}</select>
+      <label className="flex items-center gap-2 text-xs">From<Input aria-label="Events from date" type="date" value={from} onChange={event => setFrom(event.target.value)} /></label>
+      <label className="flex items-center gap-2 text-xs">To<Input aria-label="Events to date" type="date" min={from} value={to} onChange={event => setTo(event.target.value)} /></label>
+      <Button variant={missingOnly ? 'default' : 'outline'} aria-pressed={missingOnly} onClick={() => setMissingOnly(value => !value)}><MapPin className="mr-2 h-4 w-4" />Awaiting ministry location</Button>
+      <Button variant="ghost" onClick={resetFilters}>Reset filters</Button>
+    </section>
+    <section className="ministry-candidate-coverage" aria-label="Current candidate stages">
+      <header><h2>Current stage coverage</h2><span>{positions.length} candidates · {positions.filter(event => event.point).length} located · {positions.filter(event => !event.point).length} awaiting location</span></header>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{ALL_STAGES.map(stage => <button key={stage.id} aria-pressed={kind === stage.slug} onClick={() => setKind(kind === stage.slug ? 'all' : stage.slug as JourneyEventKind)}><span>{stage.title}</span><strong>{positions.filter(event => event.stageId === stage.id).length}</strong></button>)}</div>
+      <details><summary>View candidate activity roster</summary><div className="grid gap-2 sm:grid-cols-2">{positions.map(event => { const candidate = candidates.find(item => item.id === event.candidateId)!; return <button key={event.id} className="ministry-coverage-row" onClick={() => { setSelectedId(candidate.id); setSelectedEventId(''); }}><CandidateAvatar candidate={candidate} className="h-10 w-10" /><span><strong>{candidate.first_name} {candidate.last_name}</strong><span>{event.title} · {event.status}</span><span>{event.point?.label || 'Awaiting ministry location'}</span></span></button>; })}</div></details>
+    </section>
+    <EditableGrid pageId="coc-map" items={[
+      { id: 'stats', title: 'Journey signals', node: <div className="journey-control-metrics">{[
+        { label: 'Visible candidates', value: filteredCandidates.length, icon: <Activity /> },
+        { label: 'Recorded events', value: events.length, icon: <Clock3 /> },
+        { label: 'Located evidence', value: events.length - missing, icon: <MapPin /> },
+        { label: 'Awaiting location', value: missing, icon: <ShieldCheck /> },
+      ].map(metric => <div key={metric.label}>{metric.icon}<strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div> },
+      { id: 'network', title: 'Movement control', span: 8, node: <section className="journey-control-panel" data-tour="network-map">
+        <header className="flex flex-wrap items-center justify-between gap-3 p-5"><div><h2 className="text-xl font-semibold">{selected ? `${selected.first_name}'s evidence route` : 'Network location constellation'}</h2><p className="mt-1 text-xs text-muted-foreground">{effectiveId ? `${playedEvents.length} / ${events.length} events in view` : 'One node per recorded location · select to inspect'}</p></div><Badge variant="outline">{isLoading ? 'Loading' : 'Saved records'}</Badge></header>
+        <JourneyControlMap events={mapEvents} selectedEvent={replayIndex === null ? inspected?.id : events[cursor]?.id} onSelect={selectEvent} running={playing} />
+        {!mapEvents.some(event => event.point) && <p className="p-5 text-sm text-muted-foreground">No location evidence matches this view. Unlocated events remain in the ledger.</p>}
+        <div className="journey-replay-controls">
+          <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-sm font-semibold">Evidence replay</span><div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Previous recorded event" disabled={!effectiveId || !events.length || cursor <= 0} onClick={() => step(-1)}><SkipBack className="h-4 w-4" /></Button><Button variant={playing ? 'default' : 'outline'} aria-pressed={playing} disabled={!effectiveId || !events.length || reduced} onClick={() => { if (!playing && cursor >= events.length - 1) setReplayIndex(0); setPlaying(value => !value); }}>{playing ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}{playing ? 'Pause replay' : 'Play evidence'}</Button><Button size="icon" variant="outline" aria-label="Next recorded event" disabled={!effectiveId || !events.length || cursor >= events.length - 1} onClick={() => step(1)}><SkipForward className="h-4 w-4" /></Button><Button variant="ghost" disabled={replayIndex === null} onClick={() => { setPlaying(false); setReplayIndex(null); }}>All events</Button></div></div>
+          <input type="range" aria-label="Recorded journey timeline" min="0" max={Math.max(0, events.length - 1)} value={Math.max(0, cursor)} disabled={!effectiveId || !events.length} onChange={event => { setPlaying(false); setReplayIndex(Number(event.target.value)); }} className="w-full accent-primary" />
+          <p className="text-xs text-muted-foreground">{effectiveId ? timeLabel(events[cursor]?.at) : 'Select one candidate for chronological replay.'}{reduced ? ' Reduced motion: use manual steps.' : ''}</p>
+        </div>
+      </section> },
+      { id: 'operations', title: 'Event inspector', span: 4, node: <aside className="journey-control-panel p-5" aria-label="Selected journey event"><p className="text-xs font-semibold uppercase tracking-widest text-primary">Evidence inspector</p>{inspected ? <>
+        <h2 className="mt-3 text-xl font-semibold">{inspected.title}</h2><Badge variant="outline" className={`mt-3 ${inspected.status === 'Failed' ? 'border-destructive text-destructive' : ''}`}>{inspected.status}</Badge>
+        {(() => { const person = candidates.find(candidate => candidate.id === inspected.candidateId); return person && <div className="my-5 flex items-center gap-3"><CandidateAvatar candidate={person} className="h-12 w-12" /><div><strong className="block text-sm">{person.first_name} {person.last_name}</strong><span className="text-xs text-muted-foreground">{person.tracking_code}</span></div></div>; })()}
+        <dl className="journey-inspector-facts"><div><dt>Recorded time</dt><dd>{timeLabel(inspected.at)}</dd></div><div><dt>Location</dt><dd>{inspected.point?.label ?? 'Awaiting ministry location'}</dd></div><div><dt>Precision</dt><dd>{inspected.precision === 'exact' ? 'Recorded coordinates' : inspected.precision === 'city' ? 'Approximate city, not facility GPS' : 'Awaiting ministry location'}</dd></div><div><dt>Source</dt><dd>{inspected.source}</dd></div></dl>
+        <Button className="mt-5 w-full" onClick={() => openRecord(inspected)}>Open {inspected.kind === 'medical' ? 'medical record' : 'source record'}<ArrowUpRight className="ml-2 h-4 w-4" /></Button>
+      </> : <p className="mt-4 text-sm text-muted-foreground">Select a location or ledger event to inspect its source.</p>}</aside> },
+      { id: 'ledger', title: 'Movement evidence ledger', span: 12, node: <section className="journey-control-panel p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Movement &amp; evidence ledger</h2><span className="text-xs text-muted-foreground">Newest first · {events.length} records</span></div><div className="journey-event-ledger mt-4">
+        {orderedEvents.slice(safePage * 20, safePage * 20 + 20).map(event => {
+          const person = candidates.find(candidate => candidate.id === event.candidateId)!;
+          return <button key={event.id} type="button" aria-pressed={inspected?.id === event.id} className="journey-ledger-row" onClick={() => selectEvent(event)}><CandidateAvatar candidate={person} className="h-10 w-10 shrink-0" /><span><strong>{person.first_name} {person.last_name}</strong><small>{event.title}</small></span><span><strong>{event.point?.label ?? 'Awaiting ministry location'}</strong><small>{event.precision === 'exact' ? 'Recorded coordinates' : event.precision === 'city' ? 'City approximation' : 'Awaiting ministry location'}</small></span><span><strong className={event.status === 'Failed' ? 'text-destructive' : ''}>{event.status}</strong><small>{timeLabel(event.at)}</small></span><ArrowUpRight className="h-4 w-4 shrink-0 text-primary" /></button>;
+        })}
+        {!events.length && <p className="p-6 text-sm text-muted-foreground">{isLoading ? 'Loading journey evidence…' : 'No records match these filters.'}</p>}
+      </div><div className="mt-4 flex items-center justify-between gap-3"><Button variant="outline" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>Previous</Button><span className="text-sm">{safePage + 1} / {maxPage + 1}</span><Button variant="outline" disabled={safePage === maxPage} onClick={() => setPage(safePage + 1)}>Next</Button></div></section> },
+      { id: 'centers', title: 'Center operations', span: 12, node: <section className="journey-control-panel p-5"><h2 className="text-xl font-semibold">Training center operations</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{facilities.map(facility => {
+        const people = candidates.filter(candidate => candidate.coc_facility_id === facility.id);
+        const trained = people.filter(candidate => data?.stages.some(stage => stage.candidate_id === candidate.id && stage.stage_id === ALL_STAGES.find(item => item.slug === 'training')?.id && ['Passed', 'Completed', 'Issued'].includes(stage.status))).length;
+        return <button key={facility.id} type="button" className="agency-network-node text-left" aria-pressed={centerId === facility.id} onClick={() => { setCenterId(centerId === facility.id ? '' : facility.id); setSelectedId(''); }}><Building2 className="mb-3 h-6 w-6 text-primary" /><strong className="block">{facility.name}</strong><span className="mt-2 block text-sm text-muted-foreground">{people.length} assigned · {trained} trained</span><span className="mt-1 block text-xs text-muted-foreground">{facility.city || 'City pending'}</span></button>;
+      })}</div>{!facilities.length && <p className="mt-4 text-sm text-muted-foreground">Awaiting ministry-linked centers. Historical candidate assignments remain preserved.</p>}</section> },
+      { id: 'contracts', title: 'Deployment & return operations', span: 12, node: <details className="portal-flow-guide"><summary>Deployment, flights &amp; return operations <span>Open operational tools</span></summary><div className="p-4"><DestinationTracker />{selected && <EmploymentJourneyHistory candidate={selected} />}</div></details> },
+    ]} />
+    <Link to={userRole === 'local-agency' ? '/local-agency' : ['foreign-agency', 'foreign-agency-staff', 'agency'].includes(userRole ?? '') ? '/agency' : '/admin'} className="inline-flex items-center gap-2 text-sm text-primary">Return to dashboard<ArrowUpRight className="h-4 w-4" /></Link>
+    <CandidateQuickView candidateId={quickId} onOpenChange={open => { if (!open) setQuickId(null); }} />
+  </div>;
+}

@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { isDemoMode } from '@/lib/demo-mode';
 import { readWalkthrough, startWalkthrough } from '@/lib/portal-walkthrough';
 import type { UserRole } from '@/lib/types';
+import PageHeader from '@/components/page/PageHeader';
 
 interface GuideStep {
   title: string;
@@ -25,9 +26,9 @@ const commonSteps: GuideStep[] = [
 
 const roleSteps: Record<UserRole, GuideStep[]> = {
   superadmin: [
-    { title: 'Start with My tasks and team workload', what: 'My tasks lists your review, reply and approval work. Team workload lists each candidate’s next required stage and its owner.', next: 'Read urgent work, open a record, then assign or balance staff work if needed. Save follow-up on the candidate.', href: '/admin/tasks' },
+    { title: 'Start with oversight and investigations', what: 'Agency flow shows registration-to-deployment progress, fee blockers and overdue work. My tasks lists flags, agency replies and approvals—not staff assignments.', next: 'Review evidence, escalate suspicious issues for ministry review or close with a recorded reason. Decide agency appeals in Payment issues. Local agency admins balance staff work.', href: '/admin/tasks' },
     { title: 'Review record warnings', what: 'Warnings show records that need a closer look. Correct the missing or conflicting details rather than hiding the warning.', next: 'Open Record checks and start with urgent issues.', href: '/admin/integrity' },
-    { title: 'Practice with demo records', what: 'Six examples show different numbers of record and payment problems while keeping the same candidates.', next: 'Open Settings and choose a demo practice example.', href: '/admin/settings' },
+    { title: 'Practice with demo records', what: 'Six examples show different progress, collections and workload while keeping the same candidates.', next: 'Open Switch scenario in the top bar and select a card. It applies immediately in demo mode.', href: '/admin' },
     { title: 'Review online staff', what: 'The green dot means the account was recently active. Recorded attendance begins at sign-in and ends at logout.', next: 'Review the staff list or attendance history.', href: '/admin/users' },
     { title: 'Manage access and fees', what: 'Approved accounts determine who can enter each workspace. Stage fees are shown to candidates before payment.', next: 'Review staff approvals, agency access, and stage fees.', href: '/admin/settings' },
     { title: 'Review payments', what: 'Payment records link the candidate, stage, amount, and receipt reference.', next: 'Check payment status and open a receipt when a payment is confirmed.', href: '/admin/payments' },
@@ -36,7 +37,7 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
   ],
   staff: [
     { title: 'Start with My Tasks', what: 'Your queue lists the next stage or follow-up assigned to you, with due dates and the candidate’s progress.', next: 'Open a task, contact the candidate, and record the next action.', href: '/admin/tasks' },
-    { title: 'Update the stage', what: 'Stage updates are shared with the candidate and the linked agencies.', next: 'Set the status, date, and next follow-up in the timeline editor.', href: '/admin' },
+    { title: 'Follow ministry stages', what: 'Stage statuses, medical results and deployment update from ministry records.', next: 'Review the source record, attach supporting evidence and set a task follow-up when needed.', href: '/admin' },
     { title: 'Check flagged records', what: 'File and workflow warnings help you find mismatches and records that may be off track.', next: 'Review the finding and update the underlying record.', href: '/admin/integrity' },
     { title: 'Attendance is automatic', what: 'Your work session begins when you sign in and ends when you log out.', next: 'Use Log out when you finish for the day.', href: '/admin/attendance' },
     { title: 'Keep in touch', what: 'Candidate chat and notifications keep follow-ups attached to the candidate workflow.', next: 'Click the bottom-right chat icon, select a thread or New chat, then record the next action on the task.', href: '/admin/chat' },
@@ -45,7 +46,7 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
     { title: 'Start with My tasks and team workload', what: 'Your queue includes record warnings, agency replies and contract receipt checks. Team work stays within your agency.', next: 'Open My tasks, review owners and due dates, then assign or balance work among your approved staff.', href: '/local-agency/tasks' },
     { title: 'Review candidate progress', what: 'The dashboard summarizes each stage and lists blocked, flagged, or inactive candidate files.', next: 'Open the candidate row to review the next step.', href: '/local-agency' },
     { title: 'Confirm received contracts', what: 'The foreign agency shares a secure contract link. Your agency confirms once the contract has arrived.', next: 'Open the candidate profile and mark the contract received.', href: '/local-agency' },
-    { title: 'Prepare clearance', what: 'Visa, Enjaz, and Tasheer checks show what remains before ministry issuance.', next: 'Complete local checks and wait for the official ministry QR.', href: '/local-agency/clearance' },
+    { title: 'Follow clearance references', what: 'Visa, Enjaz, Tasheer and QR reference numbers arrive from the ministry.', next: 'Explore the read-only reference console and follow up on awaiting records.', href: '/local-agency/clearance' },
     { title: 'Review payments and messages', what: 'Candidate fees, receipts, and chat stay linked to your agency’s candidate records.', next: 'Open payments to review receipts. Missing contract transfers need follow-up with the foreign agency. Use the bottom-right icon for chat.', href: '/local-agency/payments' },
     ...commonSteps,
   ],
@@ -91,21 +92,21 @@ const roleSteps: Record<UserRole, GuideStep[]> = {
 };
 
 const roleLabels: Record<UserRole, string> = {
-  superadmin: 'Administrator', admin: 'Administrator', agency: 'Foreign agency', staff: 'Staff', 'local-agency': 'Ethiopian agency', 'foreign-agency': 'Foreign agency',
+  superadmin: 'Superadmin / ministry', admin: 'Administrator', agency: 'Foreign agency (legacy role)', staff: 'Local / internal staff', 'local-agency': 'Local agency manager', 'foreign-agency': 'Foreign agency manager',
   'foreign-agency-staff': 'Foreign agency staff', candidate: 'Candidate', auditor: 'Auditor', viewer: 'Viewer',
 };
 
 const roleDescriptions: Record<UserRole, string> = {
-  superadmin: 'Manages system settings, access, candidates and operations.',
-  admin: 'Reviews candidate operations and monitors staff work within assigned permissions.',
-  agency: 'Reviews its foreign-agency candidates, contracts and team workload.',
-  staff: 'Works candidate files, tasks, stages, payments and operational follow-up.',
-  'local-agency': 'Manages its candidate pipeline, local checks, payments and agency staff.',
-  'foreign-agency': 'Reviews its candidates, contracts, deployment and agency staff.',
-  'foreign-agency-staff': 'Works within the foreign agency workspace using the permissions assigned to the account.',
-  candidate: 'Views their own progress and uses available uploads and chat.',
-  auditor: 'Reviews integrity findings and evidence in the audit workspace.',
-  viewer: 'Uses a tracking code for the available read-only public tracking view.',
+  superadmin: 'Reviews all agencies, manages accounts and fees, and makes ministry payment-case decisions. Candidate intake still comes from the ministry register.',
+  admin: 'Reviews candidate records, payments, clearance and team progress. Account approvals, ministry decisions and system settings stay with the superadmin.',
+  agency: 'Uses the foreign agency manager workspace for its candidates, contracts, transfers and staff. This older role name is still supported.',
+  staff: 'Starts with assigned candidate tasks and records permitted stage updates or follow-ups. Cannot manage accounts, fees or ministry case decisions.',
+  'local-agency': 'Manages its own candidate progress, received payments, local checks and approved staff. Other agencies’ private records are not part of this workspace.',
+  'foreign-agency': 'Coordinates its candidates and contracts, sends payments to local agencies and assigns its own staff. Money sent shows outbound receipts, not bank-audit tools.',
+  'foreign-agency-staff': 'Follows assigned work, reviews candidate introductions and tracks contract and clearance progress. Account management and transfers are handled by the agency manager.',
+  candidate: 'Views their own progress, uploads requested documents and chats with the agency. Cannot assign staff, approve records or access another candidate’s files.',
+  auditor: 'Reads record warnings, evidence and recorded exceptions. Cannot edit candidate records, assign staff or make agency decisions.',
+  viewer: 'Looks up public progress with a shared tracking code. Cannot open private profiles, edit records or use payment tools.',
 };
 
 const manual = [
@@ -126,7 +127,7 @@ const manual = [
   ['Integrity and audit', 'Staff, administrators and auditors', 'Review findings and their supporting information. A warning calls for review and does not by itself establish misconduct.'],
   ['Attendance and presence', 'Staff and administrators', 'Review attendance sessions and recent presence in the staff workspace.'],
   ['Settings', 'Administrators', 'Manage configured agencies, CoC centers, fees, warning thresholds and demo scenarios.'],
-  ['Demo scenario top menu', 'Demo superadmins', 'Use Switch scenario at the top without opening Settings. The six practice scenarios still require a reason and confirmation, preserve held cases and protect uploaded statements. Hidden in live mode.'],
+  ['Demo scenario top menu', 'Demo superadmins', 'Select a card in Switch scenario to apply it immediately. No typed reason or extra confirmation is needed. Held cases and uploaded statements remain protected. Hidden in live mode.'],
   ['Public and candidate tracking', 'Candidates and viewers', 'Candidates sign in to their own tracking page. Viewers use a tracking code and see only what public tracking makes available.'],
 ];
 
@@ -147,15 +148,14 @@ const StakeholderGuide: React.FC = () => {
   return (
     <main className="mx-auto min-h-screen max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" asChild><Link to={role === 'candidate' && candidateTrackingCode ? `/track/${candidateTrackingCode}` : role === 'local-agency' ? '/local-agency' : role.startsWith('foreign-agency') ? '/agency' : role === 'viewer' ? '/viewer' : role === 'auditor' ? '/auditor' : '/admin'}><ArrowLeft className="mr-2 h-4 w-4" />Back to workspace</Link></Button>
+        <Button variant="ghost" asChild><Link to={role === 'candidate' && candidateTrackingCode ? `/track/${candidateTrackingCode}` : role === 'local-agency' ? '/local-agency' : role === 'agency' || role.startsWith('foreign-agency') ? '/agency' : role === 'viewer' ? '/viewer' : role === 'auditor' ? '/auditor' : '/admin'}><ArrowLeft className="mr-2 h-4 w-4" />Back to workspace</Link></Button>
         <span className="text-sm text-muted-foreground">{roleLabels[role]} guide</span>
       </div>
-      <header className="space-y-2">
-        <p className="flex items-center gap-2 text-sm font-medium text-primary"><BookOpen className="h-4 w-4" />Getting started</p>
-        <h1 className="text-3xl font-semibold">Your work, made clear</h1>
-        <p className="max-w-2xl text-muted-foreground">Follow one task at a time. The portal walkthrough opens each feature, explains what to do and shows what to check before continuing.</p>
+      <PageHeader title="Your work, made clear" description="Follow one task at a time with the interactive portal walkthrough." />
+      <section className="space-y-2">
+        <p className="rounded-xl border bg-muted/30 p-4 text-sm"><span className="font-semibold">{roleLabels[role]}: </span>{roleDescriptions[role]}</p>
         {isDemoMode() && <div className="flex flex-wrap gap-2 pt-2"><Button onClick={() => startWalkthrough(true)}>{canResume ? 'Resume portal walkthrough' : 'Start portal walkthrough'} <ArrowRight className="ml-2 h-4 w-4" /></Button>{canResume && <Button variant="outline" onClick={() => startWalkthrough(false)}>Start over</Button>}</div>}
-      </header>
+      </section>
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-muted-foreground"><span>Step {index + 1} of {steps.length}</span><span>{progress}%</span></div>
         <Progress value={progress} className="h-2" />

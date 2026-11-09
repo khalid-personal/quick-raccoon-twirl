@@ -1,15 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { usePageMemory } from '@/hooks/use-page-memory';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, ListTodo, Loader2, Users, WandSparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, ListTodo, Loader2, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { FeatureCardTitle as CardTitle } from '@/components/FeatureInfo';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,27 +16,32 @@ import { getCandidateStages, getCandidates, getConfig, getLocalAgencies, getStaf
 import { useAuth } from '@/lib/auth-context';
 import { ALL_STAGES, type CandidateStage, type StaffUser } from '@/lib/types';
 import { getActiveStageTasks } from '@/lib/staff-tasks';
-import { assignCandidateStageTask, autoBalanceStaffTasks, rebalanceStaffTasks, updateStaffTaskWeights } from '@/lib/api/staff-work';
+import { assignCandidateStageTask } from '@/lib/api/staff-work';
 import CandidateAvatar from '@/components/CandidateAvatar';
 import UserAvatar from '@/components/UserAvatar';
 import PortalWorkQueue from '@/components/PortalWorkQueue';
 import { balanceLocalAgencyTasks } from '@/lib/api/local-staff-work';
 import { getApiPrincipal } from '@/lib/api/auth';
+import AgencyFlowOversight from '@/components/AgencyFlowOversight';
 
 const todayKey = new Date().toISOString().slice(0, 10);
 const DONE = new Set(['Passed', 'Issued', 'Completed']);
 const NO_OWNER = 'unassigned';
 
 const StaffTasksPage: React.FC = () => {
+  const { userRole } = useAuth();
+  if (userRole === 'superadmin') return <div className="space-y-6"><PageHeader title="Oversight & investigations" description="Understand agency flow, investigate warnings and review recorded decisions—without assigning agency work." /><AgencyFlowOversight /><PortalWorkQueue /></div>;
+  return <AgencyStaffTasks />;
+};
+
+const AgencyStaffTasks: React.FC = () => {
   const { user, userRole, viewAs, userLocalAgencyId } = useAuth();
   const effectiveUserId = viewAs?.userId ?? user?.id;
   const queryClient = useQueryClient();
   const isLocalManager = userRole === 'local-agency';
   const isManager = userRole === 'superadmin' || userRole === 'admin' || isLocalManager;
-  const canManage = userRole === 'superadmin';
-  const canAssign = canManage || isLocalManager;
+  const canAssign = isLocalManager;
   const candidateBasePath = isLocalManager ? '/local-agency/candidate' : '/admin/candidate';
-  const [weights, setWeights] = useState<Record<string, number>>({});
   const [assigneeFilter, setAssigneeFilter] = usePageMemory('assignee', 'all');
   const [localFilter, setLocalFilter] = usePageMemory('agency', 'all');
   const actor = { id: effectiveUserId ?? '', email: user?.email ?? '', role: userRole ?? '' };
@@ -56,16 +59,11 @@ const StaffTasksPage: React.FC = () => {
       const scopedIds = new Set(scopedCandidates.map(candidate => candidate.id));
       return { candidates: scopedCandidates, stages: allStages.filter(stage => scopedIds.has(stage.candidate_id)),
         staff: getStaffUsers().filter(person => !isLocalManager || person.local_agency_id === principal?.localAgencyId),
-        locals: getLocalAgencies(), weights: getConfig().staffTaskWeights ?? {},
+        locals: getLocalAgencies(),
         paymentContext: { fees: getConfig().stageFees ?? {}, statuses: getPaymentStatuses(), payments: getPayments() } };
     },
     refetchInterval: 30000,
   });
-
-  const savedWeightsKey = JSON.stringify(data?.weights ?? {});
-  useEffect(() => {
-    setWeights(JSON.parse(savedWeightsKey) as Record<string, number>);
-  }, [savedWeightsKey]);
 
   const candidates = useMemo(() => (data?.candidates ?? []).filter(candidate => isLocalManager || !isManager || localFilter === 'all' || candidate.local_agency_id === localFilter), [data?.candidates, isManager, isLocalManager, localFilter]);
   const scopedIds = useMemo(() => new Set(candidates.map(candidate => candidate.id)), [candidates]);
@@ -88,24 +86,13 @@ const StaffTasksPage: React.FC = () => {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['staff-workboard'] });
   const automaticDistribution = useMutation({
-    mutationFn: () => isLocalManager ? balanceLocalAgencyTasks() : autoBalanceStaffTasks(actor),
+    mutationFn: () => balanceLocalAgencyTasks(),
     onSuccess: result => {
       if (result.unassigned) toast.warning(`${result.assigned} tasks assigned. ${result.unassigned} need eligible staff in their agency; paused staff were not activated.`);
-      else toast.success(`${result.assigned} active tasks balanced ${isLocalManager ? 'within your agency' : 'across all agencies'}. ${result.changed} owners changed.`);
+      else toast.success(`${result.assigned} active tasks balanced within your agency. ${result.changed} owners changed.`);
       void refresh();
     },
     onError: error => toast.error(error instanceof Error ? error.message : 'Could not balance work.'),
-  });
-  const applyDistribution = useMutation({
-    mutationFn: async () => {
-      await updateStaffTaskWeights(weights, actor);
-      return rebalanceStaffTasks(weights, actor);
-    },
-    onSuccess: count => {
-      toast.success(`Workload settings saved. ${count} active stage tasks are assigned.`);
-      void refresh();
-    },
-    onError: error => toast.error((error as Error).message),
   });
   const assignTask = useMutation({
     mutationFn: ({ candidateId, stageId, staffId }: { candidateId: string; stageId: number; staffId: string }) =>
@@ -127,7 +114,7 @@ const StaffTasksPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {isManager && <PortalWorkQueue />}
+      <PortalWorkQueue />
       <section data-tour="workload-manager" className="rounded-2xl border bg-primary/5 p-5">
         <h2 className="font-semibold">{isManager ? 'How to manage workload' : 'How to use My tasks'}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{isManager ? 'Review work by staff member, assign the next required stage to an eligible owner, then use due dates to follow up. Balancing changes owners only, never payments or stage completion.' : 'Choose your earliest due task, open the candidate, read the blockers and save a status or follow-up note. Await payment means follow up on the fee; do not advance a later stage.'}</p>
@@ -143,7 +130,6 @@ const StaffTasksPage: React.FC = () => {
               {(data?.locals ?? []).map(agency => <SelectItem key={agency.id} value={agency.id}>{agency.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          {canManage && <Button onClick={() => applyDistribution.mutate()} disabled={applyDistribution.isPending || automaticDistribution.isPending || allStaff.length === 0}>{applyDistribution.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}Apply workload settings</Button>}
         </div> : undefined}
       />
 
@@ -165,20 +151,17 @@ const StaffTasksPage: React.FC = () => {
         <CardContent><Progress value={progress} aria-label="Daily task progress" className="h-2.5" /></CardContent>
       </Card>
 
-      {isManager && (
+      {isLocalManager && (
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="max-w-2xl"><CardTitle className="text-base">Workload balance</CardTitle>
-            <CardDescription>{isLocalManager ? 'Balance current tasks only within your agency. Staff from other agencies are not eligible. Paused staff stay paused.' : 'Auto-balance assigns equal shares across all agencies, even if this view is filtered. Paused staff (weight 0) stay paused. Completed stages and payment status never change. Use custom weights below when needed.'}</CardDescription></div>
-            {canAssign && <Button onClick={() => automaticDistribution.mutate()} disabled={automaticDistribution.isPending || applyDistribution.isPending || !allStaff.length}>{automaticDistribution.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}{isLocalManager ? 'Balance agency work' : 'Auto-populate & balance all'}</Button>}
+            <CardDescription>Balance current tasks only within your agency. Staff from other agencies are not eligible. Paused staff stay paused.</CardDescription></div>
+            {canAssign && <Button onClick={() => automaticDistribution.mutate()} disabled={automaticDistribution.isPending || !allStaff.length}>{automaticDistribution.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}Balance agency work</Button>}
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {staff.length === 0 ? <p className="text-sm text-muted-foreground">No approved staff accounts are available for assignment.</p> : staff.map(person => (
               <div key={person.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
                 <div className="flex min-w-0 items-center gap-2"><UserAvatar user={person} /><div className="min-w-0"><p className="truncate text-sm font-medium">{person.email}</p><p className="text-xs text-muted-foreground">{tasks.filter(task => task.stage.assigned_staff_id === person.id).length} open tasks</p></div></div>
-                <Label className="flex items-center gap-2 text-xs">Load
-                  <Input type="number" min="0" max="5" step="0.25" disabled={!canManage || automaticDistribution.isPending} className="w-20" value={weights[person.id] ?? 1} onChange={event => setWeights(current => ({ ...current, [person.id]: Number(event.target.value) }))} aria-label={`Workload weight for ${person.email}`} />
-                </Label>
               </div>
             ))}
           </CardContent>

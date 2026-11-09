@@ -20,6 +20,7 @@ import EvidenceRequestList from './EvidenceRequestList';
 import { getEvidenceRequests, EVIDENCE_STATUS_LABELS } from '@/lib/evidence-requests';
 import { useSearchParams } from 'react-router-dom';
 import { currentVerifiedPaymentIds } from '@/lib/payment-review-clearance';
+import { isForeignPayment } from '@/lib/currency';
 
 const STATUS: Record<MatchStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   matched: { label: 'Payment entry matched', variant: 'default' },
@@ -30,7 +31,7 @@ const STATUS: Record<MatchStatus, { label: string; variant: 'default' | 'seconda
   'currency-mismatch': { label: 'Currency differs', variant: 'destructive' },
 };
 
-export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymentSource = 'foreign', allowActions = true }: { agencyId: string; payments: Payment[]; paymentSource?: PaymentStatementSource; allowActions?: boolean; onSummaryChange?: (summary: ReconciliationSummary | null) => void }) => {
+export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymentSource = 'foreign', allowActions = true, statementUploader }: { agencyId: string; payments: Payment[]; paymentSource?: PaymentStatementSource; allowActions?: boolean; statementUploader?: { id: string; email: string }; onSummaryChange?: (summary: ReconciliationSummary | null) => void }) => {
   const [statement, setStatement] = useState(() => loadBankStatement(agencyId, paymentSource));
   const [selection, setSelection] = useState<ScanSelection | null>(null);
   const [scanInputVersion, setScanInputVersion] = useState(0);
@@ -52,7 +53,7 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
   useEffect(() => { onSummaryChange?.(summary); }, [onSummaryChange, summary]);
 
   const importStatement = async () => {
-    if (!allowActions || !selection?.ready) return;
+    if (!canUpload || !selection?.ready) return;
     try {
       const lines = parseStatementCsv(await selection.file.text());
       const next = { name: selection.file.name, lines, scan_report: selection.report };
@@ -79,6 +80,10 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
     ? result?.unrecognized.filter(line => `${line.reference} ${line.description} ${line.amount}`.toLowerCase().includes(query)) ?? [] : [];
   const creditId = (line: BankLine) => `${paymentSource}:credit:${JSON.stringify(line)}`;
   const requests = getEvidenceRequests(events, new Date(), verified);
+  const canUpload = allowActions || !!statementUploader && paymentSource === 'foreign' && requests.some(({ event, status }) =>
+    status !== 'scheduled' && (event.source ?? 'foreign') === paymentSource
+    && (!event.evidence.payment || isForeignPayment(event.evidence.payment))
+    && [statementUploader.id.toLowerCase(), statementUploader.email.toLowerCase()].includes(event.owner.trim().toLowerCase()));
   const caseState = (id: string) => {
     if (verified.has(id)) return 'Automatically cleared after all checks';
     const request = requests.find(item => item.event.caseId === id);
@@ -103,7 +108,8 @@ export const BankReconciliation = ({ agencyId, payments, onSummaryChange, paymen
         <p className="text-sm text-muted-foreground">We compare payment receipts marked received with credit entries in the uploaded file. A possible match is a clue, not bank confirmation. Check the amount, currency and payment reference before clearing a payment.</p>
         {statement?.synthetic && <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><strong>DEMO / synthetic bank records.</strong> Covers {statement.covered_candidate_ids?.length ?? 0} candidates. Deliberate shortages, overpayments and missing evidence are included. This is not real bank proof; unpaid transfers have no invented deposits.</p>}
         <EvidenceRequestList events={events} source={paymentSource} onReview={event => setEvidence({ caseId: event.caseId, payment: event.evidence.payment, line: event.evidence.line, explanation: event.evidence.explanation, source: paymentSource })} />
-        {allowActions && <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+        {!allowActions && canUpload && <p className="rounded-lg border bg-primary/5 p-3 text-sm">Assigned statement submission: upload the requested original CSV below. Payment clearance and investigation decisions remain with the agency administrator or superadmin.</p>}
+        {canUpload && <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <DocumentScanInput
             key={scanInputVersion}
             id="bank-reconciliation-file"

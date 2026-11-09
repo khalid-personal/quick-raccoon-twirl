@@ -12,6 +12,7 @@ import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import StageEditorDialog from './StageEditorDialog';
 import { usePortalData } from '@/hooks/use-portal-data';
 import { stageFeeCovered } from '@/lib/stage-readiness';
+import { practiceRecordLabel } from '@/lib/practice-record-label';
 
 interface TimelineEditorProps {
   candidateDetail: CandidateDetail;
@@ -76,8 +77,8 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden rounded-3xl border-cyan-500/25 shadow-sm">
-        <CandidateCheckpoint eyebrow="Application progress" title="Candidate journey" description="Open a stage to check its progress, update details or add documents. Complete the steps in order: Registration → Training → Medical → Deployment." icon={ListChecks} metric={`${completed} / ${stages.length}`} metricLabel="Stages complete" />
+      <Card className="overflow-hidden rounded-3xl border-primary/20 shadow-sm">
+        <CandidateCheckpoint eyebrow="Ministry application progress" title="Candidate journey" description="Review ministry stage updates from Registration → Training → Medical → Deployment. Supporting documents and follow-ups remain available." icon={ListChecks} metric={`${completed} / ${stages.length}`} metricLabel="Stages complete" />
         <CardContent className="space-y-5 p-5 md:p-6">
           <div className="space-y-2" aria-label={`${progress}% of candidate stages complete`}>
             <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Journey progress</span><span className="font-semibold tabular-nums text-foreground">{progress}%</span></div>
@@ -151,7 +152,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ candidateDetail, refetc
                     <span>{stageFee <= 0 ? 'No stage fee configured' : feePaid ? 'Stage fee paid' : 'Stage fee unpaid · completion blocked'}</span>
                     {stageFee > 0 && <span className="ml-auto tabular-nums">{stageFee.toLocaleString()} ETB</span>}
                   </div>
-                  {candidateStage.notes?.trim() && <p className="mt-3 line-clamp-2 w-full border-t pt-3 text-xs leading-relaxed text-muted-foreground">{candidateStage.notes}</p>}
+                  {candidateStage.notes?.trim() && <p className="mt-3 line-clamp-2 w-full border-t pt-3 text-xs leading-relaxed text-muted-foreground">{practiceRecordLabel(candidateStage.notes, candidateDetail.id.startsWith('demo-'))}</p>}
                   <span className="sr-only">Open stage editor</span>
                 </button>
               </DialogTrigger>

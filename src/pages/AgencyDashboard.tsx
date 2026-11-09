@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import CountryFlag from '@/components/CountryFlag';
 import { RoleCandidateOverview } from '@/components/RoleCandidateOverview';
+import { DASHBOARD_PALETTE } from '@/lib/dashboard-palette';
 import AgencyPartnerContracts from '@/components/AgencyPartnerContracts';
 import PresenceRoster from '@/components/PresenceRoster';
 import { usePresence } from '@/hooks/use-presence';
@@ -48,7 +49,7 @@ import { getForeignStaffWork } from '@/lib/api/foreign-staff-work';
 
 const statusColors: Record<CandidateSummary['overall_status'], string> = {
   'Completed': 'bg-green-500 hover:bg-green-600 text-white',
-  'In Progress': 'bg-blue-500 hover:bg-blue-600 text-white',
+  'In Progress': 'bg-primary hover:bg-primary/90 text-primary-foreground',
   'Blocked': 'bg-red-500 hover:bg-red-600 text-white',
   'Pending': 'bg-yellow-500 hover:bg-yellow-600 text-white',
 };
@@ -103,7 +104,7 @@ const AgencyInsights: React.FC<{
   });
   const counts = summarizeCandidateListStatuses(candidates);
   const statuses = [
-    { label: 'In progress', filter: 'inProgress' as const, value: counts.inProgress, color: 'bg-blue-500' },
+    { label: 'In progress', filter: 'inProgress' as const, value: counts.inProgress, color: 'bg-primary' },
     { label: 'Failed', filter: 'failed' as const, value: counts.failed, color: 'bg-rose-500' },
     { label: 'Completed', filter: 'completed' as const, value: counts.completed, color: 'bg-emerald-500' },
     { label: 'Pending ministry QR', filter: 'pendingQr' as const, value: counts.pendingQr, color: 'bg-amber-500' },
@@ -124,10 +125,10 @@ const AgencyInsights: React.FC<{
                 <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} fontSize={11} />
                 <YAxis type="category" dataKey="stage" width={112} axisLine={false} tickLine={false} fontSize={11} />
                 <Tooltip />
-                <Bar dataKey="completed" name="Completed" stackId="progress" fill="#10b981" />
-                <Bar dataKey="inProgress" name="In progress" stackId="progress" fill="#2563eb" />
-                <Bar dataKey="blocked" name="Blocked" stackId="progress" fill="#f43f5e" />
-                <Bar dataKey="waiting" name="Waiting" stackId="progress" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="completed" name="Completed" stackId="progress" fill={DASHBOARD_PALETTE.sage} />
+                <Bar dataKey="inProgress" name="In progress" stackId="progress" fill={DASHBOARD_PALETTE.teal} />
+                <Bar dataKey="blocked" name="Blocked" stackId="progress" fill={DASHBOARD_PALETTE.rose} />
+                <Bar dataKey="waiting" name="Waiting" stackId="progress" fill={DASHBOARD_PALETTE.amber} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -320,6 +321,10 @@ const AgencyDashboard: React.FC = () => {
   };
 
   const handleInitiatePayment = async () => {
+    if (!['agency', 'foreign-agency'].includes(userRole ?? '')) {
+      toast.error('Your agency manager must make the transfer. You can follow up on its receipt in Money sent.');
+      return;
+    }
     if (!isDemo) {
       toast.error('Foreign-agency settlement is not connected to a live provider yet. No payment was started.');
       return;
@@ -354,6 +359,7 @@ const AgencyDashboard: React.FC = () => {
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
+      if (!['agency', 'foreign-agency'].includes(userRole ?? '')) throw new Error('Only the agency manager can make a transfer.');
       if (!isDemo) throw new Error('Foreign-agency settlement is not connected to a live provider yet.');
       if (!user?.id || !user?.email || !userForeignAgencyName) {
         throw new Error("User or foreign agency information missing.");
@@ -433,7 +439,7 @@ const AgencyDashboard: React.FC = () => {
         description="Review candidate progress, agency payments, introductions and what is needed before departure."
         icon={Building}
       />
-      {userForeignAgencyId && <Link to="/agency/tasks" className="block rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 to-background p-5 transition-colors hover:border-primary/50">
+      {userForeignAgencyId && <Link data-tour="agency-workload" to="/agency/tasks" className="block rounded-xl border border-primary/20 bg-card p-5 transition-colors hover:border-primary/50">
         <div className="flex items-center justify-between gap-4"><div><p className="font-semibold">{userRole === 'foreign-agency-staff' ? 'My work' : 'Staff workload'}</p><p className="text-sm text-muted-foreground">{workload ? `${workload.tasks.length} current tasks · ${workload.tasks.filter(task => task.action === 'Awaiting payment').length} awaiting payment` : 'Open your agency workboard'}</p></div><span className="text-sm font-medium text-primary">Open workboard →</span></div>
       </Link>}
       <div data-tour="agency-pipeline" className="space-y-6">
@@ -449,15 +455,10 @@ const AgencyDashboard: React.FC = () => {
             candidates={overviewCandidates}
             localAgencies={config?.localAgencies ?? localAgencies}
             foreignAgencies={config?.foreignAgencies ?? []}
-            partnerships={normalizePartnerships(config?.agencyPartnerships, overviewCandidates)}
+            partnerships={normalizePartnerships(config?.agencyPartnerships)}
             foreignAgencyId={userForeignAgencyId}
           />
           <AgencyPartnerContracts />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              {/* main staged candidates card (kept below) */}
-            </div>
-            <div>
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Payments</CardTitle>
@@ -487,8 +488,6 @@ const AgencyDashboard: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
           
           {userForeignAgencyId && <CandidateStaffingBoard key={userForeignAgencyId} agencyId={userForeignAgencyId} candidates={candidates} scopeCandidates={overviewCandidates} filters={staffingFilters} onFiltersChange={setStaffingFilters} onOpen={async candidate => {
             try {
@@ -498,23 +497,21 @@ const AgencyDashboard: React.FC = () => {
             } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not open candidate profile.'); }
           }} />}
           <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Candidate progress ({candidates.length})
-                <div className="flex items-center space-x-2">
+            <CardHeader className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <CardTitle>Candidate progress ({candidates.length})</CardTitle>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Button size="sm" variant="ghost" onClick={() => { setIsSliderOpen(true); setSliderIndex(0); }}>
                       <User className="h-4 w-4 mr-2" /> Open Slider
                     </Button>
                   <Button 
                     onClick={handleInitiatePayment} 
-                    disabled={!isDemo || selectedCandidatesForPayment.length === 0 || paymentMutation.isPending}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={userRole === 'foreign-agency-staff' || !isDemo || selectedCandidatesForPayment.length === 0 || paymentMutation.isPending}
+                    className="h-auto min-h-10 max-w-full whitespace-normal"
                   >
                     {paymentMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
-                    {isDemo ? `Dispense & Pay · demo (${selectedCandidatesForPayment.length})` : 'Live settlement unavailable'}
+                    {userRole === 'foreign-agency-staff' ? 'Manager handles transfers' : isDemo ? `Make contract payment · demo (${selectedCandidatesForPayment.length})` : 'Live settlement unavailable'}
                   </Button>
                 </div>
-              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -598,10 +595,10 @@ const AgencyDashboard: React.FC = () => {
                         const localAgency = localAgencies.find(la => la.id === candidate.local_agency_id);
                         
                         // Only allow selection of candidates that are 'In Progress' and 'unpaid'
-                        const isSelectable = contractWasSent(candidate) && !foreignContractPayment(candidate, getPayments()).paid;
+                        const isSelectable = userRole !== 'foreign-agency-staff' && contractWasSent(candidate) && !foreignContractPayment(candidate, getPayments()).paid;
 
                         return (
-                          <TableRow key={candidate.id} className={cn(isSelected && "bg-blue-50/50 dark:bg-blue-950/50")}>
+                          <TableRow key={candidate.id} className={cn(isSelected && "bg-primary/5")}>
                             <TableCell>
                               <Checkbox 
                                 checked={isSelected}
@@ -715,7 +712,7 @@ const AgencyDashboard: React.FC = () => {
               {paymentBlocker && <p className="mt-1 text-xs text-destructive">{paymentBlocker}</p>}
             </div>
             {paymentMutation.isPending && (
-              <div className="flex items-center space-x-2 text-blue-600">
+              <div className="flex items-center space-x-2 text-primary">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>{paymentProcessingMessage}</span>
               </div>

@@ -19,11 +19,16 @@ import { Navigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import StaffUserEditorDialog from '@/components/StaffUserEditorDialog';
 import NewStaffUserForm from '@/components/NewStaffUserForm'; // NEW IMPORT
+import PageHeader from '@/components/page/PageHeader';
+import StatCards from '@/components/page/StatCards';
+import FilterBar from '@/components/page/FilterBar';
 
 const AdminUserManagement: React.FC = () => {
   const { userRole, user, isLoading: isAuthLoading, logout } = useAuth();
   const presence = usePresence();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
   
   // State for the editor dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -37,7 +42,7 @@ const AdminUserManagement: React.FC = () => {
   const { data: users = [], isLoading, refetch } = useQuery<StaffUser[]>({
     queryKey: ['staffUsers'],
     queryFn: api.getAllStaffUsers,
-    enabled: !isAuthLoading && userRole === 'admin',
+    enabled: !isAuthLoading && userRole === 'superadmin',
   });
   
   // Mutation for quick approval/disapproval toggle
@@ -107,7 +112,14 @@ const AdminUserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-2">
+      <PageHeader title="People & access command" description="Explore staff accounts, review access requests and manage approved roles." />
+      <StatCards items={[
+        { label: 'Staff accounts', value: users.length, icon: <UserCog />, onClick: () => setApprovalFilter('all'), active: approvalFilter === 'all' },
+        { label: 'Approved access', value: users.filter(item => item.is_approved).length, icon: <UserCheck />, onClick: () => setApprovalFilter('approved'), active: approvalFilter === 'approved' },
+        { label: 'Awaiting approval', value: users.filter(item => !item.is_approved).length, icon: <UserPlus />, onClick: () => setApprovalFilter('pending'), active: approvalFilter === 'pending' },
+      ]} />
+      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search staff email or role" />
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
             <UserCog className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Staff User Management</h1>
@@ -149,12 +161,12 @@ const AdminUserManagement: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((staffUser) => {
+                {users.filter(item => `${item.email} ${item.role}`.toLowerCase().includes(search.toLowerCase()) && (approvalFilter === 'all' || (approvalFilter === 'approved' ? item.is_approved : !item.is_approved))).map((staffUser) => {
                   const isSelf = staffUser.id === currentUserId;
                   const online = presenceFor(presence, 'staff', staffUser.id, staffUser.last_online_at);
                   
                   return (
-                    <TableRow key={staffUser.id} className={isSelf ? "bg-blue-50/50 dark:bg-blue-950/50" : ""}>
+                    <TableRow key={staffUser.id} className={isSelf ? "bg-primary/5" : ""}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3"><UserAvatar user={staffUser} /><span>{staffUser.email} {isSelf && <Badge variant="secondary" className="ml-2">You</Badge>}</span></div>
                       </TableCell>

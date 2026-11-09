@@ -15,11 +15,9 @@ describe('agency partner contracts', () => {
 
   });
 
-  it('uses existing candidate assignments to preserve legacy partner links', () => {
-    const candidates = [{ id: 'c1', local_agency_id: 'l0', foreign_agency_id: 'f0', created_at: '2026-01-01' }] as Candidate[];
-    const migrated = normalizePartnerships(undefined, candidates);
-    expect(migrated).toHaveLength(1);
-    expect(migrated[0]).toMatchObject({ local_agency_id: 'l0', foreign_agency_id: 'f0', status: 'active' });
+  it('does not fabricate ministry contracts from candidate assignments', () => {
+    expect(normalizePartnerships(undefined)).toEqual([]);
+    expect(normalizePartnerships([link(0, 0)])).toEqual([link(0, 0)]);
   });
 
   it('enforces a maximum of five contracts for each side and prevents duplicate pairs', () => {

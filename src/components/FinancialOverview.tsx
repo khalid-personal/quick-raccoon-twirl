@@ -9,10 +9,11 @@ import { usePortalData } from '@/hooks/use-portal-data';
 import type { PaymentAnalytics } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import WidgetShell from './WidgetShell';
+import { DASHBOARD_PALETTE } from '@/lib/dashboard-palette';
 
 const compact = (n: number) => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const full = (n: number) => Math.round(n).toLocaleString('en-US');
-const STAGE_COLORS = ['#6366f1', '#38bdf8', '#10b981', '#f59e0b', '#f43f5e'];
+const STAGE_COLORS = [DASHBOARD_PALETTE.teal, DASHBOARD_PALETTE.sage, DASHBOARD_PALETTE.forest, DASHBOARD_PALETTE.amber, DASHBOARD_PALETTE.rose];
 const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12, boxShadow: '0 12px 32px rgba(15,23,42,.14)' };
 
 const Ring: React.FC<{ percent: number }> = ({ percent }) => {
@@ -86,12 +87,12 @@ const FinancialOverview: React.FC<{ localAgencyId?: string }> = ({ localAgencyId
   return (
     <WidgetShell title="Payment overview" description="Candidate fees in ETB, estimated foreign transfers in USD, and payment issues" icon={Wallet} accent="indigo" className="h-full" bodyClassName="space-y-5">
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-5 text-white">
+        <div className="portal-fee-hero relative overflow-hidden rounded-2xl p-5 text-white">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-white/70">Candidate fees collected</p>
-              <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">ETB {full(collected)}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl">ETB {full(collected)}</p>
               <p className="mt-2 flex items-center gap-2 text-sm text-white/80">
                 {model.delta !== undefined && (
                   <span className="inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium">
@@ -114,24 +115,24 @@ const FinancialOverview: React.FC<{ localAgencyId?: string }> = ({ localAgencyId
       <div className="rounded-2xl border p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">Payments received each month</p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-500" />Candidate fees (ETB)</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Foreign receipts (USD)</span>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: DASHBOARD_PALETTE.teal }} />Candidate fees (ETB)</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: DASHBOARD_PALETTE.sage }} />Foreign receipts (USD)</span>
           </div>
         </div>
         <div className="h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={model.months} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="fin-fees" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity={0.45} /><stop offset="100%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
+                <linearGradient id="fin-fees" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={DASHBOARD_PALETTE.teal} stopOpacity={0.45} /><stop offset="100%" stopColor={DASHBOARD_PALETTE.teal} stopOpacity={0} /></linearGradient>
               </defs>
               <CartesianGrid vertical={false} strokeDasharray="3 6" className="stroke-border" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
               <YAxis yAxisId="etb" tickLine={false} axisLine={false} fontSize={11} width={44} tickFormatter={compact} />
               <YAxis yAxisId="usd" orientation="right" tickLine={false} axisLine={false} fontSize={11} width={44} tickFormatter={value => `$${compact(value)}`} />
               <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string) => name === 'Foreign receipts' ? [`$${full(value)}`, name] : [`ETB ${full(value)}`, name]} />
-              <Area yAxisId="etb" type="monotone" dataKey="fees" name="Candidate fees" stroke="#6366f1" strokeWidth={2.5} fill="url(#fin-fees)" />
-              <Line yAxisId="usd" type="monotone" dataKey="foreign" name="Foreign receipts" stroke="#10b981" strokeWidth={2.5} dot={false} />
+              <Area yAxisId="etb" type="monotone" dataKey="fees" name="Candidate fees" stroke={DASHBOARD_PALETTE.teal} strokeWidth={2.5} fill="url(#fin-fees)" />
+              <Line yAxisId="usd" type="monotone" dataKey="foreign" name="Foreign receipts" stroke={DASHBOARD_PALETTE.sage} strokeWidth={2.5} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -167,7 +168,7 @@ const FinancialOverview: React.FC<{ localAgencyId?: string }> = ({ localAgencyId
             {model.methods.map(item => (
               <div key={item.name} className="space-y-1">
                 <div className="flex justify-between text-sm"><span>{item.name}</span><span className="tabular-nums text-muted-foreground">ETB {compact(item.value)} · {Math.round((item.value / methodTotal) * 100)}%</span></div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${(item.value / methodTotal) * 100}%` }} /></div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(item.value / methodTotal) * 100}%` }} /></div>
               </div>
             ))}
           </div>

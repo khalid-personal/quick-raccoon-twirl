@@ -70,7 +70,7 @@ describe('visual evidence and candidate shortcuts', () => {
     expect(container.querySelector('thead')?.textContent).not.toContain('Origin');
     expect(container.querySelector('[aria-label^="Candidate record checks:"]')).not.toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View passport"]')!.click());
-    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('DEMO / synthetic record');
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Fictional / synthetic record');
     expect(document.querySelector('img[src="generated"]')).toBeNull();
   });
   it('keeps candidate integrity flags stable when another duplicate is filtered out', async () => {
@@ -87,14 +87,12 @@ describe('visual evidence and candidate shortcuts', () => {
     const detail: CandidateDetail = { ...candidate, stages: demo.stages.filter(stage => stage.candidate_id === candidate.id), documents: [], medical_results: [], chat_messages: [] };
     await act(async () => root.render(<MemoryRouter initialEntries={[`/admin/candidate/${candidate.id}?tab=timeline&stage=3`]}><TimelineEditor candidateDetail={detail} refetch={vi.fn()} /></MemoryRouter>));
     expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(`Training · ${candidate.tracking_code}`);
-    const save = vi.spyOn(api, 'updateStageStatus').mockResolvedValue(detail.stages.find(stage => stage.stage_id === 3)!);
-    await act(async () => {
-      const notes = document.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea[id$="-notes"]')!;
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(notes, 'Follow-up reviewed');
-      notes.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent?.trim() === 'Save Changes')!.click());
-    expect(save).toHaveBeenCalled();
+    const save = vi.spyOn(api, 'updateStageStatus');
+    expect(document.querySelector('[role="dialog"] textarea[id$="-notes"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"] [role="combobox"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Ministry-owned stage record');
+    await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent?.trim() === 'Close record')!.click());
+    expect(save).not.toHaveBeenCalled();
     save.mockRestore();
     await act(async () => root.render(<MemoryRouter initialEntries={[`/admin/candidate/${candidate.id}?tab=timeline&stage=3`]}><TimelineEditor candidateDetail={{ ...detail, stages: [...detail.stages] }} refetch={vi.fn()} /></MemoryRouter>));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
@@ -102,7 +100,7 @@ describe('visual evidence and candidate shortcuts', () => {
   it('labels simulated activity clearly instead of claiming a real login', async () => {
     sessionStorage.setItem('dawm_demo_session', '1');
     await act(async () => root.render(<AvatarActivity id="demo-cand-0001" kind="candidate" />));
-    expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toMatch(/^Demo simulated: (Online|Offline)$/);
+    expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toMatch(/^Practice simulated: (Online|Offline)$/);
     sessionStorage.removeItem('dawm_demo_session');
     await act(async () => root.render(<AvatarActivity id="real-candidate" kind="candidate" />));
     expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Activity unknown');

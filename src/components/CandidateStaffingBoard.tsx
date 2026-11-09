@@ -91,7 +91,7 @@ export default function CandidateStaffingBoard({ agencyId, candidates, scopeCand
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{candidates.length} matching candidates. Search and status filters in the candidate table below also apply here. Payment selection is separate from this shortlist.</p>
-      <div className="grid max-h-[36rem] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-4">
+      <div className="portal-record-grid max-h-[36rem] overflow-y-auto">
         {candidates.map(candidate => {
           const checked = selectedIds.includes(candidate.id);
           return <article key={candidate.id} className={`rounded-xl border p-4 ${checked ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'bg-background'}`}>

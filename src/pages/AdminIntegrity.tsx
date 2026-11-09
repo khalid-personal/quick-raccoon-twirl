@@ -187,7 +187,7 @@ const AdminIntegrity: React.FC = () => {
         description={isAuditor ? 'Review warnings, approved exceptions and activity history. You can view these records but cannot change them.' : 'Find missing or conflicting candidate and payment details. Check identity records against the Ethiopian Labour Market Information System (ELMIS).'}
         title={isAuditor ? 'Record review' : 'Record checks'}
         icon={ShieldAlert}
-        actions={isAuditor ? <Badge variant="outline" className="gap-1 !border-white/30 !text-white"><Eye className="h-3.5 w-3.5" />Read-only</Badge> : <Button variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10" onClick={() => downloadFile('integrity-findings.csv', ['severity,rule,title,detail', ...findings.map(f => [f.severity, f.rule, f.title, f.detail].map(v => `"${v.replace(/"/g, '""')}"`).join(','))].join('\n'))}><Download className="mr-2 h-4 w-4" />Export findings</Button>}
+        actions={isAuditor ? <Badge variant="outline" className="gap-1"><Eye className="h-3.5 w-3.5" />Read-only</Badge> : <Button variant="outline" onClick={() => downloadFile('integrity-findings.csv', ['severity,rule,title,detail', ...findings.map(f => [f.severity, f.rule, f.title, f.detail].map(v => `"${v.replace(/"/g, '""')}"`).join(','))].join('\n'))}><Download className="mr-2 h-4 w-4" />Export findings</Button>}
       />
       {localAgencyId && <p className="rounded-xl border bg-muted/30 p-3 text-sm">Reviewing {getLocalAgencies().find(agency => agency.id === localAgencyId)?.name ?? 'selected agency'} · {candidates.length} candidates. <Link className="text-primary underline" to="/admin/integrity">View all agencies</Link></p>}
 

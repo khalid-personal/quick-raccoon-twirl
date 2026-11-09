@@ -5,21 +5,28 @@ import React from 'react';
 import { CardTitle } from '@/components/ui/card';
 
 const HELP: Array<{ match: RegExp; text: string }> = [
+  { match: /^money sent$/i, text: 'Open an outbound receipt to see which local agency received your transfer, the candidate, transaction ID, amount and currency. This page shows only your foreign agency’s transfers. Candidate fees and bank-audit tools are not part of this view.' },
+  { match: /^payments received$/i, text: 'Review candidate fees and foreign-agency transfers received by your local agency. Open a receipt to check the candidate and amount. Bank comparisons apply to foreign-agency transfers, not candidate ChechePay fees.' },
+  { match: /^staff accounts$/i, text: 'Agency managers review and manage their own staff accounts here. My tasks & team is where you assign candidate work. Staff accounts controls access; assigning a task does not approve an account.' },
+  { match: /^document checks$/i, text: 'Find sent contracts without a covering payment and contracts ending soon. Open the candidate profile to check the contract dates or Documents tab to read an individual file. This summary does not approve a document or authorize departure.' },
+  { match: /sign-up codes/i, text: 'Superadmins issue time-limited codes for staff registration here. A code is not an account password. Review the account request in User management before granting access.' },
+  { match: /^overview$/i, text: 'Read candidate totals, record warnings and recent activity. Select a total or warning to open the related records. Use My tasks for actions assigned to your role, and Workforce for candidate journeys.' },
+  { match: /^workforce$/i, text: 'See people at each stage, working abroad or returned home. Select a chart group to inspect its candidates. Staff assignments are in My tasks & team, not in this summary.' },
   { match: /receipt|payment evidence|discrepanc|bank statement|reconciliation|payment issues/i, text: 'Compare the receipt with the bank deposit. Check the transfer reference, amount, date and currency. If something differs, ask for the missing proof or send the issue for review. Saving a note does not send a message or change the payment status.' },
-  { match: /payment|finance|collection/i, text: 'Candidate fees and foreign-agency transfers are shown separately. Each receipt keeps its original currency. A payment marked received still needs bank evidence where required. Open the receipt to check its details.' },
+  { match: /payment|finance|collection/i, text: 'Candidate fees and foreign-agency transfers are shown separately. Open a receipt to check the candidate, amount, currency and payment status. Candidate fees use ChechePay status; foreign transfers have separate bank comparisons.' },
   { match: /passport|registration|add new candidate/i, text: 'Candidate intake is ministry-managed through ELMIS; the official connection is pending. Passport scanning still reads image/PDF details and attaches them to one matching existing profile. It never creates another candidate or overwrites the original identity. Differences remain review warnings.' },
-  { match: /medical/i, text: 'Review the saved exam results and update each exam when you have the medical record. Training must be completed first. Passing medical exams alone does not give permission to deploy.' },
+  { match: /medical/i, text: 'Review ministry-supplied exam results, dates and facility locations. Results and stage progress are read-only; use supporting documents and follow-up tasks for discrepancies.' },
   { match: /integrity|compliance|anti-corruption|record checks/i, text: 'Review records with missing payments, repeated identity details or unfinished checks. A warning means the record needs a closer look; it does not prove fraud. Only an authorized reviewer can accept an exception, and must record why.' },
-  { match: /clearance|visa|enjaz|tasheer|ministry|qr/i, text: 'Check the visa and required travel documents before marking the agency’s checks complete. The Ministry must issue the official certificate before it can be printed. Demo checks cannot issue an official certificate.' },
+  { match: /clearance|visa|enjaz|tasheer|ministry|qr/i, text: 'Follow visa, Enjaz, Tasheer and QR reference numbers received from the ministry. Statuses are read-only. Issued documents stay with the ministry.' },
   { match: /portfolio|lifecycle|working abroad|workforce|mix/i, text: 'See candidates who are preparing to leave, working abroad or back home. Selecting an agency shows only its candidates. Employment history and the four application stages are shown separately.' },
   { match: /dashboard|command|control room|overview|pipeline/i, text: 'Overview shows today’s work. Workforce shows people and journeys. Payments shows money and receipts. Document checks shows contracts and deadlines. Candidates opens individual records. Your account determines which agencies and records you can see.' },
   { match: /contract|expiring|document checks/i, text: 'Review contracts, agency agreements and expiry dates. Check the original document before confirming it. A reminder link opens a messaging service; you must send the reminder there.' },
   { match: /task|workload|workboard/i, text: 'My tasks shows work for your role. Open the record, check evidence and save your permitted action or follow-up there. Managers assign or balance current stages within their scope; staff follow due dates. Candidate reminders only suggest document submissions. Assigning work never marks a payment received or skips a stage.' },
   { match: /staff|user management|profile approvals/i, text: 'Review staff accounts and approve access where your role allows it. Local agencies manage their own staff. Superadmins manage access across the portal. Changing a role changes what that person can view or edit.' },
-  { match: /candidate introductions|profile|candidate/i, text: 'Open a candidate to review their details, documents, contacts, payments and next steps. You can only see records your account has access to. Check the supporting records before marking a stage complete.' },
+  { match: /candidate introductions|profile|candidate/i, text: 'Open a candidate to review ministry profile details, stage progress, documents, payments and next steps. Stage progression comes from the ministry; permitted evidence and follow-up work stay in DAWM.' },
   { match: /chat|message|inbox/i, text: 'Read and reply to candidate or agency messages. Unread counts show messages not yet marked read. Sending an issue for review does not automatically send a chat message.' },
   { match: /attendance|presence|online|roster/i, text: 'See recent sign-ins and account activity. An online dot shows recent activity, not proof of hours worked. Demo activity is recorded in this browser.' },
-  { match: /map|centre|center|training|destination|journey/i, text: 'See where candidates come from, where they train and where they plan to work. A route on the map is not a confirmed flight booking.' },
+  { match: /map|centre|center|training|destination|journey/i, text: 'Explore current candidate stages, ministry-supplied locations and dated journey records. Candidates waiting for a location remain accounted for in the roster.' },
   { match: /notification/i, text: 'Read saved notices and mark them read. A saved notice does not prove that an email or text message was delivered.' },
   { match: /auth code|authorization/i, text: 'Create staff sign-up codes and check when they expire. Only authorized administrators can issue or cancel these codes. Never share your account password.' },
   { match: /settings|configuration/i, text: 'Manage the settings your role allows, including agency details and fees. Candidate payment amounts must agree with the payment service’s configured fees.' },
@@ -55,7 +62,7 @@ export default function FeatureInfo({ title, description, className }: { title: 
     </PopoverTrigger>
     <PopoverContent align="start" className="max-w-[calc(100vw-2rem)] text-sm">
       <p className="mb-2 font-semibold">{title}</p>
-      {description && <p className="mb-2 text-muted-foreground">{description}</p>}
+      {description && <details className="mb-3 text-muted-foreground"><summary className="cursor-pointer">Context &amp; requirements</summary><p className="pt-2">{description}</p></details>}
       <p className="leading-relaxed">{featureHelp(title)}</p>
     </PopoverContent>
   </Popover>;

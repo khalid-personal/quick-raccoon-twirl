@@ -13,6 +13,8 @@ import DocumentScanInput, { type ScanSelection } from '@/components/DocumentScan
 import { getDocumentFile, blobDataUrl } from '@/lib/document-files';
 import { safeDocumentUrl } from '@/lib/deployment-package';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { practiceRecordLabel } from '@/lib/practice-record-label';
+import ContractUpload from './ContractUpload';
 
 interface DocumentManagerProps {
   candidateDetail: CandidateDetail;
@@ -88,8 +90,9 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
-        <CandidateCheckpoint eyebrow="Add a document" title="Upload New Document" description="Choose the original file, check any warnings and select the application stage it belongs to." icon={Upload} />
+      <ContractUpload candidate={candidateDetail} documents={candidateDetail.documents} onChanged={refetch} />
+      <Card className="overflow-hidden rounded-3xl border-primary/20">
+        <CandidateCheckpoint eyebrow="Other evidence" title="Upload New Document" description="Use Contract intelligence above for employment contracts. For other evidence, choose the original file, check any warnings and select its application stage." icon={Upload} />
         <CardContent className="space-y-4 p-5 sm:p-7">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="space-y-2">
@@ -130,7 +133,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-3xl border-cyan-500/25">
+      <Card className="overflow-hidden rounded-3xl border-primary/20">
         <CandidateCheckpoint eyebrow="Saved documents" title={`Existing Documents (${candidateDetail.documents.length})`} description="Open or download original files for each stage. If the original is missing, upload it again." icon={FileText} metric={candidateDetail.documents.length} metricLabel="Saved documents" />
         <CardContent className="space-y-6 p-5 sm:p-7">
           {Object.entries(documentsByStage).length === 0 ? (
@@ -145,7 +148,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
                       <div className="flex items-center space-x-3">
                         <FileText className="h-4 w-4 text-primary" />
                         <div>
-                          <p className="text-sm font-medium">{doc.file_name}</p>
+                          <p className="text-sm font-medium">{practiceRecordLabel(doc.file_name, candidateDetail.id.startsWith('demo-'))}</p>
                           <p className="text-xs text-muted-foreground">Uploaded: {format(new Date(doc.uploaded_at), 'PPP')}</p>
                         </div>
                       </div>
@@ -157,7 +160,8 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ candidateDetail, refe
                           size="icon" 
                           className="h-6 w-6 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20" 
                           onClick={() => handleDelete(doc.id, doc.file_name)}
-                          disabled={deletingDocId === doc.id}
+                          disabled={deletingDocId === doc.id || candidateDetail.work_contract_record?.document_id === doc.id}
+                          title={candidateDetail.work_contract_record?.document_id === doc.id ? 'Upload a replacement contract before deleting the current source' : 'Delete document'}
                         >
                           {deletingDocId === doc.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />

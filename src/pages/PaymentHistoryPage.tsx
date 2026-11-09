@@ -23,7 +23,7 @@ import { loadBankStatement } from '@/lib/bank-statement-store';
 import { reconcile } from '@/lib/bank-reconciliation';
 import PaymentLedgerSummary from '@/components/PaymentLedgerSummary';
 import { filterPaymentLedger, PAYMENT_STATUS_LABELS, type PaymentStatusFilter } from '@/lib/payment-ledger';
-import { getCandidates, getForeignAgencies, getLocalAgencies } from '@/lib/data-store';
+import { getCandidates, getForeignAgencies, getLocalAgencies, getStaffUsers } from '@/lib/data-store';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { usePageMemory } from '@/hooks/use-page-memory';
 import AgencyResolutionCenter from '@/components/AgencyResolutionCenter';
@@ -58,6 +58,9 @@ const PaymentHistoryPage: React.FC = () => {
     : [...previous, { payment, activation: 0 }]);
   const canReview = isLocal || userRole === 'superadmin';
   const canInspect = canReview || isLocalStaff || userRole === 'admin';
+  const effectiveStaffId = viewAs?.userId ?? user?.id;
+  const staffEmail = getStaffUsers().find(person => person.id === effectiveStaffId)?.email ?? (!viewAs ? user?.email : undefined);
+  const statementUploader = isLocalStaff && effectiveStaffId && staffEmail ? { id: effectiveStaffId, email: staffEmail } : undefined;
   React.useEffect(() => {
     if (['overview', 'ledger', 'discrepancies', 'resolution'].includes(params.get('tab') ?? '')) setTab(params.get('tab')!);
     if (location.hash === '#resolution') setTab('resolution');
@@ -189,7 +192,7 @@ const PaymentHistoryPage: React.FC = () => {
       {userRole === 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency || undefined} />}
       {reviewAgency ? <>
         {userRole !== 'superadmin' && <AgencyPaymentReconciliation localAgencyId={reviewAgency} />}
-        <BankReconciliation key={reviewAgency} agencyId={reviewAgency} paymentSource="foreign" allowActions={canReview} payments={foreignPayments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
+        <BankReconciliation key={reviewAgency} agencyId={reviewAgency} paymentSource="foreign" allowActions={canReview} statementUploader={statementUploader} payments={foreignPayments.filter(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === reviewAgency)} />
       </> : <section aria-label="Foreign transfer bank differences" className="space-y-5">
         <div><h2 className="text-xl font-semibold">Foreign transfers compared with bank records</h2><p className="text-sm text-muted-foreground">Check short payments, extra amounts and missing bank entries by receiving local agency. Contract checks above are separate from these bank differences.</p></div>
         {agencies.filter(item => foreignPayments.some(payment => payment.status === 'succeeded' && payment.payee_local_agency_id === item.id)).map(item =>

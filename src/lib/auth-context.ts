@@ -30,7 +30,7 @@ export interface AuthContextValue {
   userLocalAgencyId: string | null;
   login: (identifier: string, pin: string) => Promise<{ error: Error | null }>;
   loginAsDevelopmentUser: (email: string) => Promise<{ error: Error | null }>;
-  signup: (email: string, pin: string, authCode: string) => Promise<{ error: Error | null }>;
+  signup: (email: string, pin: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
 }
 

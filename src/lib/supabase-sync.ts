@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { LS_AGENCY_MESSAGES, LS_AGENCY_THREADS, LS_APPROVAL_LOGS, LS_ATTENDANCE, LS_AUTH_CODES, LS_CANDIDATE_DRAFTS, LS_CANDIDATE_STAGES, LS_COC_FACILITIES, LS_CANDIDATES, LS_DOCUMENTS, LS_FOREIGN_AGENCIES, LS_INTEGRITY_OVERRIDES, LS_LOCAL_AGENCIES, LS_MEDICAL_RESULTS, LS_NOTIFICATIONS, LS_PAYMENT_STATUS, LS_PAYMENTS, LS_RECEIPT_TOKENS, LS_STAFF_USERS, LS_CHAT_MESSAGES, LS_CONFIG } from './data-keys';
 import { isDemoMode } from './demo-mode';
+import { activeDirectoryConfig, isRetiredDirectoryEntry } from './retired-directories';
+import type { AppConfig } from './types';
 
 export const isSupabaseDataMode = (): boolean => import.meta.env.VITE_USE_LOCAL_MOCK !== 'true'
   && !!import.meta.env.VITE_SUPABASE_URL
@@ -37,6 +39,16 @@ const DIRECT_TABLES = [
 ] as const;
 
 const PAGE_SIZE = 1000;
+const JOURNEY_TABLES = [
+  { table: 'candidates', key: LS_CANDIDATES },
+  { table: 'candidate_stages', key: LS_CANDIDATE_STAGES },
+  { table: 'medical_results', key: LS_MEDICAL_RESULTS },
+  { table: 'approval_logs', key: LS_APPROVAL_LOGS },
+];
+const journeyWrites = new Map<string, number>();
+const journeyWriteRevision = new Map<string, number>();
+const unconfirmedJourneyWrites = new Set<string>();
+const journeyWritePending = () => JOURNEY_TABLES.some(({ table }) => (journeyWrites.get(table) ?? 0) > 0 || unconfirmedJourneyWrites.has(table));
 
 const fetchAllRows = async <T,>(table: string, columns: string): Promise<T[]> => {
   const rows: T[] = [];
@@ -59,17 +71,59 @@ export const hydrateFromSupabase = async (): Promise<void> => {
   DATA_TABLES.forEach(({ key }, index) => {
     const rows = dataRows[index];
     const records = rows.map(row => ({ ...(row.data as Record<string, unknown>), id: (row.data as { id?: string } | null)?.id ?? row.id }));
-    localStorage.setItem(key, JSON.stringify(records));
+    const active = [LS_COC_FACILITIES, LS_LOCAL_AGENCIES, LS_FOREIGN_AGENCIES].includes(key)
+      ? records.filter(record => !('name' in record && typeof record.name === 'string' && isRetiredDirectoryEntry({ name: record.name })))
+      : records;
+    localStorage.setItem(key, JSON.stringify(active));
   });
   DIRECT_TABLES.forEach(({ key }, index) => {
     localStorage.setItem(key, JSON.stringify(directRows[index]));
   });
-  if (configResult.data?.data) localStorage.setItem(LS_CONFIG, JSON.stringify(configResult.data.data));
+  if (configResult.data?.data) localStorage.setItem(LS_CONFIG, JSON.stringify(activeDirectoryConfig(configResult.data.data as AppConfig)));
   window.dispatchEvent(new CustomEvent('supabase-data-changed'));
 };
 
-export const flushSupabaseSync = async (table: string, records: unknown[], getId?: (record: unknown) => string): Promise<string | null> => {
+export const refreshJourneyFromSupabase = async (shouldApply: () => boolean = () => true): Promise<void> => {
+  if (!isSupabaseDataMode() || isDemoMode()) return;
+  if (journeyWritePending()) throw new Error('Local journey changes are still awaiting backend confirmation. Existing records were preserved.');
+  const keys = JOURNEY_TABLES.map(({ key }) => key);
+  const previous = keys.map(key => localStorage.getItem(key));
+  const rows = await Promise.all(JOURNEY_TABLES.map(({ table }) => fetchAllRows<{ id: string; data: Record<string, unknown> }>(table, 'id,data')));
+  if (isDemoMode() || !shouldApply()) return;
+  if (journeyWritePending()) throw new Error('Local journey changes are still awaiting backend confirmation. Existing records were preserved.');
+  if (rows.some(records => records.some(row => !row.data || typeof row.data !== 'object' || Array.isArray(row.data)))) throw new Error('The backend returned an invalid journey record. Existing records were preserved.');
+  if (keys.some((key, index) => localStorage.getItem(key) !== previous[index])) throw new Error('Journey records changed during refresh. The next status check will retry without replacing your edits.');
+  try {
+    rows.forEach((records, index) => localStorage.setItem(keys[index], JSON.stringify(records.map(row => ({ ...row.data, id: row.data.id ?? row.id })))));
+  } catch (error) {
+    keys.forEach(key => localStorage.removeItem(key));
+    keys.forEach((key, index) => { if (previous[index] !== null) localStorage.setItem(key, previous[index]!); });
+    throw error;
+  }
+  window.dispatchEvent(new CustomEvent('supabase-data-changed'));
+};
+
+const flushSupabaseCollection = async (table: string, records: unknown[], getId?: (record: unknown) => string): Promise<string | null> => {
   if (!isSupabaseDataMode() || isDemoMode()) return null;
+  if (table === 'medical_results') return 'Medical results are ministry-owned and read-only.';
+  if (table === 'candidates' || table === 'candidate_stages') {
+    const existing = new Map((await fetchAllRows<{ id: string; data: unknown }>(table, 'id,data')).map(row => [row.id, row.data]));
+    const updates: { id: string; data: object }[] = [];
+    for (const record of records) {
+      if (!record || typeof record !== 'object' || Array.isArray(record)) return 'Invalid ministry record. Existing source records were preserved.';
+      const id = getId?.(record) ?? ('id' in record ? record.id : undefined);
+      if (typeof id !== 'string' || !existing.has(id)) return 'New candidate and stage records must come from the ministry. Refresh the source records before retrying.';
+      if (JSON.stringify(existing.get(id)) !== JSON.stringify(record)) updates.push({ id, data: record });
+    }
+    // Upserts invoke INSERT guards even for existing rows; source collections also
+    // must never be deleted just because a scoped client cache omits their IDs.
+    for (const item of updates) {
+      const { data, error } = await supabase.from(table).update({ data: item.data }).eq('id', item.id).select('id').maybeSingle();
+      if (error) return error.message;
+      if (!data) return 'The ministry record could not be updated. Refresh the source records and check your access.';
+    }
+    return null;
+  }
   const payload = table === 'attendance_records'
     ? records
     : records.map(record => {
@@ -89,4 +143,21 @@ export const flushSupabaseSync = async (table: string, records: unknown[], getId
     if (error) return error.message;
   }
   return null;
+};
+
+export const flushSupabaseSync = async (table: string, records: unknown[], getId?: (record: unknown) => string): Promise<string | null> => {
+  const journey = table !== 'medical_results' && JOURNEY_TABLES.some(record => record.table === table) && isSupabaseDataMode() && !isDemoMode();
+  const revision = (journeyWriteRevision.get(table) ?? 0) + 1;
+  if (journey) {
+    journeyWriteRevision.set(table, revision);
+    journeyWrites.set(table, (journeyWrites.get(table) ?? 0) + 1);
+    unconfirmedJourneyWrites.add(table);
+  }
+  try {
+    const message = await flushSupabaseCollection(table, records, getId);
+    if (journey && !message && journeyWriteRevision.get(table) === revision) unconfirmedJourneyWrites.delete(table);
+    return message;
+  } finally {
+    if (journey) journeyWrites.set(table, (journeyWrites.get(table) ?? 1) - 1);
+  }
 };

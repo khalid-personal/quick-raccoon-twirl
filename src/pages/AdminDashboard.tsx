@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth-context';
 import { usePresence } from '@/hooks/use-presence';
 import ExecutiveDashboard from '@/components/ExecutiveDashboard';
 import IntegrityCard from '@/components/IntegrityCard';
+import JourneyRadar from '@/components/JourneyRadar';
 import PresenceRoster from '@/components/PresenceRoster';
 import FinancialOverview from '@/components/FinancialOverview';
 import AgencyPaymentReconciliation from '@/components/AgencyPaymentReconciliation';
@@ -27,7 +28,7 @@ import { LayoutDashboard, ListChecks, ShieldCheck, Users2, Wallet } from 'lucide
 import { RoleCandidateOverview } from '@/components/RoleCandidateOverview';
 import CandidateSemanticSearch from '@/components/CandidateSemanticSearch';
 import { isSupabaseDataMode } from '@/lib/supabase-sync';
-import EditableGrid from '@/components/EditableGrid';
+import EditableGrid, { type GridItem } from '@/components/EditableGrid';
 import AgencyPartnerContracts from '@/components/AgencyPartnerContracts';
 import FeatureInfo from '@/components/FeatureInfo';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -44,9 +45,9 @@ const ALL_AGENCIES_FILTER = 'ALL_AGENCIES_FILTER';
 const ALL_STATUS_FILTER = 'ALL_STATUS_FILTER';
 
 const DashSection: React.FC<{ title: string; subtitle: string; icon: LucideIcon }> = ({ title, subtitle, icon: Icon }) => (
-  <div className="flex items-center gap-3 border-b pb-3 pt-4">
+  <div className="portal-dashboard-section flex items-center gap-3 pb-1">
     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
-    <div><div className="flex items-center gap-2"><h2 className="text-lg font-semibold leading-tight">{title}</h2><FeatureInfo title={title} description={subtitle} /></div><p className="text-xs text-muted-foreground">{subtitle}</p></div>
+    <div><div className="flex items-center gap-2"><h2 className="text-xl font-semibold leading-tight">{title}</h2><FeatureInfo title={title} description={subtitle} /></div><p className="text-sm text-muted-foreground">{subtitle}</p></div>
   </div>
 );
 
@@ -176,14 +177,14 @@ const AdminDashboard: React.FC = () => {
     <div className="space-y-5">
       <ControlRoomHeader
         scope={isLocalAgency ? `${userLocalAgencyName ?? 'Local agency'} · operations` : isSuperAdmin ? 'Super admin · workforce operations' : userRole === 'admin' ? 'Administrator · workforce operations' : 'Staff · workforce operations'}
-        description={isLocalAgency ? 'Candidate movement, agency finance, and operational risk for your agency.' : 'Candidate movement, agency finance, and operational risk across the workforce.'}
+        description={isLocalAgency ? 'Review your candidates, collected fees and work that needs attention.' : 'Review candidate progress, collected fees and work that needs attention.'}
         icon={LayoutDashboard}
         actions={(
           <>
-            <Button variant="outline" className="!border-white/40 !bg-transparent !text-white hover:!bg-white/10" onClick={() => setIsScanOpen(true)}>
+            <Button variant="outline" onClick={() => setIsScanOpen(true)}>
               <ScanLine className="mr-2 h-4 w-4" /> Upload via passport
             </Button>
-            <FeatureInfo title="Passport upload" className="text-white/80 hover:bg-white/10" />
+            <FeatureInfo title="Passport upload" />
             <PassportScanDialog
               open={isScanOpen}
               onOpenChange={setIsScanOpen}
@@ -199,16 +200,16 @@ const AdminDashboard: React.FC = () => {
                   toast.success('Passport attached. Review any identity differences in Record checks.');
                   setIsScanOpen(false);
                   void refetch();
-                  navigate(`/admin/candidate/${candidate.id}?tab=documents`);
+                  navigate(`${isLocalAgency ? '/local-agency' : '/admin'}/candidate/${candidate.id}?tab=documents`);
                 } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not attach passport.'); }
               }}
             />
           </>
         )}
       />
-      <section data-tour="registration" className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <h2 className="font-semibold">Ministry-managed candidates</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Candidates will arrive from ELMIS with their Labor ID and assigned local agency. Manual creation is disabled. The official API connection is pending; existing records remain available. Passport upload attaches evidence to one matching existing candidate, never creates another.</p>
+      <section data-tour="registration" className="portal-intake-banner">
+        <ShieldCheck className="h-5 w-5" /><div><h2 className="text-sm font-semibold">Ministry-managed candidates</h2>
+        <p className="mt-1 text-sm text-muted-foreground">ELMIS is the ministry’s candidate register. Once connected, it will supply each candidate’s Labor ID and local agency. Until then, use existing profiles. Upload via passport attaches a scan to a matching profile; it does not create a new candidate.</p></div>
       </section>
 
       {isSuperAdmin && <div data-tour="dashboard-agency-scope" className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
@@ -228,8 +229,9 @@ const AdminDashboard: React.FC = () => {
         <TabsContent value="overview" data-tour="dashboard-overview" className="space-y-6">
       <DashSection title="Today’s overview" subtitle="Candidate progress, issues and assigned work" icon={LayoutDashboard} />
       <EditableGrid pageId="dash-overview" title="Overview" items={[
-      { id: 'integrity', title: 'Record check score', node: !isLocalAgency && <IntegrityCard localAgencyId={visualLocalId} /> },
-      { id: 'resolution', title: 'Payment issues', node: isSuperAdmin && <AgencyResolutionCenter agencyScope={visualLocalId ? { type: 'local', id: visualLocalId } : undefined} /> },
+      { id: 'integrity', title: 'Record check score', span: isSuperAdmin ? 6 : 12, node: !isLocalAgency && <IntegrityCard localAgencyId={visualLocalId} /> },
+      ...(isSuperAdmin ? [{ id: 'journey-radar', title: 'Journey radar', span: 6, node: <JourneyRadar localAgencyId={visualLocalId} /> } satisfies GridItem] : []),
+      { id: 'resolution', title: 'Payment issues', span: 12, node: isSuperAdmin && <AgencyResolutionCenter agencyScope={visualLocalId ? { type: 'local', id: visualLocalId } : undefined} /> },
       { id: 'assigned', title: 'Assigned candidates', node: userRole === 'staff' && <section className="space-y-3">
         <div><h2 className="text-lg font-semibold">Your assigned candidates</h2>
           <p className="text-sm text-muted-foreground">Your assigned work. All candidate stages are available below.</p></div>
@@ -254,7 +256,7 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="portfolio" data-tour="dashboard-workforce" className="space-y-6">
-      <DashSection title="Candidate portfolio" subtitle="Who is where in the journey, and who is already working" icon={Users2} />
+      <DashSection title="Workforce" subtitle="Find candidates in each stage, working abroad or returned home" icon={Users2} />
       <EditableGrid pageId="dash-portfolio" title="Candidate portfolio" items={[
       { id: 'lifecycle', title: 'Candidate journeys', span: 6, node: <PortfolioLifecycle localAgencyId={visualLocalId} /> },
       { id: 'workforce', title: 'Working abroad', span: 6, node: <PortfolioWorkforce localAgencyId={visualLocalId} /> },
@@ -264,7 +266,7 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="finance" data-tour="dashboard-payments" className="space-y-6">
-      <DashSection title="Finance" subtitle="Collections, receipts and agency settlement checks" icon={Wallet} />
+      <DashSection title="Payments" subtitle="Candidate fees and foreign-agency transfers are shown separately" icon={Wallet} />
       <Button asChild variant="outline"><Link data-tour="dashboard-transfer-review" to={isLocalAgency ? '/local-agency/payments?source=foreign' : '/admin/payments?tab=discrepancies&source=foreign'}><Wallet className="mr-2 h-4 w-4" />Review foreign agency transfers</Link></Button>
       <EditableGrid pageId="dash-finance" title="Finance" items={[
       { id: 'finance', title: 'Financial overview', node: <FinancialOverview localAgencyId={visualLocalId} /> },
@@ -272,7 +274,7 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="compliance" data-tour="dashboard-documents" className="space-y-6">
-      <DashSection title="Contracts and compliance" subtitle="Expiring work contracts and record integrity" icon={ShieldCheck} />
+      <DashSection title="Document checks" subtitle="Check contract payments, expiry dates and missing requirements" icon={ShieldCheck} />
       <EditableGrid pageId="dash-compliance" title="Contracts and compliance" items={[
       { id: 'foreign-payment-compliance', title: 'Foreign to local payment compliance', node: <AgencyPaymentReconciliation localAgencyId={visualLocalId} /> },
       { id: 'expiring', title: 'Contracts ending soon', node: <ExpiringContracts localAgencyId={visualLocalId} /> },
